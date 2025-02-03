@@ -34,7 +34,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "${JavaVersion.VERSION_11}"
     }
     buildFeatures {
         compose = true
@@ -45,18 +45,16 @@ dependencies {
     /** Core **/
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.work.manager)
     implementation(libs.androidx.lifecycle.viewmodel)
-    implementation(libs.androidx.material3)
-    implementation(libs.androidx.ui.tooling.preview)
-
+    implementation(libs.work.manager)
     /** Compose **/
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.material3)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.lifecycle.runtime.compose)
-
     /** Coroutines **/
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
@@ -76,6 +74,10 @@ dependencies {
     /** Room **/
     implementation(libs.room)
     ksp(libs.room.compiler)
+    /** MVI **/
+    implementation(libs.orbit.core)
+    implementation(libs.orbit.compose)
+    implementation(libs.orbit.viewmodel)
     /** Test **/
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
