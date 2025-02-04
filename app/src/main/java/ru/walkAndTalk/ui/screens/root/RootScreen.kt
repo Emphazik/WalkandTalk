@@ -5,5 +5,5 @@ import ru.walkAndTalk.ui.screens.auth.AuthScreen
 
 @Composable
 fun RootScreen() {
-
+    AuthScreen()
 }

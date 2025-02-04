@@ -1,3 +1,6 @@
 package ru.walkAndTalk.ui.screens.auth.login
 
-interface LoginSideEffect
+sealed interface LoginSideEffect {
+    data object OnRegisterClick : LoginSideEffect
+
+}
