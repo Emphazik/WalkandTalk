@@ -79,6 +79,12 @@ dependencies {
     implementation(libs.orbit.core)
     implementation(libs.orbit.compose)
     implementation(libs.orbit.viewmodel)
+    /** Supabase **/
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.auth)
+    implementation(libs.supabase.storage)
+    implementation(libs.supabase.realtime)
+    implementation(libs.supabase.postgrest)
     /** Test **/
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
