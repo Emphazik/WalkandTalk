@@ -3,18 +3,20 @@ package ru.walkAndTalk
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import ru.walkAndTalk.ui.screens.root.RootScreen
-import ru.walkAndTalk.ui.theme.WalkTalkTheme
+import androidx.compose.material3.MaterialTheme
+import org.koin.androidx.compose.KoinAndroidContext
+import ru.walkAndTalk.ui.screens.auth.AuthScreen
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+
         setContent {
-            WalkTalkTheme {
-                RootScreen()
+            KoinAndroidContext {
+                MaterialTheme {
+                    AuthScreen()
+                }
             }
         }
     }

@@ -73,6 +73,7 @@ dependencies {
     implementation(libs.koin.workmanager)
     /** Room **/
     implementation(libs.room)
+    implementation(libs.androidx.navigation.compose)
     ksp(libs.room.compiler)
     /** MVI **/
     implementation(libs.orbit.core)
