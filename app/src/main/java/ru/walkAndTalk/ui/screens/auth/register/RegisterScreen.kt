@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -25,7 +26,9 @@ import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
-import ru.walkAndTalk.ui.screens.auth.login.LoginSideEffect
+import ru.walkAndTalk.ui.theme.OnBackground
+import ru.walkAndTalk.ui.theme.Primary
+
 
 @Composable
 fun RegisterScreen(
@@ -40,58 +43,57 @@ fun RegisterScreen(
         }
     }
 
-
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
             text = "Регистрация",
             style = MaterialTheme.typography.headlineLarge,
-            color = Color.White,
+            color = OnBackground,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(1.dp))
         OutlinedTextField(
             value = state.login,
-            onValueChange = {  },
-            label = { Text("Имя пользователя", color = Color.White) },
+            onValueChange = { viewModel.onLoginChanged(it) },
+            label = { Text("Имя пользователя", color = OnBackground) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            textStyle = TextStyle(color = Color.White)
+            textStyle = TextStyle(color = OnBackground)
         )
+
         OutlinedTextField(
             value = state.password,
-            onValueChange = {  },
-            label = { Text("Пароль", color = Color.White) },
+            onValueChange = { viewModel.onPasswordChanged(it) },
+            label = { Text("Пароль", color = OnBackground) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            textStyle = TextStyle(color = Color.White)
+            textStyle = TextStyle(color = OnBackground)
         )
         OutlinedTextField(
             value = state.confirmPassword,
-            onValueChange = {  },
-            label = { Text("Подтвердите пароль", color = Color.White) },
+            onValueChange = { viewModel.onConfirmPasswordChanged(it) },
+            label = { Text("Подтвердите пароль", color = OnBackground) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            textStyle = TextStyle(color = Color.White)
+            textStyle = TextStyle(color = OnBackground)
         )
         Button(
             onClick = { viewModel.onRegisterClick() },
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent
-            ),
             shape = RoundedCornerShape(16.dp)
         ) {
             Text(
                 text = "Зарегистрироваться",
                 fontSize = 16.sp,
-                color = Color.White
+                color = OnBackground
             )
         }
         Button(
@@ -105,9 +107,8 @@ fun RegisterScreen(
             Text(
                 text = "Войти",
                 fontSize = 16.sp,
-                color = Color.White
+                color = Primary
             )
         }
     }
-
 }
