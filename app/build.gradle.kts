@@ -77,6 +77,9 @@ dependencies {
     /** Room **/
     implementation(libs.room)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.core.splashscreen)
+//    implementation(libs.lottie)
+    implementation("com.airbnb.android:lottie-compose:6.0.0")
     ksp(libs.room.compiler)
     /** MVI **/
     implementation(libs.orbit.core)

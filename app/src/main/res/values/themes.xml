@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <style name="Theme.WalkTalk" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
 
-    <style name="Theme.WalkTalk" parent="android:Theme.Material.Light.NoActionBar" />
+    </style>
+
 </resources>
