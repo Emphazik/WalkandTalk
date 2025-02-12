@@ -1,5 +1,8 @@
 package ru.walkAndTalk.ui.screens.splash
 
+import androidx.compose.animation.core.EaseOutExpo
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -8,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -20,44 +24,70 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import com.airbnb.lottie.LottieAnimationView
 import androidx.compose.runtime.*
-import com.airbnb.lottie.compose.*
+import androidx.compose.ui.graphics.graphicsLayer
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieConstants
-
-
+import kotlinx.coroutines.delay
 import ru.walkAndTalk.R
+import ru.walkAndTalk.ui.screens.Screens
 
 val montserrat = FontFamily(
     Font(R.font.montserrat, FontWeight.Normal),
-    Font(R.font.montserratblack, FontWeight.Bold),
-    Font(R.font.montserratmedium, FontWeight.Medium),
-
-
+    Font(R.font.montserrat_black, FontWeight.Bold),
+    Font(R.font.montserrat_medium, FontWeight.Medium),
 )
 
 @Composable
-fun SplashLogoScreen(navController: NavHostController){
+fun SplashLogoScreen(navController: NavHostController) {
+    var isVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        isVisible = true
+        delay(3500)
+        navController.popBackStack()
+        navController.navigate(Screens.AUTH)
+    }
+
+    val alpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = tween(durationMillis = 1000),
+        label = "alphaAnimation"
+    )
+
+    val scale by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0.8f,
+        animationSpec = tween(durationMillis = 1000, easing = EaseOutExpo),
+        label = "scaleAnimation"
+    )
 
     Column(
-        modifier= Modifier
+        modifier = Modifier
             .fillMaxSize()
             .background(if (isSystemInDarkTheme()) Color.DarkGray else Color.White),
-            verticalArrangement =  Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         LoaderAnimation(
             modifier = Modifier.size(400.dp),
-            anim = R.raw.animation2
+            anim = R.raw.animation4
         )
         Spacer(modifier = Modifier.height(25.dp))
-        Text(text = "Walk & Talk",
+        Text(
+            text = "Walk & Talk",
             fontFamily = montserrat,
             fontWeight = FontWeight.Medium,
-            fontSize = 32.sp)
+            fontSize = 32.sp,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier
+                .graphicsLayer {
+                    this.alpha = alpha
+                    this.scaleX = scale
+                    this.scaleY = scale
+                }
+        )
     }
 }
 

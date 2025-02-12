@@ -3,10 +3,14 @@ package ru.walkAndTalk
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.KoinAndroidContext
 import ru.walkAndTalk.ui.screens.Screens
 import ru.walkAndTalk.ui.screens.auth.AuthScreen
@@ -20,15 +24,25 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            KoinAndroidContext {
-                WalkTalkTheme {
-                    val navController = rememberNavController()
-                    NavHost(navController = navController, startDestination = Screens.SPLASH) {
-                        composable(Screens.SPLASH) {
-                            SplashLogoScreen(navController = navController)
-                        }
-                        composable(Screens.AUTH) {
-                            AuthScreen()
+            WalkTalkTheme {
+                val navController = rememberNavController()
+                val scope = rememberCoroutineScope()
+
+                NavHost(navController = navController, startDestination = "splash") {
+                    composable("splash") {
+                        SplashLogoScreen(navController)
+                    }
+                    composable("auth") {
+                        AuthScreen()
+                    }
+                }
+
+                // Запускаем задержку перед переходом на экран авторизации
+                LaunchedEffect(Unit) {
+                    scope.launch {
+                        delay(3000)
+                        navController.navigate("auth") {
+                            popUpTo("splash") { inclusive = true }
                         }
                     }
                 }

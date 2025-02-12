@@ -79,6 +79,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.core.splashscreen)
 //    implementation(libs.lottie)
+    implementation("com.google.accompanist:accompanist-navigation-animation:0.31.2-alpha")
     implementation("com.airbnb.android:lottie-compose:6.0.0")
     ksp(libs.room.compiler)
     /** MVI **/

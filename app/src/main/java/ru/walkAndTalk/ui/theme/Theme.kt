@@ -1,6 +1,8 @@
 package ru.walkAndTalk.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -55,14 +57,27 @@ private val LightColorScheme = lightColorScheme(
     primary = Primary,
     secondary = Secondary,
     onPrimary = OnPrimary,
-    onBackground = OnBackground,
+    onBackground = DarkGray,
     background = Background
 )
 
+private val DarkColorScheme = darkColorScheme(
+    primary = Primary,
+    secondary = Secondary,
+    onPrimary = OnPrimary,
+    onBackground = OnBackground,
+    background = DarkGray
+)
+
+
+
 @Composable
 fun WalkTalkTheme(content: @Composable () -> Unit) {
+    val colorScheme = if (isSystemInDarkTheme()) DarkColorScheme else LightColorScheme
+
     MaterialTheme(
-        colorScheme = LightColorScheme,
+        colorScheme = colorScheme,
+        typography = Typography,
         content = content
     )
 }
