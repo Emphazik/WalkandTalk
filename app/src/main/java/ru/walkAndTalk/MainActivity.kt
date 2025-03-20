@@ -1,21 +1,18 @@
 package ru.walkAndTalk
 
-import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import org.koin.androidx.compose.KoinAndroidContext
-import ru.walkAndTalk.ui.screens.Screens
-import ru.walkAndTalk.ui.screens.auth.AuthScreen
+//import ru.walkAndTalk.ui.screens.auth.AuthScreen
+import ru.walkAndTalk.ui.screens.auth.WelcomeScreen
+import ru.walkAndTalk.ui.screens.auth.login.LoginScreen
+import ru.walkAndTalk.ui.screens.auth.register.RegisterScreen
 import ru.walkAndTalk.ui.screens.onboarding.OnboardingScreen
+//import ru.walkAndTalk.ui.screens.root.RootScreen
 import ru.walkAndTalk.ui.screens.splash.SplashLogoScreen
 import ru.walkAndTalk.ui.theme.WalkTalkTheme
 
@@ -35,9 +32,9 @@ class MainActivity : ComponentActivity() {
                     composable("onboarding") {
                         OnboardingScreen(navController, this@MainActivity)
                     }
-                    composable("auth") {
-                        AuthScreen()
-                    }
+                    composable("welcome") { WelcomeScreen(navController) }  // Теперь тут передаем navController
+                    composable("login") { LoginScreen(navController) }  // Передаем navController в login
+                    composable("register") { RegisterScreen(navController) }
                 }
             }
         }

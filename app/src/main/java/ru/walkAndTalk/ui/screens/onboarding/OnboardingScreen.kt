@@ -63,7 +63,7 @@ fun OnboardingScreen(navController: NavHostController, context: Context) {
                             pagerState.animateScrollToPage(pagerState.currentPage + 1)
                         } else {
                             sharedPreferences.edit().putBoolean("onboarding_complete", true).apply()
-                            navController.navigate("auth") {
+                            navController.navigate("welcome") {
                                 popUpTo("onboarding") { inclusive = true }
                             }
                         }
@@ -95,7 +95,7 @@ fun OnboardingPageContent(page: OnboardingPage) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp), // Добавляем отступы по бокам
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {

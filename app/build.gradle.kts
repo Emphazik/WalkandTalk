@@ -50,6 +50,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.work.manager)
+    implementation("androidx.compose.foundation:foundation:1.3.0")
+    implementation("androidx.compose.ui:ui:1.3.0")
     /** Compose **/
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

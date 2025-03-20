@@ -52,7 +52,7 @@ fun SplashLogoScreen(navController: NavHostController, context: Context) {
         isVisible = true
         delay(3500)
         if (isOnboardingCompleted) {
-            navController.navigate(Screens.AUTH) {
+            navController.navigate(Screens.WELCOME) {
                 popUpTo("splash") { inclusive = true }
             }
         } else {
