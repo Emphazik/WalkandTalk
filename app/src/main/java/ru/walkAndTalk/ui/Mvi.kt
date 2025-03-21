@@ -12,6 +12,7 @@ abstract class Mvi<S : Any, SE : Any>(
 
     open suspend fun Syntax<S, SE>.onCreate() {}
 
+    abstract val state: Any
     override val container: Container<S, SE> = container(
         initialState = initialState,
         onCreate = { onCreate() }

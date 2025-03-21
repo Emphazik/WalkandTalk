@@ -1,7 +1,11 @@
 package ru.walkAndTalk.ui.screens.auth.register
 
+import android.net.Uri
+
 data class RegisterViewState(
-    val login: String = "",
+    val name: String = "",
+    val phone: String = "",
+    val email: String = "",
     val password: String = "",
-    val confirmPassword: String = "",
+    val profileImageUri: Uri? = null
 )

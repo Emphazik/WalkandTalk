@@ -39,10 +39,10 @@ fun OnboardingScreen(navController: NavHostController, context: Context) {
     val sharedPreferences: SharedPreferences = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
 
     val pages = listOf(
-        OnboardingPage(R.drawable.ic_date, "Найди новых друзей", "Смахни вправо и знакомься с интересными людьми"),
+        OnboardingPage(R.drawable.ic_date1, "Найди новых друзей", "Смахни вправо и знакомься с интересными людьми"),
         OnboardingPage(R.drawable.ic_chat, "Общайся без границ", "Переписывайся с теми, кто тебе понравился"),
-        OnboardingPage(R.drawable.ic_photo, "Делись моментами", "Отправляй фото и делай общение живым"),
-        OnboardingPage(R.drawable.ic_notify, "Всегда на связи", "Не пропусти новые знакомства и сообщения")
+        OnboardingPage(R.drawable.ic_photo1, "Делись моментами", "Отправляй фото и делай общение живым"),
+        OnboardingPage(R.drawable.ic_notify1, "Всегда на связи", "Не пропусти новые знакомства и сообщения")
     )
 
     Box(modifier = Modifier.fillMaxSize()) {

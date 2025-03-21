@@ -1,36 +1,36 @@
 package ru.walkAndTalk.ui.screens.auth.register
 
-import ru.walkAndTalk.ui.Mvi
+import android.net.Uri
+import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
-class RegisterViewModel(
-    // registerUseCase
-) : Mvi<RegisterViewState, RegisterSideEffect>(
-    initialState = RegisterViewState()
-) {
+class RegisterViewModel : ViewModel() {
+    private val _state = MutableStateFlow(RegisterViewState())
+    val state: StateFlow<RegisterViewState> = _state
 
-    fun onLoginClick() = intent {
-        postSideEffect(RegisterSideEffect.OnLoginClick)
+    fun onNameChange(newName: String) {
+        _state.value = _state.value.copy(name = newName)
     }
 
-    fun onRegisterClick() = intent {
-        // Handle register logic here
+    fun onPhoneChange(newPhone: String) {
+        _state.value = _state.value.copy(phone = newPhone)
     }
 
-    fun onLoginChanged(newLogin: String) = intent {
-        // Handle the change in login here
-        println("Login changed to: $newLogin")
-        reduce { state.copy(login = newLogin) }
+    fun onEmailChange(newEmail: String) {
+        _state.value = _state.value.copy(email = newEmail)
     }
 
-    fun onPasswordChanged(newPassword: String) = intent {
-        // Handle the change in password here
-        println("Password changed to: $newPassword")
-        reduce { state.copy(password = newPassword) }
+    fun onPasswordChange(newPassword: String) {
+        _state.value = _state.value.copy(password = newPassword)
     }
 
-    fun onConfirmPasswordChanged(newConfirmPassword: String) = intent {
-        // Handle the change in confirm password here
-        println("Confirm password changed to: $newConfirmPassword")
-        reduce { state.copy(confirmPassword = newConfirmPassword) }
+    fun onProfileImageSelected(uri: Uri) {
+        _state.value = _state.value.copy(profileImageUri = uri)
+    }
+
+    fun onRegisterClick() {
+        TODO("Not yet implemented")
     }
 }
+
