@@ -5,5 +5,5 @@ import org.koin.dsl.module
 import ru.walkAndTalk.data.network.SupabaseWrapper
 
 internal val dataModule = module {
-    singleOf(::SupabaseWrapper)
+    single { SupabaseWrapper }
 }

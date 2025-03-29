@@ -11,6 +11,7 @@ import androidx.navigation.compose.rememberNavController
 import ru.walkAndTalk.ui.screens.auth.WelcomeScreen
 import ru.walkAndTalk.ui.screens.auth.login.LoginScreen
 import ru.walkAndTalk.ui.screens.auth.register.RegisterScreen
+import ru.walkAndTalk.ui.screens.main.MainScreen
 import ru.walkAndTalk.ui.screens.onboarding.OnboardingScreen
 //import ru.walkAndTalk.ui.screens.root.RootScreen
 import ru.walkAndTalk.ui.screens.splash.SplashLogoScreen
@@ -35,6 +36,7 @@ class MainActivity : ComponentActivity() {
                     composable("welcome") { WelcomeScreen(navController) }  // Теперь тут передаем navController
                     composable("login") { LoginScreen(navController) }  // Передаем navController в login
                     composable("register") { RegisterScreen(navController) }
+                    composable("main") { MainScreen(navController) }
                 }
             }
         }

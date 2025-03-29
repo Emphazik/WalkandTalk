@@ -1,5 +1,7 @@
 [versions]
 agp = "8.8.0"
+androidSdkApi = "4.1.0"
+desugar_jdk_libs = "2.1.5"
 kotlin = "2.1.0"
 coreKtx = "1.15.0"
 junit = "4.13.2"
@@ -14,6 +16,7 @@ koin = "4.0.0"
 coil = "3.0.4"
 lottie = "6.0.0"
 room = "2.6.1"
+vkid = "2.3.1"
 worker = "2.10.0"
 activityCompose = "1.10.0"
 lifecycle = "2.8.7"
@@ -21,10 +24,12 @@ orbit = "9.0.0"
 navigationCompose = "2.8.6"
 supabase = "3.1.0"
 coreSplashscreen = "1.0.1"
-#lottie = "3.7.0"
 
 [libraries]
+android-sdk-api = { module = "com.vk:android-sdk-api", version.ref = "androidSdkApi" }
+android-sdk-core = { module = "com.vk:android-sdk-core", version.ref = "androidSdkApi" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+desugar_jdk_libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar_jdk_libs" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -61,6 +66,7 @@ coil = { module = "io.coil-kt.coil3:coil", version.ref = "coil" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 # WorkManager
+vkid = { module = "com.vk.id:vkid", version.ref = "vkid" }
 work-manager = { module = "androidx.work:work-runtime-ktx", version.ref = "worker" }
 # Orbit
 orbit-core = { module = "org.orbit-mvi:orbit-core", version.ref = "orbit" }

@@ -16,6 +16,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,10 +27,17 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.vk.id.AccessToken
+import com.vk.id.VKID
+import com.vk.id.VKIDAuthFail
+import com.vk.id.auth.VKIDAuthCallback
+import kotlinx.coroutines.launch
 import ru.walkAndTalk.R
 
 @Composable
 fun LoginScreen(navController: NavHostController) {
+    val scope = rememberCoroutineScope()
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -60,8 +68,10 @@ fun LoginScreen(navController: NavHostController) {
                 value = "",
                 onValueChange = {},
                 label = { Text("E-mail или телефон") },
-                colors = TextFieldDefaults.colors(focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White)
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
+                )
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -71,8 +81,10 @@ fun LoginScreen(navController: NavHostController) {
                 onValueChange = {},
                 label = { Text("Пароль") },
                 visualTransformation = PasswordVisualTransformation(),
-                colors = TextFieldDefaults.colors(focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White)
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
+                )
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -92,7 +104,28 @@ fun LoginScreen(navController: NavHostController) {
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
-                onClick = { /* Логика входа через VK */ },
+                onClick = {
+                    scope.launch {
+                        println("Starting VK ID authorization")
+                        VKID.instance.authorize(object : VKIDAuthCallback {
+                            override fun onAuth(accessToken: AccessToken) {
+                                println("VK ID Auth Success: ${accessToken.token}")
+                                navController.navigate("main") {
+                                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                                println("Navigation to main triggered")
+                            }
+
+                            override fun onFail(fail: VKIDAuthFail) {
+                                when (fail) {
+                                    is VKIDAuthFail.Canceled -> println("VK ID Auth Canceled")
+                                    else -> println("VK ID Auth Failed: ${fail.description}")
+                                }
+                            }
+                        })
+                    }
+                },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4C75A3)),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -107,6 +140,8 @@ fun LoginScreen(navController: NavHostController) {
         }
     }
 }
+
+
 //fun LoginScreen(navController: NavHostController) { // Теперь принимаем navController
 //    Column(
 //        modifier = Modifier.fillMaxSize(),

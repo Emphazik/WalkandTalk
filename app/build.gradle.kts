@@ -16,8 +16,13 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-
+        buildConfigField("String", "SUPABASE_URL", "\"${properties["supabaseUrl"]}\"")
+        buildConfigField("String", "SUPABASE_KEY", "\"${properties["supabaseKey"]}\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders["VKIDClientID"] = "53306543"
+        manifestPlaceholders["VKIDClientSecret"] = properties["vkIdClientSecret"] as String
+        manifestPlaceholders["VKIDRedirectHost"] = "vk.com"
+        manifestPlaceholders["VKIDRedirectScheme"] = "vk53306543"
     }
 
     buildTypes {
@@ -32,17 +37,23 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
     kotlinOptions {
         jvmTarget = "${JavaVersion.VERSION_11}"
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.5"
+        kotlinCompilerExtensionVersion = "2.1.0"
     }
+
+
 }
+
+
 
 dependencies {
     /** Core **/
@@ -50,8 +61,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.work.manager)
-    implementation("androidx.compose.foundation:foundation:1.3.0")
-    implementation("androidx.compose.ui:ui:1.3.0")
     /** Compose **/
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
@@ -80,7 +89,6 @@ dependencies {
     implementation(libs.room)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.core.splashscreen)
-//    implementation(libs.lottie)
     implementation("com.google.accompanist:accompanist-navigation-animation:0.31.2-alpha")
     implementation("com.airbnb.android:lottie-compose:6.0.0")
     ksp(libs.room.compiler)
@@ -102,4 +110,13 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    /** VK TEST **/
+        // Вроде как не нужно, старьё
+    implementation(libs.android.sdk.core)
+    implementation(libs.android.sdk.api)
+    implementation(libs.vkid)
+    /** Desugaring for VK **/
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
+
+
 }
