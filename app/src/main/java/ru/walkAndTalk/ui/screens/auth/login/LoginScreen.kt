@@ -11,11 +11,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.vk.id.AccessToken
 import com.vk.id.VKID
@@ -35,8 +39,18 @@ import kotlinx.coroutines.launch
 import ru.walkAndTalk.R
 
 @Composable
-fun LoginScreen(navController: NavHostController) {
+fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = viewModel()) {
+    val state = viewModel.state.collectAsState()
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(state.value.isSuccess) {
+        if (state.value.isSuccess) {
+            navController.navigate("main") {
+                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -65,9 +79,10 @@ fun LoginScreen(navController: NavHostController) {
             Spacer(modifier = Modifier.height(24.dp))
 
             TextField(
-                value = "",
-                onValueChange = {},
+                value = state.value.email,
+                onValueChange = { viewModel.onEmailChange(it) },
                 label = { Text("E-mail или телефон") },
+                placeholder = { Text("+79991234567 или email@example.com") },
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Color.White
@@ -77,8 +92,8 @@ fun LoginScreen(navController: NavHostController) {
             Spacer(modifier = Modifier.height(8.dp))
 
             TextField(
-                value = "",
-                onValueChange = {},
+                value = state.value.password,
+                onValueChange = { viewModel.onPasswordChange(it) },
                 label = { Text("Пароль") },
                 visualTransformation = PasswordVisualTransformation(),
                 colors = TextFieldDefaults.colors(
@@ -87,14 +102,31 @@ fun LoginScreen(navController: NavHostController) {
                 )
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Показываем ошибку, если она есть
+            state.value.error?.let { error ->
+                Text(
+                    text = error,
+                    color = Color.Red,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
-                onClick = { /* Логика входа */ },
+                onClick = { viewModel.onLoginClick() },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00897B)),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.value.isLoading
             ) {
-                Text("Войти", fontSize = 18.sp, color = Color.White)
+                if (state.value.isLoading) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.height(20.dp))
+                } else {
+                    Text("Войти", fontSize = 18.sp, color = Color.White)
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -140,96 +172,3 @@ fun LoginScreen(navController: NavHostController) {
         }
     }
 }
-
-
-//fun LoginScreen(navController: NavHostController) { // Теперь принимаем navController
-//    Column(
-//        modifier = Modifier.fillMaxSize(),
-//        verticalArrangement = Arrangement.Center,
-//        horizontalAlignment = Alignment.CenterHorizontally
-//    ) {
-//        Text("Страница входа")
-//        Button(onClick = { /* Логика авторизации */ }) {
-//            Text("Авторизоваться")
-//        }
-//        Spacer(modifier = Modifier.height(16.dp))
-//        Button(onClick = { navController.navigate("register") }) {
-//            Text("Еще нет аккаунта? Зарегистрируйтесь")
-//        }
-//    }
-//}
-
-//@Composable
-//fun LoginScreen(
-//    viewModel: LoginViewModel = koinViewModel(),
-//    onRegisterClick: () -> Unit,
-//) {
-//    val state by viewModel.collectAsState()
-//
-//    viewModel.collectSideEffect {
-//        when (it) {
-//            is LoginSideEffect.OnRegisterClick -> onRegisterClick()
-//        }
-//    }
-//
-//    Column(
-//        modifier = Modifier
-//            .fillMaxWidth()
-//            .padding(16.dp),
-//        verticalArrangement = Arrangement.spacedBy(16.dp)
-//    ) {
-//        Text(
-//            text = "Вход",
-//            style = MaterialTheme.typography.headlineLarge,
-//            color = OnBackground,
-//            textAlign = TextAlign.Center
-//        )
-//        Spacer(modifier = Modifier.height(1.dp))
-//        OutlinedTextField(
-//            value = state.username,
-//            onValueChange = { viewModel.onUsernameChanged(it) },
-//            label = { Text("Имя пользователя", color = OnBackground) },
-//            modifier = Modifier.fillMaxWidth(),
-//            shape = RoundedCornerShape(16.dp),
-//            textStyle = TextStyle(color = OnBackground)
-//        )
-//        OutlinedTextField(
-//            value = state.password,
-//            onValueChange = { viewModel.onPasswordChanged(it) },
-//            label = { Text("Пароль", color = OnBackground) },
-//            modifier = Modifier.fillMaxWidth(),
-//            shape = RoundedCornerShape(16.dp),
-//            visualTransformation = PasswordVisualTransformation(),
-//            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-//            textStyle = TextStyle(color = OnBackground)
-//        )
-//        Button(
-//            onClick = { viewModel.onLoginClick() },
-//            modifier = Modifier.fillMaxWidth(),
-//            shape = RoundedCornerShape(16.dp),
-//            colors = ButtonDefaults.buttonColors(
-//                containerColor = Secondary
-//            )
-//        ) {
-//            Text(
-//                text = "Войти",
-//                fontSize = 16.sp,
-//                color = OnBackground
-//            )
-//        }
-//        Button(
-//            onClick = { viewModel.onRegisterClick() },
-//            modifier = Modifier.fillMaxWidth(),
-//            colors = ButtonDefaults.buttonColors(
-//                containerColor = Color.Transparent
-//            ),
-//            shape = RoundedCornerShape(16.dp)
-//        ) {
-//            Text(
-//                text = "Зарегистрироваться",
-//                fontSize = 16.sp,
-//                color = Primary
-//            )
-//        }
-//    }
-//}
