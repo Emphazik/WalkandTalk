@@ -1,4 +1,5 @@
 [versions]
+dataStore = "1.1.4"
 agp = "8.8.2"
 androidSdkApiVersion = "4.1.0"
 androidSdkCore = "4.1.0"
@@ -28,6 +29,7 @@ supabase = "3.1.0"
 coreSplashscreen = "1.0.1"
 
 [libraries]
+androidx-datastore = {module = "androidx.datastore:datastore-preferences", version.ref = "dataStore"}
 android-sdk-api = { module = "com.vk:android-sdk-api", version.ref = "androidSdkApiVersion" }
 android-sdk-core = { module = "com.vk:android-sdk-core", version.ref = "androidSdkCore" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }

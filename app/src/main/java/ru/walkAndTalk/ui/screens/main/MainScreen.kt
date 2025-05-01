@@ -23,9 +23,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import kotlinx.serialization.Serializable
 import ru.walkAndTalk.R
 
 val montserratFont = FontFamily(Font(R.font.montserrat_semi_bold))
+
+@Serializable
+object MainScreen
 
 @Composable
 fun MainScreen(navController: NavHostController) {

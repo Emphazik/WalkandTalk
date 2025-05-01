@@ -14,7 +14,7 @@ import io.github.jan.supabase.storage.storage
 import kotlinx.serialization.json.Json
 import ru.walkAndTalk.BuildConfig
 
-object SupabaseWrapper {
+class SupabaseWrapper {
 
     val client: SupabaseClient = createSupabaseClient(
         supabaseUrl = BuildConfig.SUPABASE_URL,

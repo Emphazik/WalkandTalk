@@ -57,6 +57,7 @@ android {
 
 dependencies {
     /** Core **/
+    implementation(libs.androidx.datastore)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel)
@@ -92,7 +93,7 @@ dependencies {
     implementation("com.google.accompanist:accompanist-navigation-animation:0.31.2-alpha")
     implementation("com.airbnb.android:lottie-compose:6.0.0")
     ksp(libs.room.compiler)
-    /** MVI **/
+    /** ORBIT MVI **/
     implementation(libs.orbit.core)
     implementation(libs.orbit.compose)
     implementation(libs.orbit.viewmodel)
@@ -118,6 +119,4 @@ dependencies {
     implementation(libs.onetap.compose) // com.vk.id:onetap-compose:2.3.1
     /** Desugaring for VK **/
     coreLibraryDesugaring(libs.desugar.jdk.libs)
-
-
 }

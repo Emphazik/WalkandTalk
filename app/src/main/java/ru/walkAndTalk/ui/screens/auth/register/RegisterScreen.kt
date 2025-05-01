@@ -41,7 +41,12 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil3.compose.rememberAsyncImagePainter
+import kotlinx.serialization.Serializable
 import ru.walkAndTalk.R
+import ru.walkAndTalk.data.network.SupabaseWrapper
+
+@Serializable
+object RegisterScreen
 
 @Composable
 fun RegisterScreen(navController: NavHostController) {
@@ -51,7 +56,10 @@ fun RegisterScreen(navController: NavHostController) {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(RegisterViewModel::class.java)) {
                     @Suppress("UNCHECKED_CAST")
-                    return RegisterViewModel(context) as T
+                    return RegisterViewModel(
+                        context,
+                        supabaseWrapper = TODO()
+                    ) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

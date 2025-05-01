@@ -45,9 +45,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import ru.walkAndTalk.R
 
-val montserratFont = FontFamily(Font(R.font.montserrat_semi_bold))
+
+@Serializable
+object WelcomeScreen
+
 @Composable
 fun WelcomeScreen(navController: NavHostController) {
     var logoScale by remember { mutableStateOf(0.8f) }
@@ -106,11 +110,9 @@ fun WelcomeScreen(navController: NavHostController) {
 
             Text(
                 text = "Добро пожаловать в W & T!",
-                fontFamily = montserratFont,
                 fontSize = 24.sp,
                 textAlign = TextAlign.Center,
                 color = Color(0xFF00796B),
-                style = TextStyle(fontFamily = montserratFont),
                 modifier = Modifier.alpha(fadeAnim.value)
             )
 
@@ -118,13 +120,11 @@ fun WelcomeScreen(navController: NavHostController) {
 
             Text(
                 text = "Общайтесь и знакомьтесь с интересными людьми из вашего города. Планируйте встречи и отправляйтесь на прогулки.",
-                fontFamily = montserratFont,
                 fontSize = 16.sp,
                 color = Color(0xFF004D40),
                 modifier = Modifier
                     .padding(horizontal = 24.dp)
                     .alpha(fadeAnim.value),
-                style = TextStyle(fontFamily = montserratFont),
                 textAlign = TextAlign.Center
             )
 
@@ -167,7 +167,7 @@ fun AnimatedButton(text: String, color: Color, onClick: () -> Unit) {
             .height(50.dp)
             .scale(pressAnim.value)
     ) {
-        Text(text, fontFamily = montserratFont, fontSize = 18.sp, color = Color.White)
+        Text(text, fontSize = 18.sp, color = Color.White)
     }
 }
 

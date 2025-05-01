@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.exceptions.RestException
@@ -28,7 +29,10 @@ data class ProfileData(
     val bio: String = ""
 )
 
-class RegisterViewModel(private val context: Context) : ViewModel() {
+class RegisterViewModel(
+    private val context: Context,
+    private val supabaseWrapper: SupabaseWrapper
+) : ViewModel() {
     private val _state = MutableStateFlow(RegisterViewState())
     val state: StateFlow<RegisterViewState> = _state
 
@@ -64,7 +68,7 @@ class RegisterViewModel(private val context: Context) : ViewModel() {
                 // Валидация всех полей
                 validateInputs()
 
-                val client = SupabaseWrapper.client
+                val client = supabaseWrapper.client
 
                 // Выходим из текущей сессии, если она есть
                 println("Register: Выход из любой существующей сессии...")

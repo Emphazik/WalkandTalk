@@ -33,14 +33,12 @@ import com.airbnb.lottie.compose.rememberLottieComposition
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieConstants
 import kotlinx.coroutines.delay
+import kotlinx.serialization.Serializable
 import ru.walkAndTalk.R
 import ru.walkAndTalk.ui.screens.Screens
 
-val montserrat = FontFamily(
-    Font(R.font.montserrat, FontWeight.Normal),
-    Font(R.font.montserrat_black, FontWeight.Bold),
-    Font(R.font.montserrat_medium, FontWeight.Medium),
-)
+@Serializable
+object SplashLogoScreen
 
 @Composable
 fun SplashLogoScreen(navController: NavHostController, context: Context) {
@@ -88,7 +86,6 @@ fun SplashLogoScreen(navController: NavHostController, context: Context) {
         Spacer(modifier = Modifier.height(25.dp))
         Text(
             text = "Walk & Talk",
-            fontFamily = montserrat,
             fontWeight = FontWeight.Medium,
             fontSize = 32.sp,
             color = if (isSystemInDarkTheme()) Color.White else Color.DarkGray,

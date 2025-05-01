@@ -28,9 +28,11 @@ import androidx.navigation.NavHostController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import ru.walkAndTalk.R
 
-val montserratFont = FontFamily(Font(R.font.montserrat_semi_bold))
+@Serializable
+object OnboardingScreen
 
 @Composable
 fun OnboardingScreen(navController: NavHostController, context: Context) {
@@ -107,13 +109,11 @@ fun OnboardingPageContent(page: OnboardingPage) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = page.title,
-                fontFamily = montserratFont,
                 fontSize = 24.sp
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = page.description,
-                fontFamily = montserratFont,
                 fontSize = 16.sp,
                 color = Color.Gray,
                 textAlign = TextAlign.Center,
