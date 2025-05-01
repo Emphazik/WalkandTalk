@@ -44,10 +44,10 @@ fun MainScreen(navController: NavHostController) {
                             Icon(
                                 painter = painterResource(
                                     id = when (index) {
-                                        0 -> R.drawable.ic_lenta
+                                        0 -> R.drawable.ic_home
                                         1 -> R.drawable.ic_poisk
                                         2 -> R.drawable.ic_default_chat
-                                        else -> R.drawable.ic_profile
+                                        else -> R.drawable.ic_main_profile
                                     }
                                 ),
                                 contentDescription = title,

@@ -1,3 +1,5 @@
+@file:Suppress("UNREACHABLE_CODE")
+
 package ru.walkAndTalk.ui.screens.auth.login
 
 import androidx.compose.foundation.Image
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,11 +34,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.vk.id.AccessToken
-import com.vk.id.VKID
 import com.vk.id.VKIDAuthFail
-import com.vk.id.auth.VKIDAuthCallback
-import kotlinx.coroutines.launch
+import com.vk.id.onetap.compose.onetap.OneTap
+import com.vk.id.onetap.common.OneTapStyle
 import ru.walkAndTalk.R
 
 @Composable
@@ -135,33 +136,32 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Button(
-                onClick = {
-                    scope.launch {
-                        println("Starting VK ID authorization")
-                        VKID.instance.authorize(object : VKIDAuthCallback {
-                            override fun onAuth(accessToken: AccessToken) {
-                                println("VK ID Auth Success: ${accessToken.token}")
-                                navController.navigate("main") {
-                                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                                    launchSingleTop = true
-                                }
-                                println("Navigation to main triggered")
-                            }
-
-                            override fun onFail(fail: VKIDAuthFail) {
-                                when (fail) {
-                                    is VKIDAuthFail.Canceled -> println("VK ID Auth Canceled")
-                                    else -> println("VK ID Auth Failed: ${fail.description}")
-                                }
-                            }
-                        })
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4C75A3)),
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
-                Text("Войти через VK", fontSize = 18.sp, color = Color.White)
+                if (!state.value.isLoading) {
+                    OneTap(
+                        modifier = Modifier.fillMaxWidth(),
+                        style = OneTapStyle.Dark(),
+                        onAuth = { _, accessToken ->
+                            println("VK ID Auth Success: ${accessToken.token}")
+                            viewModel.onVKLoginClick(accessToken)
+                        },
+                        onFail = { _, fail ->
+                            val errorMessage = when (fail) {
+                                is VKIDAuthFail.Canceled -> "Авторизация через VK отменена"
+                                else -> "Ошибка VK: ${fail.description}"
+                            }
+                            println("VK ID Auth Failed: $errorMessage")
+                            viewModel.onVKLoginClickFailed(errorMessage)
+                        },
+                        signInAnotherAccountButtonEnabled = true,
+                        fastAuthEnabled = true
+                    )
+                } else {
+                    CircularProgressIndicator(color = Color(0xFF4C75A3), modifier = Modifier.size(24.dp))
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -169,6 +169,57 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
             TextButton(onClick = { navController.navigate("register") }) {
                 Text("Создать аккаунт", fontSize = 16.sp, color = Color(0xFF00796B))
             }
+
+//            Button(
+//                onClick = {
+//                    scope.launch {
+//                        println("Starting VK ID authorization")
+//                        VKID.instance.authorize(object : VKIDAuthCallback {
+//                            override fun onAuth(accessToken: AccessToken) {
+//                                println("VK ID Auth Success: ${accessToken.token}")
+//                                viewModel.onVKLoginClick(accessToken)
+//                            }
+//
+//                            override fun onFail(fail: VKIDAuthFail) {
+//                                val errorMessage = when (fail) {
+//                                    is VKIDAuthFail.Canceled -> "Авторизация через VK отменена"
+//                                    else -> "Ошибка VK: ${fail.description}"
+//                                }
+//                                println("VK ID Auth Failed: $errorMessage")
+//                                viewModel.onVKLoginClickFailed(errorMessage)
+//                            }
+//                        })
+//                    }
+//                },
+//                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4C75A3)),
+//                modifier = Modifier.fillMaxWidth(),
+//                enabled = !state.value.isLoading
+//            ) {
+//                if (state.value.isLoading) {
+//                    CircularProgressIndicator(color = Color.White, modifier = Modifier.height(20.dp))
+//                } else {
+//                    Row(verticalAlignment = Alignment.CenterVertically) {
+//                        Icon(
+//                            painter = painterResource(id = R.drawable.vk_icon),
+//                            contentDescription = "VK Icon",
+//                            tint = Color.White,
+//                            modifier = Modifier.size(24.dp)
+//                        )
+//                        Spacer(modifier = Modifier.padding(8.dp))
+//                        Text("Войти через VK", fontSize = 18.sp, color = Color.White)
+//                    }
+//                }
+//            }
+
+//            Spacer(modifier = Modifier.height(16.dp))
+
+//            TextButton(onClick = { navController.navigate("register") }) {
+//                Text("Создать аккаунт", fontSize = 16.sp, color = Color(0xFF00796B))
+//            }
         }
     }
+}
+
+fun OneTap(modifier: Unit, style: Nothing, onAuth: Nothing, onAuthCode: Nothing, onFail: Nothing, oAuths: Nothing, fastAuthEnabled: Nothing, signInAnotherAccountButtonEnabled: Nothing, authParams: Nothing) {
+
 }

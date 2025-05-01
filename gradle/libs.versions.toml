@@ -1,13 +1,14 @@
 [versions]
-agp = "8.8.0"
-androidSdkApi = "4.1.0"
+agp = "8.8.2"
+androidSdkApiVersion = "4.1.0"
+androidSdkCore = "4.1.0"
 desugar_jdk_libs = "2.1.5"
 kotlin = "2.1.0"
-coreKtx = "1.15.0"
+coreKtx = "1.16.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
-composeBom = "2025.01.01"
+composeBom = "2025.04.01"
 lifecycle-compose = "2.8.4"
 ksp = "2.1.0-1.0.29"
 ktor = "3.0.3"
@@ -15,19 +16,20 @@ coroutines = "1.10.1"
 koin = "4.0.0"
 coil = "3.0.4"
 lottie = "6.0.0"
-room = "2.6.1"
+onetapCompose = "2.3.1"
+room = "2.7.1"
 vkid = "2.3.1"
-worker = "2.10.0"
-activityCompose = "1.10.0"
+worker = "2.10.1"
+activityCompose = "1.10.1"
 lifecycle = "2.8.7"
 orbit = "9.0.0"
-navigationCompose = "2.8.6"
+navigationCompose = "2.8.9"
 supabase = "3.1.0"
 coreSplashscreen = "1.0.1"
 
 [libraries]
-android-sdk-api = { module = "com.vk:android-sdk-api", version.ref = "androidSdkApi" }
-android-sdk-core = { module = "com.vk:android-sdk-core", version.ref = "androidSdkApi" }
+android-sdk-api = { module = "com.vk:android-sdk-api", version.ref = "androidSdkApiVersion" }
+android-sdk-core = { module = "com.vk:android-sdk-core", version.ref = "androidSdkCore" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 desugar_jdk_libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar_jdk_libs" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -59,6 +61,7 @@ koin-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = 
 koin-workmanager = { module = "io.insert-koin:koin-androidx-workmanager", version.ref = "koin" }
 # Room
 lottie = { module = "com.airbnb.android:lottie", version.ref = "lottie" }
+onetap-compose = { module = "com.vk.id:onetap-compose", version.ref = "onetapCompose" }
 room = { module = "androidx.room:room-ktx", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 # Coil

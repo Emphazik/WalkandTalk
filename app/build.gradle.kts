@@ -111,10 +111,11 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
     /** VK TEST **/
-        // Вроде как не нужно, старьё
+    // Вроде как не нужно, старьё
     implementation(libs.android.sdk.core)
     implementation(libs.android.sdk.api)
     implementation(libs.vkid)
+    implementation(libs.onetap.compose) // com.vk.id:onetap-compose:2.3.1
     /** Desugaring for VK **/
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
