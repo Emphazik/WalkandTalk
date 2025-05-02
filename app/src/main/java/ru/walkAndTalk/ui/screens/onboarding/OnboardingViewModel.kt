@@ -21,7 +21,11 @@ class OnboardingViewModel(
     fun onNextClick() = intent {
         postSideEffect(
             when (state.currentPage < state.pageCount - 1) {
-                true -> OnboardingSideEffect.OnNextClick(state.currentPage + 1)
+                true -> {
+                    val nextPage = state.currentPage + 1
+                    reduce { state.copy(currentPage = nextPage) }
+                    OnboardingSideEffect.OnNextClick(nextPage)
+                }
                 else -> {
                     localDataStoreRepository.saveIsFirstLaunch(false)
                     OnboardingSideEffect.OnNavigateWelcome
