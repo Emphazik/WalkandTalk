@@ -36,12 +36,14 @@ import ru.walkAndTalk.R
 @Composable
 fun SplashScreen(
     viewModel: SplashViewModel = koinViewModel(),
+    onNavigateMain: () -> Unit,
     onNavigateWelcome: () -> Unit,
     onNavigateOnboarding: () -> Unit,
 ) {
     val state by viewModel.collectAsState()
     viewModel.collectSideEffect {
         when (it) {
+            is SplashSideEffect.OnNavigateMain -> onNavigateMain()
             is SplashSideEffect.OnNavigateWelcome -> onNavigateWelcome()
             is SplashSideEffect.OnNavigateOnboarding -> onNavigateOnboarding()
         }

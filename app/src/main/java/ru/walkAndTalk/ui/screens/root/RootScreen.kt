@@ -30,16 +30,24 @@ fun RootScreen(intent: Intent) {
     ) {
         composable<Splash> {
             SplashScreen(
-                onNavigateOnboarding = {
-                    navController.navigate(Onboarding) {
-                        popUpTo(Splash) { inclusive = true }
+                onNavigateMain = {
+                    navController.navigate(Main) {
+                        popUpTo(navController.graph.startDestinationId) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
                     }
                 },
                 onNavigateWelcome = {
                     navController.navigate(Auth) {
                         popUpTo(Splash) { inclusive = true }
                     }
-                }
+                },
+                onNavigateOnboarding = {
+                    navController.navigate(Onboarding) {
+                        popUpTo(Splash) { inclusive = true }
+                    }
+                },
             )
         }
         composable<Onboarding> {

@@ -1,11 +1,13 @@
 package ru.walkAndTalk.ui.screens.splash
 
 import org.orbitmvi.orbit.syntax.Syntax
+import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.repository.LocalDataStoreRepository
 import ru.walkAndTalk.ui.orbit.ContainerViewModel
 
 class SplashViewModel(
-    private val localDataStoreRepository: LocalDataStoreRepository
+    private val supabaseWrapper: SupabaseWrapper,
+    private val localDataStoreRepository: LocalDataStoreRepository,
 ) : ContainerViewModel<SplashViewState, SplashSideEffect>(
     initialState = SplashViewState()
 ) {
@@ -23,7 +25,10 @@ class SplashViewModel(
          postSideEffect(
              when (state.isFirstLaunch) {
                  true -> SplashSideEffect.OnNavigateOnboarding
-                 else -> SplashSideEffect.OnNavigateWelcome
+                 else -> when (supabaseWrapper.auth.currentSessionOrNull()) {
+                     null -> SplashSideEffect.OnNavigateWelcome
+                     else -> SplashSideEffect.OnNavigateMain
+                 }
              }
          )
     }
