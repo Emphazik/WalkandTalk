@@ -53,12 +53,12 @@ fun SplashScreen(
     }
 
     val alpha by animateFloatAsState(
-        targetValue = if (state.isFirstLaunch) 1f else 0f,
+        targetValue = if (state.isAnimationVisible) 1f else 0f,
         animationSpec = tween(durationMillis = 1000)
     )
 
     val scale by animateFloatAsState(
-        targetValue = if (state.isFirstLaunch) 1f else 0.8f,
+        targetValue = if (state.isAnimationVisible) 1f else 0.8f,
         animationSpec = tween(durationMillis = 1000, easing = EaseOutExpo)
     )
 

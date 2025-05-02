@@ -11,6 +11,7 @@ class SplashViewModel(
 ) {
 
     override suspend fun Syntax<SplashViewState, SplashSideEffect>.onCreate() {
+        reduce { state.copy(isAnimationVisible = true) }
         repeatOnSubscription {
             localDataStoreRepository.isFirstLaunch.collect {
                 reduce { state.copy(isFirstLaunch = it) }
