@@ -34,7 +34,7 @@ class LoginViewModel(
         try {
             validateInputs()
             var email = state.email
-            if (state.email.matches(Regex.EMAIL)) {
+            if (state.email.matches(Regex.PHONE)) {
                 val userData = supabaseWrapper.postgrest.from("users").select {
                     filter { eq("phone", state.email) }
                 }.decodeSingleOrNull<UserData>()

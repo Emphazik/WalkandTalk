@@ -94,9 +94,7 @@ fun LoginScreen(
                     unfocusedContainerColor = Color.White
                 )
             )
-
             Spacer(modifier = Modifier.height(16.dp))
-
             // Показываем ошибку, если она есть
             state.error?.let { error ->
                 Text(
@@ -106,9 +104,7 @@ fun LoginScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
-
             Spacer(modifier = Modifier.height(16.dp))
-
             Button(
                 onClick = { viewModel.onLoginClick() },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00897B)),
@@ -124,13 +120,9 @@ fun LoginScreen(
                     Text("Войти", fontSize = 18.sp, color = Color.White)
                 }
             }
-
             Spacer(modifier = Modifier.height(16.dp))
-
             Text("ИЛИ", fontSize = 14.sp, color = Color.Gray)
-
             Spacer(modifier = Modifier.height(16.dp))
-
             Box(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
@@ -158,9 +150,7 @@ fun LoginScreen(
                     )
                 }
             }
-
             Spacer(modifier = Modifier.height(16.dp))
-
             TextButton(onClick = { viewModel.onRegisterClick() }) {
                 Text("Создать аккаунт", fontSize = 16.sp, color = Color(0xFF00796B))
             }
