@@ -10,6 +10,7 @@ junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
 composeBom = "2025.04.01"
+kotlinxDatetime = "0.6.1"
 lifecycle-compose = "2.8.4"
 ksp = "2.1.0-1.0.29"
 ktor = "3.0.3"
@@ -27,7 +28,6 @@ orbit = "9.0.0"
 navigationCompose = "2.8.9"
 supabase = "3.1.0"
 coreSplashscreen = "1.0.1"
-
 [libraries]
 androidx-datastore = {module = "androidx.datastore:datastore-preferences", version.ref = "dataStore"}
 android-sdk-api = { module = "com.vk:android-sdk-api", version.ref = "androidSdkApiVersion" }
@@ -53,6 +53,7 @@ androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 # Ktor
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }

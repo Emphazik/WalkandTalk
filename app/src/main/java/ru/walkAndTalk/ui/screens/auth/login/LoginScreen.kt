@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -50,6 +51,16 @@ fun LoginScreen(
         }
     }
 
+    val colorScheme = MaterialTheme.colorScheme
+    val textFieldColors = TextFieldDefaults.colors(
+        focusedTextColor = colorScheme.onBackground,
+        unfocusedTextColor = colorScheme.onBackground,
+        focusedContainerColor = colorScheme.background,
+        unfocusedContainerColor = colorScheme.background,
+        cursorColor = colorScheme.primary,
+        focusedIndicatorColor = colorScheme.primary,
+        unfocusedIndicatorColor = colorScheme.secondary
+    )
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -78,10 +89,7 @@ fun LoginScreen(
                 onValueChange = { viewModel.onEmailChange(it) },
                 label = { Text("E-mail или телефон") },
                 placeholder = { Text("+79991234567 или email@example.com") },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
-                )
+                colors = textFieldColors
             )
             Spacer(modifier = Modifier.height(8.dp))
             TextField(
@@ -89,10 +97,7 @@ fun LoginScreen(
                 onValueChange = { viewModel.onPasswordChange(it) },
                 label = { Text("Пароль") },
                 visualTransformation = PasswordVisualTransformation(),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
-                )
+                colors = textFieldColors
             )
             Spacer(modifier = Modifier.height(16.dp))
             // Показываем ошибку, если она есть
