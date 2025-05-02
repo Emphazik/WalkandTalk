@@ -1,4 +1,4 @@
-package ru.walkAndTalk.ui.screens.auth
+package ru.walkAndTalk.ui.screens.welcome
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseInOutSine
@@ -26,10 +26,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -37,24 +36,29 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
+import org.koin.androidx.compose.koinViewModel
+import org.orbitmvi.orbit.compose.collectSideEffect
 import ru.walkAndTalk.R
 
-
-@Serializable
-object WelcomeScreen
-
 @Composable
-fun WelcomeScreen(navController: NavHostController) {
-    var logoScale by remember { mutableStateOf(0.8f) }
+fun WelcomeScreen(
+    viewModel: WelcomeViewModel = koinViewModel(),
+    onNavigateLogin: () -> Unit,
+    onNavigateRegister: () -> Unit
+) {
+    viewModel.collectSideEffect {
+        when (it) {
+            is WelcomeSideEffect.OnNavigateLogin -> onNavigateLogin()
+            is WelcomeSideEffect.OnNavigateRegister -> onNavigateRegister()
+        }
+    }
+
+    val logoScale by remember { mutableFloatStateOf(0.8f) }
     val scaleAnim = animateFloatAsState(
         targetValue = logoScale,
         animationSpec = infiniteRepeatable(
@@ -68,7 +72,6 @@ fun WelcomeScreen(navController: NavHostController) {
         fadeAnim.animateTo(1f, animationSpec = tween(1000))
     }
 
-    var offsetY by remember { mutableStateOf(0f) }
     val infiniteTransition = rememberInfiniteTransition()
     val animatedOffset by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -80,8 +83,7 @@ fun WelcomeScreen(navController: NavHostController) {
     )
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = Modifier.fillMaxSize()
     ) {
         Image(
             painter = painterResource(id = R.drawable.blue_abstractback),
@@ -103,7 +105,7 @@ fun WelcomeScreen(navController: NavHostController) {
                 modifier = Modifier
                     .size(200.dp)
                     .scale(scaleAnim.value)
-                    .offset(y = animatedOffset.dp)
+                    .offset { IntOffset(x = 0, y = animatedOffset.dp.roundToPx()) }
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -133,7 +135,7 @@ fun WelcomeScreen(navController: NavHostController) {
             AnimatedButton(
                 text = "Войти",
                 color = Color(0xFF00897B),
-                onClick = { navController.navigate("login") }
+                onClick = { viewModel.onLoginClick() }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -141,7 +143,7 @@ fun WelcomeScreen(navController: NavHostController) {
             AnimatedButton(
                 text = "Создать",
                 color = Color(0xFF004D40),
-                onClick = { navController.navigate("register") }
+                onClick = { viewModel.onRegisterClick() }
             )
         }
     }

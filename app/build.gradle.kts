@@ -16,6 +16,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+
         buildConfigField("String", "SUPABASE_URL", "\"${properties["supabaseUrl"]}\"")
         buildConfigField("String", "SUPABASE_KEY", "\"${properties["supabaseKey"]}\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -49,11 +50,7 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "2.1.0"
     }
-
-
 }
-
-
 
 dependencies {
     /** Core **/

@@ -1,44 +1,43 @@
 package ru.walkAndTalk.ui.screens.onboarding
 
-import android.content.Context
-import android.content.SharedPreferences
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
+import org.koin.androidx.compose.koinViewModel
+import org.orbitmvi.orbit.compose.collectAsState
+import org.orbitmvi.orbit.compose.collectSideEffect
 import ru.walkAndTalk.R
 
-@Serializable
-object OnboardingScreen
-
 @Composable
-fun OnboardingScreen(navController: NavHostController, context: Context) {
-    val pagerState = rememberPagerState { 4 }
-    val scope = rememberCoroutineScope()
-    val sharedPreferences: SharedPreferences = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+fun OnboardingScreen(
+    viewModel: OnboardingViewModel = koinViewModel(),
+    onNavigateWelcome: () -> Unit,
+) {
+    val state by viewModel.collectAsState()
 
     val pages = listOf(
         OnboardingPage(R.drawable.ic_date1, "Найди новых друзей", "Смахни вправо и знакомься с интересными людьми"),
@@ -46,12 +45,24 @@ fun OnboardingScreen(navController: NavHostController, context: Context) {
         OnboardingPage(R.drawable.ic_photo1, "Делись моментами", "Отправляй фото и делай общение живым"),
         OnboardingPage(R.drawable.ic_notify1, "Всегда на связи", "Не пропусти новые знакомства и сообщения")
     )
+    val pagerState = rememberPagerState(
+        initialPage = state.currentPage,
+        pageCount = { state.pageCount }
+    )
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    viewModel.collectSideEffect {
+        when (it) {
+            is OnboardingSideEffect.OnNextClick -> pagerState.animateScrollToPage(it.index)
+            is OnboardingSideEffect.OnNavigateWelcome -> onNavigateWelcome()
+        }
+    }
+
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
         HorizontalPager(state = pagerState) { page ->
             OnboardingPageContent(pages[page])
         }
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -60,25 +71,19 @@ fun OnboardingScreen(navController: NavHostController, context: Context) {
         ) {
             IconButton(
                 onClick = {
-                    scope.launch {
-                        if (pagerState.currentPage < pages.size - 1) {
-                            pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                        } else {
-                            sharedPreferences.edit().putBoolean("onboarding_complete", true).apply()
-                            navController.navigate("welcome") {
-                                popUpTo("onboarding") { inclusive = true }
-                            }
-                        }
-                    }
+                    viewModel.onNextClick()
                 }
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowForward,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = "Next",
                     modifier = Modifier.size(48.dp)
                 )
             }
         }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.onStateChange(0, pages.size)
     }
 }
 
@@ -124,5 +129,8 @@ fun OnboardingPageContent(page: OnboardingPage) {
     }
 }
 
-
-data class OnboardingPage(val imageRes: Int, val title: String, val description: String)
+data class OnboardingPage(
+    val imageRes: Int,
+    val title: String,
+    val description: String
+)

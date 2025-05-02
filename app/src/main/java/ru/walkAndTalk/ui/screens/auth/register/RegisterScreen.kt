@@ -23,53 +23,34 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
 import coil3.compose.rememberAsyncImagePainter
-import kotlinx.serialization.Serializable
+import org.koin.androidx.compose.koinViewModel
+import org.orbitmvi.orbit.compose.collectAsState
+import org.orbitmvi.orbit.compose.collectSideEffect
 import ru.walkAndTalk.R
-import ru.walkAndTalk.data.network.SupabaseWrapper
-
-@Serializable
-object RegisterScreen
 
 @Composable
-fun RegisterScreen(navController: NavHostController) {
-    val context = LocalContext.current
-    val viewModel: RegisterViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                if (modelClass.isAssignableFrom(RegisterViewModel::class.java)) {
-                    @Suppress("UNCHECKED_CAST")
-                    return RegisterViewModel(
-                        context,
-                        supabaseWrapper = TODO()
-                    ) as T
-                }
-                throw IllegalArgumentException("Unknown ViewModel class")
-            }
-        }
-    )
-    val state by viewModel.state.collectAsState()
-
-    if (state.isSuccess) {
-        navController.navigate("main") {
-            popUpTo("register") { inclusive = true }
+fun RegisterScreen(
+    viewModel: RegisterViewModel = koinViewModel(),
+    onNavigateLogin: () -> Unit,
+    onNavigateMain: () -> Unit,
+) {
+    val state by viewModel.collectAsState()
+    viewModel.collectSideEffect {
+        when (it) {
+            is RegisterSideEffect.OnNavigateLogin -> onNavigateLogin()
+            is RegisterSideEffect.OnNavigateMain -> onNavigateMain()
         }
     }
 
@@ -95,7 +76,6 @@ fun RegisterScreen(navController: NavHostController) {
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
         )
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -109,9 +89,7 @@ fun RegisterScreen(navController: NavHostController) {
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF00796B)
             )
-
             Spacer(modifier = Modifier.height(16.dp))
-
             Box(
                 modifier = Modifier
                     .size(150.dp)
@@ -119,50 +97,38 @@ fun RegisterScreen(navController: NavHostController) {
                     .clickable { launcher.launch("image/*") },
                 contentAlignment = Alignment.Center
             ) {
-                if (state.profileImageUri != null) {
-                    Image(
-                        painter = rememberAsyncImagePainter(state.profileImageUri),
-                        contentDescription = "Фото профиля",
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_profile),
-                        contentDescription = "Фото профиля",
-                        modifier = Modifier.fillMaxSize()
-                    )
+                val painter = when (state.profileImageUri != null) {
+                    true -> rememberAsyncImagePainter(state.profileImageUri)
+                    else -> painterResource(id = R.drawable.ic_profile)
                 }
+                Image(
+                    painter = painter,
+                    contentDescription = "Фото профиля",
+                    modifier = Modifier.fillMaxSize()
+                )
             }
-
             Spacer(modifier = Modifier.height(16.dp))
-
             TextField(
                 value = state.name,
                 onValueChange = { viewModel.onNameChange(it) },
                 label = { Text("Имя") },
                 colors = textFieldColors
             )
-
             Spacer(modifier = Modifier.height(8.dp))
-
             TextField(
                 value = state.phone,
                 onValueChange = { viewModel.onPhoneChange(it) },
                 label = { Text("Телефон") },
                 colors = textFieldColors
             )
-
             Spacer(modifier = Modifier.height(8.dp))
-
             TextField(
                 value = state.email,
                 onValueChange = { viewModel.onEmailChange(it) },
                 label = { Text("E-mail") },
                 colors = textFieldColors
             )
-
             Spacer(modifier = Modifier.height(8.dp))
-
             TextField(
                 value = state.password,
                 onValueChange = { viewModel.onPasswordChange(it) },
@@ -170,9 +136,7 @@ fun RegisterScreen(navController: NavHostController) {
                 visualTransformation = PasswordVisualTransformation(),
                 colors = textFieldColors
             )
-
             Spacer(modifier = Modifier.height(16.dp))
-
             if (state.error != null) {
                 Text(
                     text = state.error ?: "",
@@ -181,7 +145,6 @@ fun RegisterScreen(navController: NavHostController) {
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
-
             Button(
                 onClick = { viewModel.onRegisterClick() },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00897B)),
@@ -194,10 +157,8 @@ fun RegisterScreen(navController: NavHostController) {
                     Text("Зарегистрироваться", fontSize = 18.sp, color = Color.White)
                 }
             }
-
             Spacer(modifier = Modifier.height(16.dp))
-
-            TextButton(onClick = { navController.navigate("login") }) {
+            TextButton(onClick = { viewModel.onLoginClick() }) {
                 Text("Уже есть аккаунт? Войти", fontSize = 16.sp, color = Color(0xFF00796B))
             }
         }

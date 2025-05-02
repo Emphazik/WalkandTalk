@@ -1,5 +1,3 @@
-@file:Suppress("UNREACHABLE_CODE")
-
 package ru.walkAndTalk.ui.screens.auth.login
 
 import androidx.compose.foundation.Image
@@ -20,8 +18,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,37 +29,24 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
 import com.vk.id.VKIDAuthFail
-import com.vk.id.onetap.compose.onetap.OneTap
 import com.vk.id.onetap.common.OneTapStyle
+import com.vk.id.onetap.compose.onetap.OneTap
 import org.orbitmvi.orbit.compose.collectAsState
-import ru.walkAndTalk.R
-import androidx.compose.runtime.getValue
-import kotlinx.serialization.Serializable
 import org.orbitmvi.orbit.compose.collectSideEffect
-import ru.walkAndTalk.ui.screens.main.MainScreen
-
-@Serializable
-object LoginScreen
+import ru.walkAndTalk.R
 
 @Composable
-fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = viewModel()) {
+fun LoginScreen(
+    viewModel: LoginViewModel = viewModel(),
+    onNavigateMain: () -> Unit,
+    onNavigateRegister: () -> Unit,
+) {
     val state by viewModel.collectAsState()
     viewModel.collectSideEffect {
         when (it){
-            is LoginSideEffect.NavigateToMainScreen -> navController.navigate(MainScreen)
-            LoginSideEffect.OnRegisterClick -> TODO()
-            is LoginSideEffect.ShowError -> TODO()
-        }
-    }
-
-    LaunchedEffect(state.isSuccess) {
-        if (state.isSuccess) {
-            navController.navigate("main") {
-                popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                launchSingleTop = true
-            }
+            is LoginSideEffect.OnNavigateMain -> onNavigateMain()
+            is LoginSideEffect.OnNavigateRegister -> onNavigateRegister()
         }
     }
 
@@ -75,7 +59,6 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
         )
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -89,9 +72,7 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF00796B)
             )
-
             Spacer(modifier = Modifier.height(24.dp))
-
             TextField(
                 value = state.email,
                 onValueChange = { viewModel.onEmailChange(it) },
@@ -102,9 +83,7 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
                     unfocusedContainerColor = Color.White
                 )
             )
-
             Spacer(modifier = Modifier.height(8.dp))
-
             TextField(
                 value = state.password,
                 onValueChange = { viewModel.onPasswordChange(it) },
@@ -160,17 +139,14 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
                     OneTap(
                         modifier = Modifier.fillMaxWidth(),
                         style = OneTapStyle.Dark(),
-                        onAuth = { _, accessToken ->
-                            println("VK ID Auth Success: ${accessToken.token}")
-                            viewModel.onVKLoginClick(accessToken)
-                        },
+                        onAuth = { _, accessToken -> viewModel.onVKAuth(accessToken) },
                         onFail = { _, fail ->
                             val errorMessage = when (fail) {
                                 is VKIDAuthFail.Canceled -> "Авторизация через VK отменена"
                                 else -> "Ошибка VK: ${fail.description}"
                             }
                             println("VK ID Auth Failed: $errorMessage")
-//                            viewModel.onVKLoginClickFailed(errorMessage)
+                            viewModel.onVKFail(errorMessage)
                         },
                         signInAnotherAccountButtonEnabled = true,
                         fastAuthEnabled = true
@@ -185,7 +161,7 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            TextButton(onClick = { navController.navigate("register") }) {
+            TextButton(onClick = { viewModel.onRegisterClick() }) {
                 Text("Создать аккаунт", fontSize = 16.sp, color = Color(0xFF00796B))
             }
         }
