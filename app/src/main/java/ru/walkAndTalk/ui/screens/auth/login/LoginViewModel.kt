@@ -15,8 +15,8 @@ data class UserData(val email: String)
 
 @OptIn(OrbitExperimental::class)
 class LoginViewModel(
+    private val supabaseWrapper: SupabaseWrapper,
     private val localDataStoreRepository: LocalDataStoreRepository,
-    private val supabaseWrapper: SupabaseWrapper
 ) : ContainerViewModel<LoginViewState, LoginSideEffect>(
     initialState = LoginViewState()
 ) {

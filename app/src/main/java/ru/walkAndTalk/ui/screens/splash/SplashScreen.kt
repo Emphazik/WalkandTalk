@@ -27,6 +27,7 @@ import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
+import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
@@ -47,6 +48,7 @@ fun SplashScreen(
     }
 
     LaunchedEffect(state.isFirstLaunch) {
+        delay(3500)
         viewModel.onIsFirstLaunchChange()
     }
 

@@ -1,6 +1,5 @@
 package ru.walkAndTalk.ui.screens.splash
 
-import kotlinx.coroutines.delay
 import org.orbitmvi.orbit.syntax.Syntax
 import ru.walkAndTalk.domain.repository.LocalDataStoreRepository
 import ru.walkAndTalk.ui.orbit.ContainerViewModel
@@ -14,7 +13,6 @@ class SplashViewModel(
     override suspend fun Syntax<SplashViewState, SplashSideEffect>.onCreate() {
         repeatOnSubscription {
             localDataStoreRepository.isFirstLaunch.collect {
-                delay(3500)
                 reduce { state.copy(isFirstLaunch = it) }
             }
         }
