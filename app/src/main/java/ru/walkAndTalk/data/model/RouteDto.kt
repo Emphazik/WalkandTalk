@@ -4,11 +4,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class Route(
-    val id: String,
+data class RouteDto(
+    @SerialName("id") val id: String,
     @SerialName("creator_id") val creatorId: String,
-    val title: String,
-    val description: String,
-    val path: String, // JSONB, храним как строку
+    @SerialName("title") val title: String,
+    @SerialName("description") val description: String,
+    @SerialName("path") val path: String,
     @SerialName("created_at") val createdAt: String? = null
 )

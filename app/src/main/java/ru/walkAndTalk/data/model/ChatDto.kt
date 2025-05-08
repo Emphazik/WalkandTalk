@@ -4,10 +4,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
 
 @Serializable
-data class Chat(
-    val id: String,
+data class ChatDto(
+    @SerialName("id") val id: String,
     @SerialName("event_id") val eventId: String,
-    val type: String,
-    val interest: String? = null,
+    @SerialName("type") val type: String,
+    @SerialName("interest") val interest: String? = null,
     @SerialName("created_at") val createdAt: String? = null
 )

@@ -1,7 +1,6 @@
 package ru.walkAndTalk.ui.screens.main
 
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -51,7 +50,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
@@ -64,7 +62,7 @@ import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
 import org.orbitmvi.orbit.compose.collectAsState
 import ru.walkAndTalk.R
-import ru.walkAndTalk.data.model.Event
+import ru.walkAndTalk.data.model.EventDto
 import ru.walkAndTalk.domain.model.User
 
 val montserratFont = FontFamily(Font(R.font.montserrat_semi_bold))
@@ -121,7 +119,10 @@ fun MainScreen(viewModel: MainViewModel = koinViewModel()) {
             0 -> FeedScreen(padding, viewModel)
             1 -> SearchScreen(padding)
             2 -> ChatsScreen(padding)
-            3 -> ProfileScreen(padding)
+            3 -> ProfileScreen(
+                padding,
+                user = TODO()
+            )
         }
     }
 }
@@ -133,7 +134,7 @@ fun FeedScreen(padding: PaddingValues, viewModel: MainViewModel) {
 
     val events = remember {
         listOf(
-            Event(
+            EventDto(
                 id = "1",
                 creatorId = "creator1",
                 title = "Пикник в парке Горького",
@@ -142,7 +143,7 @@ fun FeedScreen(padding: PaddingValues, viewModel: MainViewModel) {
                 eventDate = "2025-04-16T14:00:00Z",
                 createdAt = "2025-04-01T10:00:00Z"
             ),
-            Event(
+            EventDto(
                 id = "2",
                 creatorId = "creator2",
                 title = "Вечерняя прогулка по Неве",
@@ -151,7 +152,7 @@ fun FeedScreen(padding: PaddingValues, viewModel: MainViewModel) {
                 eventDate = "2025-04-17T19:00:00Z",
                 createdAt = "2025-04-02T12:00:00Z"
             ),
-            Event(
+            EventDto(
                 id = "3",
                 creatorId = "creator3",
                 title = "Кофейная встреча",
@@ -189,7 +190,7 @@ fun FeedScreen(padding: PaddingValues, viewModel: MainViewModel) {
 }
 
 @Composable
-fun EventCard(event: Event, viewModel: MainViewModel) {
+fun EventCard(event: EventDto, viewModel: MainViewModel) {
     val colorScheme = MaterialTheme.colorScheme
     Card(
         modifier = Modifier

@@ -9,12 +9,12 @@ import kotlinx.serialization.SerialName
 import ru.walkAndTalk.R
 
 @Serializable
-data class Event(
-    val id: String,
+data class EventDto(
+    @SerialName("id") val id: String,
     @SerialName("creator_id") val creatorId: String,
-    val title: String,
-    val description: String,
-    val location: String,
+    @SerialName("title") val title: String,
+    @SerialName("description") val description: String,
+    @SerialName("location") val location: String,
     @SerialName("event_date") val eventDate: String,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("route_id") val routeId: String? = null,
