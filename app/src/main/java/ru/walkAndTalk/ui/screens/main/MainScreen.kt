@@ -65,6 +65,7 @@ import org.koin.androidx.compose.koinViewModel
 import org.orbitmvi.orbit.compose.collectAsState
 import ru.walkAndTalk.R
 import ru.walkAndTalk.data.model.Event
+import ru.walkAndTalk.domain.model.User
 
 val montserratFont = FontFamily(Font(R.font.montserrat_semi_bold))
 
@@ -396,7 +397,10 @@ fun ChatCard(chat: Chat) {
 }
 
 @Composable
-fun ProfileScreen(padding: PaddingValues) {
+fun ProfileScreen(
+    padding: PaddingValues,
+    user: User,
+) {
     val colorScheme = MaterialTheme.colorScheme
     var selectedCityStatus by remember { mutableStateOf("Новичок") }
     var showCityStatusMenu by remember { mutableStateOf(false) }

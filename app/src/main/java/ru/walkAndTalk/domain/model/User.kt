@@ -6,5 +6,5 @@ data class User(
     val phone: String,
     val name: String,
     val profileImageUrl: String,
-    val vkId: String
+    val vkId: Long?
 )

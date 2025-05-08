@@ -1,6 +1,6 @@
 package ru.walkAndTalk.data.usecase
 
-import ru.walkAndTalk.data.model.User
+import ru.walkAndTalk.data.model.UserDto
 import ru.walkAndTalk.domain.repository.AuthRepository
 import ru.walkAndTalk.domain.repository.LocalDataStoreRepository
 
@@ -10,11 +10,11 @@ class AuthenticateUserUseCase(
 ) {
     suspend operator fun invoke(
         accessToken: String,
-        vkId: String,
+        vkId: Long,
         email: String,
         phone: String,
         name: String
-    ): User {
+    ): UserDto {
         localDataStoreRepository.saveAccessToken(accessToken)
         return authRepository.authenticateUser(vkId, email, phone, name)
     }

@@ -2,21 +2,20 @@ package ru.walkAndTalk.ui.screens.auth.login
 
 import com.vk.id.AccessToken
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.user.UserInfo
 import io.github.jan.supabase.exceptions.RestException
-import kotlinx.serialization.Serializable
 import org.orbitmvi.orbit.annotation.OrbitExperimental
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.Regex
-import ru.walkAndTalk.domain.repository.LocalDataStoreRepository
+import ru.walkAndTalk.domain.repository.RemoteUsersRepository
+import ru.walkAndTalk.domain.repository.VKUsersRepository
 import ru.walkAndTalk.ui.orbit.ContainerViewModel
-
-@Serializable
-data class UserData(val email: String)
 
 @OptIn(OrbitExperimental::class)
 class LoginViewModel(
     private val supabaseWrapper: SupabaseWrapper,
-    private val localDataStoreRepository: LocalDataStoreRepository,
+    private val vkUsersRepository: VKUsersRepository,
+    private val remoteUsersRepository: RemoteUsersRepository,
 ) : ContainerViewModel<LoginViewState, LoginSideEffect>(
     initialState = LoginViewState()
 ) {
@@ -37,7 +36,7 @@ class LoginViewModel(
             if (state.email.matches(Regex.PHONE)) {
                 val userData = supabaseWrapper.postgrest.from("users").select {
                     filter { eq("phone", state.email) }
-                }.decodeSingleOrNull<UserData>()
+                }.decodeSingleOrNull<UserInfo>()
                 email = userData?.email ?: throw Exception("Телефон не зарегистрирован")
             }
 
@@ -78,7 +77,11 @@ class LoginViewModel(
     fun onVKAuth(accessToken: AccessToken) = intent {
         reduce { state.copy(isLoading = true, error = null) }
         try {
-            localDataStoreRepository.saveAccessToken(accessToken.token)
+            val user = vkUsersRepository.fetchUser(accessToken.userID)
+            remoteUsersRepository.add(user)
+            supabaseWrapper.auth.signUpWith(Email) {
+                this.email = user.email
+            }
             postSideEffect(LoginSideEffect.OnNavigateMain)
         } catch (e: Exception) {
             e.printStackTrace()

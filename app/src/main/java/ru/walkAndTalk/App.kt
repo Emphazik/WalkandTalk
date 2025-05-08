@@ -11,12 +11,13 @@ import java.util.Locale
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
-        VKID.init(this) // Инициализация VKID SDK
+        VKID.init(this)
+        VKID.instance.setLocale(Locale("ru"))
+        VKID.logsEnabled = true
         startKoin {
             androidLogger()
             androidContext(this@App)
             modules(appModule)
         }
-        VKID.instance.setLocale(Locale("ru"))
     }
 }

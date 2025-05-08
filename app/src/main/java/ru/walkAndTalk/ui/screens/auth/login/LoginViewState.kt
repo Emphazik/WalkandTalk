@@ -1,6 +1,6 @@
 package ru.walkAndTalk.ui.screens.auth.login
 
-import ru.walkAndTalk.data.model.User
+import ru.walkAndTalk.data.model.UserDto
 
 data class LoginViewState(
     val email: String = "",
@@ -8,5 +8,5 @@ data class LoginViewState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val isSuccess: Boolean = false,
-    val user: User? = null // Добавляем для хранения пользователя после авторизации через VK
+    val user: UserDto? = null // Добавляем для хранения пользователя после авторизации через VK
 )

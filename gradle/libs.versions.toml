@@ -1,37 +1,35 @@
 [versions]
-dataStore = "1.1.4"
-agp = "8.8.2"
-androidSdkApiVersion = "4.1.0"
-androidSdkCore = "4.1.0"
+dataStore = "1.1.6"
+agp = "8.10.0"
+vk = "4.1.0"
+vk-id-placeholders = "1.1.0"
 desugar_jdk_libs = "2.1.5"
 kotlin = "2.1.0"
 coreKtx = "1.16.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
-composeBom = "2025.04.01"
-kotlinxDatetime = "0.6.1"
+composeBom = "2025.05.00"
+kotlinxDatetime = "0.6.2"
 lifecycle-compose = "2.8.4"
 ksp = "2.1.0-1.0.29"
-ktor = "3.0.3"
+ktor = "3.1.2"
 coroutines = "1.10.1"
 koin = "4.0.0"
 coil = "3.0.4"
-lottie = "6.0.0"
-onetapCompose = "2.3.1"
+lottie = "6.6.6"
 room = "2.7.1"
 vkid = "2.3.1"
 worker = "2.10.1"
 activityCompose = "1.10.1"
-lifecycle = "2.8.7"
+lifecycle = "2.9.0"
 orbit = "9.0.0"
-navigationCompose = "2.8.9"
-supabase = "3.1.0"
+navigationCompose = "2.9.0"
+supabase = "3.1.4"
 coreSplashscreen = "1.0.1"
+
 [libraries]
 androidx-datastore = {module = "androidx.datastore:datastore-preferences", version.ref = "dataStore"}
-android-sdk-api = { module = "com.vk:android-sdk-api", version.ref = "androidSdkApiVersion" }
-android-sdk-core = { module = "com.vk:android-sdk-core", version.ref = "androidSdkCore" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 desugar_jdk_libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar_jdk_libs" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -49,6 +47,11 @@ androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+# VK
+android-sdk-api = { module = "com.vk:android-sdk-api", version.ref = "vk" }
+android-sdk-core = { module = "com.vk:android-sdk-core", version.ref = "vk" }
+android-sdk-support = { module = "com.vk.id:vk-sdk-support", version.ref = "vkid" }
+onetap-compose = { module = "com.vk.id:onetap-compose", version.ref = "vkid" }
 # Coroutines
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
@@ -63,8 +66,6 @@ koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koin" }
 koin-workmanager = { module = "io.insert-koin:koin-androidx-workmanager", version.ref = "koin" }
 # Room
-lottie = { module = "com.airbnb.android:lottie", version.ref = "lottie" }
-onetap-compose = { module = "com.vk.id:onetap-compose", version.ref = "onetapCompose" }
 room = { module = "androidx.room:room-ktx", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 # Coil
@@ -72,7 +73,6 @@ coil = { module = "io.coil-kt.coil3:coil", version.ref = "coil" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 # WorkManager
-vkid = { module = "com.vk.id:vkid", version.ref = "vkid" }
 work-manager = { module = "androidx.work:work-runtime-ktx", version.ref = "worker" }
 # Orbit
 orbit-core = { module = "org.orbit-mvi:orbit-core", version.ref = "orbit" }
@@ -86,7 +86,8 @@ supabase-storage = { module = "io.github.jan-tennert.supabase:storage-kt", versi
 supabase-realtime = { module = "io.github.jan-tennert.supabase:realtime-kt", version.ref = "supabase" }
 supabase-postgrest = { module = "io.github.jan-tennert.supabase:postgrest-kt", version.ref = "supabase" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
-# lottie = { module = "com.airbnb.android:lottie", version.ref = "lottie" }
+# Lottie
+lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "lottie" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -94,3 +95,4 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+vkid-placeholders = { id = "vkid.manifest.placeholders", version.ref = "vk-id-placeholders" }

@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.vkid.placeholders)
 }
 
 android {
@@ -20,10 +21,12 @@ android {
         buildConfigField("String", "SUPABASE_URL", "\"${properties["supabaseUrl"]}\"")
         buildConfigField("String", "SUPABASE_KEY", "\"${properties["supabaseKey"]}\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        manifestPlaceholders["VKIDClientID"] = "53306543"
-        manifestPlaceholders["VKIDClientSecret"] = properties["vkIdClientSecret"] as String
-        manifestPlaceholders["VKIDRedirectHost"] = "vk.com"
-        manifestPlaceholders["VKIDRedirectScheme"] = "vk53306543"
+        addManifestPlaceholders(mapOf(
+            "VKIDRedirectHost" to "${properties["VKIDRedirectHost"]}",
+            "VKIDRedirectScheme" to "${properties["VKIDRedirectScheme"]}",
+            "VKIDClientID" to "${properties["VKIDClientID"]}",
+            "VKIDClientSecret" to "${properties["VKIDClientSecret"]}"
+        ))
     }
 
     buildTypes {
@@ -68,6 +71,8 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.lottie.compose)
+    //implementation("com.google.accompanist:accompanist-navigation-animation:0.31.2-alpha")
     /** Coroutines **/
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
@@ -88,8 +93,6 @@ dependencies {
     implementation(libs.room)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.core.splashscreen)
-    implementation("com.google.accompanist:accompanist-navigation-animation:0.31.2-alpha")
-    implementation("com.airbnb.android:lottie-compose:6.0.0")
     ksp(libs.room.compiler)
     /** ORBIT MVI **/
     implementation(libs.orbit.core)
@@ -110,11 +113,10 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
     /** VK TEST **/
-    // Вроде как не нужно, старьё
     implementation(libs.android.sdk.core)
     implementation(libs.android.sdk.api)
-    implementation(libs.vkid)
-    implementation(libs.onetap.compose) // com.vk.id:onetap-compose:2.3.1
+    implementation(libs.android.sdk.support)
+    implementation(libs.onetap.compose)
     /** Desugaring for VK **/
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 }
