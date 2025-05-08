@@ -1,5 +1,11 @@
 package ru.walkAndTalk.ui.screens.main
 
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,6 +30,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -44,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
@@ -70,7 +78,7 @@ fun MainScreen(viewModel: MainViewModel = koinViewModel()) {
         bottomBar = {
             NavigationBar(
                 containerColor = colorScheme.background,
-                modifier = Modifier.height(64.dp)
+                modifier = Modifier.height(128.dp)
             ) {
                 tabs.forEachIndexed { index, title ->
                     val selected = state.selectedTab == index
@@ -86,7 +94,9 @@ fun MainScreen(viewModel: MainViewModel = koinViewModel()) {
                                     }
                                 ),
                                 contentDescription = title,
-                                tint = if (selected) colorScheme.primary else colorScheme.onBackground.copy(alpha = 0.5f)
+                                tint = if (selected) colorScheme.primary else colorScheme.onBackground.copy(
+                                    alpha = 0.5f
+                                )
                             )
                         },
                         label = {
@@ -94,7 +104,9 @@ fun MainScreen(viewModel: MainViewModel = koinViewModel()) {
                                 text = title,
                                 fontFamily = montserratFont,
                                 fontSize = 12.sp,
-                                color = if (selected) colorScheme.primary else colorScheme.onBackground.copy(alpha = 0.5f)
+                                color = if (selected) colorScheme.primary else colorScheme.onBackground.copy(
+                                    alpha = 0.5f
+                                )
                             )
                         },
                         selected = selected,
@@ -164,59 +176,12 @@ fun FeedScreen(padding: PaddingValues, viewModel: MainViewModel) {
                 color = colorScheme.onBackground,
                 modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp)
             )
-
-            // Блок поиска
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp),
-                    placeholder = {
-                        Text(
-                            text = "Поиск мероприятий...",
-                            fontFamily = montserratFont,
-                            fontSize = 14.sp,
-                            color = colorScheme.onSurface.copy(alpha = 0.5f)
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_search64),
-                            contentDescription = "Search icon",
-                            tint = colorScheme.onSurface.copy(alpha = 0.5f)
-                        )
-                    },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = colorScheme.surface,
-                        unfocusedContainerColor = colorScheme.surface,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                IconButton(
-                    onClick = { /* Заглушка для фильтра */ },
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(colorScheme.surface, CircleShape)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_filter64),
-                        contentDescription = "Filter icon",
-                        tint = colorScheme.onSurface.copy(alpha = 0.5f)
-                    )
-                }
-            }
+            SearchBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                onFilterClick = { /* Заглушка для фильтра */ },
+                colorScheme = colorScheme
+            )
         }
         items(events) { event -> EventCard(event, viewModel) }
     }
@@ -436,67 +401,47 @@ fun ProfileScreen(padding: PaddingValues) {
     var selectedCityStatus by remember { mutableStateOf("Новичок") }
     var showCityStatusMenu by remember { mutableStateOf(false) }
     val cityStatuses = listOf("Новичок", "Знаток", "Эксперт")
-    val interests = remember { listOf("История", "Архитектура", "Природа", "Гастрономия", "Искусство", "Спорт", "Музыка").take(7) } // Ограничение до 7
+    val interests = remember {
+        listOf(
+            "История",
+            "Архитектура",
+            "Природа",
+            "Гастрономия",
+            "Искусство",
+            "Спорт",
+            "Музыка"
+        ).take(7)
+    }
+    var profileImage by remember { mutableStateOf(R.drawable.preview_profile) }
 
-    Box(
+    // Launcher для выбора изображения
+    val launcher =
+        rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                // Здесь можно обработать выбранное изображение (например, с помощью Coil)
+                profileImage = R.drawable.preview_profile // Заглушка, заменить на реальную загрузку
+            }
+        }
+
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(colorScheme.background)
             .padding(padding)
+            .padding(horizontal = 16.dp)
     ) {
-        // Иконка редактирования фото в правом верхнем углу
-        IconButton(
-            onClick = { /* Заглушка для изменения фото */ },
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 16.dp, end = 16.dp)
-                .size(32.dp)
-                .background(colorScheme.primary.copy(alpha = 0.8f), CircleShape)
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_more128),
-                contentDescription = "Edit photo",
-                tint = colorScheme.onPrimary,
-                modifier = Modifier.size(20.dp)
+        item {
+            ProfileHeader(
+                name = "Litvin",
+                onEditClick = { launcher.launch(it) },
+                profileImage = profileImage,
+                colorScheme = colorScheme
             )
         }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Фото профиля
-            Image(
-                painter = painterResource(id = R.drawable.preview_profile),
-                contentDescription = "Profile picture",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .padding(top = 64.dp) // Смещаем вниз из-за иконки
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .background(colorScheme.onSurface.copy(alpha = 0.2f))
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Имя пользователя (заглушка)
-            Text(
-                text = "Litvin",
-                fontFamily = montserratFont,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = colorScheme.onBackground
-            )
-
+        item {
             Spacer(modifier = Modifier.height(8.dp))
-
-            // Статус в городе
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -542,186 +487,252 @@ fun ProfileScreen(padding: PaddingValues) {
                     }
                 }
             }
+        }
+        item { Spacer(modifier = Modifier.height(16.dp)) }
+        item {
+            BioSection(
+                bio = "Люблю исследовать новые города, увлекаюсь историей и архитектурой. Ищу единомышленников для прогулок!",
+                colorScheme = colorScheme
+            )
+        }
+        item { Spacer(modifier = Modifier.height(16.dp)) }
+        item {
+            InterestSection(
+                interests = interests,
+                onAddInterest = { /* Заглушка */ },
+                onRemoveInterest = { /* Заглушка */ },
+                colorScheme = colorScheme
+            )
+        }
+        item { Spacer(modifier = Modifier.height(16.dp)) }
+        item {
+            GoalsSection(
+                goals = "Хочу найти друзей для совместных прогулок и узнать больше о городе.",
+                colorScheme = colorScheme
+            )
+        }
+        item {
+            ActionButtons(
+                onStatsClick = { /* Заглушка */ },
+                onEditClick = { /* Заглушка */ },
+                onLogoutClick = { /* Заглушка */ },
+                colorScheme = colorScheme
+            )
+        }
+        item {
 
+        }
+    }
+}
+
+@Composable
+fun SearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onFilterClick: () -> Unit,
+    colorScheme: ColorScheme
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp),
+            placeholder = {
+                Text(
+                    text = "Поиск мероприятий...",
+                    fontFamily = montserratFont,
+                    fontSize = 14.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_search64),
+                    contentDescription = "Search icon",
+                    tint = colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            },
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = colorScheme.surface,
+                unfocusedContainerColor = colorScheme.surface,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        IconButton(
+            onClick = onFilterClick,
+            modifier = Modifier
+                .size(48.dp)
+                .background(colorScheme.surface, CircleShape)
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_filter64),
+                contentDescription = "Filter icon",
+                tint = colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+        }
+    }
+}
+
+@Composable
+fun EditMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    onChangeImageClick: () -> Unit,
+    colorScheme: ColorScheme
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        modifier = Modifier
+            .padding(top = 64.dp, end = 16.dp)
+            .background(colorScheme.surface)
+    ) {
+        DropdownMenuItem(
+            text = {
+                Text(
+                    text = "Изменить изображение",
+                    fontFamily = montserratFont,
+                    fontSize = 16.sp,
+                    color = colorScheme.onSurface
+                )
+            },
+            onClick = onChangeImageClick
+        )
+    }
+}
+
+@Composable
+fun ProfileHeader(
+    name: String,
+    onEditClick: (Intent) -> Unit,
+    @DrawableRes profileImage: Int,
+    colorScheme: ColorScheme
+) {
+    var showEditMenu by remember { mutableStateOf(false) }
+    Box(modifier = Modifier.fillMaxWidth()) {
+        IconButton(
+            onClick = { showEditMenu = true },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 16.dp, end = 16.dp)
+                .size(32.dp)
+                .background(colorScheme.primary.copy(alpha = 0.8f), CircleShape)
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_more128),
+                contentDescription = "Edit photo",
+                tint = colorScheme.onPrimary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        EditMenu(
+            expanded = showEditMenu,
+            onDismiss = { showEditMenu = false },
+            onChangeImageClick = {
+                showEditMenu = false
+                val intent = Intent(Intent.ACTION_PICK).apply {
+                    type = "image/*"
+                }
+                onEditClick(intent)
+            },
+            colorScheme = colorScheme
+        )
+        Column(
+            modifier = Modifier
+                .padding(top = 64.dp)
+                .align(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Image(
+                painter = painterResource(profileImage),
+                contentDescription = "Profile picture",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .background(colorScheme.onSurface.copy(alpha = 0.2f))
+            )
             Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = name,
+                fontFamily = montserratFont,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onBackground
+            )
+        }
+    }
+}
 
-            // О себе (bio)
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = colorScheme.surface)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+@Composable
+fun InterestSection(
+    interests: List<String>,
+    onAddInterest: () -> Unit,
+    onRemoveInterest: (String) -> Unit,
+    colorScheme: ColorScheme
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Интересы",
+                fontFamily = montserratFont,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onSurface
+            )
+            Text(
+                text = "Добавить",
+                fontFamily = montserratFont,
+                fontSize = 14.sp,
+                color = colorScheme.primary,
+                modifier = Modifier.clickable { onAddInterest() }
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(interests) { interest ->
+                Card(
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = colorScheme.primary.copy(alpha = 0.1f))
                 ) {
-                    Text(
-                        text = "О себе",
-                        fontFamily = montserratFont,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Люблю исследовать новые города, увлекаюсь историей и архитектурой. Ищу единомышленников для прогулок!",
-                        fontFamily = montserratFont,
-                        fontSize = 14.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.8f)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Интересы
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Интересы",
-                        fontFamily = montserratFont,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Добавить",
-                        fontFamily = montserratFont,
-                        fontSize = 14.sp,
-                        color = colorScheme.primary,
-                        modifier = Modifier
-                            .clickable { /* Заглушка для добавления интереса */ }
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(interests) { interest ->
-                        Card(
-                            shape = RoundedCornerShape(8.dp),
-                            colors = CardDefaults.cardColors(containerColor = colorScheme.primary.copy(alpha = 0.1f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = interest,
-                                    fontFamily = montserratFont,
-                                    fontSize = 14.sp,
-                                    color = colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_clear128),
-                                    contentDescription = "Remove interest",
-                                    tint = colorScheme.primary.copy(alpha = 0.6f),
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clickable { /* Заглушка для удаления интереса */ }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Цели (goals)
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = colorScheme.surface)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "Цели",
-                        fontFamily = montserratFont,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Хочу найти друзей для совместных прогулок и узнать больше о городе.",
-                        fontFamily = montserratFont,
-                        fontSize = 14.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.8f)
-                    )
-                }
-            }
-
-            // Кнопки привязаны к низу экрана
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 16.dp),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                Column(
-                    verticalArrangement = Arrangement.Bottom,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Button(
-                        onClick = { /* Заглушка для статистики */ },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colorScheme.surfaceVariant
-                        )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Статистика мероприятий и отзывов",
+                            text = interest,
                             fontFamily = montserratFont,
-                            fontSize = 16.sp,
-                            color = colorScheme.onSurface
+                            fontSize = 14.sp,
+                            color = colorScheme.primary
                         )
-                    }
-                    Button(
-                        onClick = { /* Заглушка для редактирования профиля */ },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colorScheme.surfaceVariant
-                        )
-                    ) {
-                        Text(
-                            text = "Редактировать профиль",
-                            fontFamily = montserratFont,
-                            fontSize = 16.sp,
-                            color = colorScheme.onSurface
-                        )
-                    }
-                    Button(
-                        onClick = { /* Заглушка для выхода */ },
-                        modifier = Modifier
-                            .fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colorScheme.errorContainer
-                        )
-                    ) {
-                        Text(
-                            text = "Выйти",
-                            fontFamily = montserratFont,
-                            fontSize = 16.sp,
-                            color = colorScheme.onErrorContainer
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_clear128),
+                            contentDescription = "Remove interest",
+                            tint = colorScheme.primary.copy(alpha = 0.6f),
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clickable { onRemoveInterest(interest) }
                         )
                     }
                 }
@@ -730,6 +741,128 @@ fun ProfileScreen(padding: PaddingValues) {
     }
 }
 
+@Composable
+fun BioSection(
+    bio: String,
+    colorScheme: ColorScheme
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "О себе",
+                fontFamily = montserratFont,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = bio,
+                fontFamily = montserratFont,
+                fontSize = 14.sp,
+                color = colorScheme.onSurface.copy(alpha = 0.8f)
+            )
+        }
+    }
+}
+
+@Composable
+fun GoalsSection(
+    goals: String,
+    colorScheme: ColorScheme
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Цели",
+                fontFamily = montserratFont,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = goals,
+                fontFamily = montserratFont,
+                fontSize = 14.sp,
+                color = colorScheme.onSurface.copy(alpha = 0.8f)
+            )
+        }
+    }
+}
+
+@Composable
+fun ActionButtons(
+    onStatsClick: () -> Unit,
+    onEditClick: () -> Unit,
+    onLogoutClick: () -> Unit,
+    colorScheme: ColorScheme
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = 16.dp),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Column(
+            verticalArrangement = Arrangement.Bottom,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Button(
+                onClick = onStatsClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = colorScheme.surfaceVariant)
+            ) {
+                Text(
+                    text = "Статистика мероприятий и отзывов",
+                    fontFamily = montserratFont,
+                    fontSize = 16.sp,
+                    color = colorScheme.onSurface
+                )
+            }
+            Button(
+                onClick = onEditClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = colorScheme.surfaceVariant)
+            ) {
+                Text(
+                    text = "Редактировать профиль",
+                    fontFamily = montserratFont,
+                    fontSize = 16.sp,
+                    color = colorScheme.onSurface
+                )
+            }
+            Button(
+                onClick = onLogoutClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = colorScheme.errorContainer)
+            ) {
+                Text(
+                    text = "Выйти",
+                    fontFamily = montserratFont,
+                    fontSize = 16.sp,
+                    color = colorScheme.onErrorContainer
+                )
+            }
+        }
+    }
+}
 
 data class Chat(
     val eventName: String,

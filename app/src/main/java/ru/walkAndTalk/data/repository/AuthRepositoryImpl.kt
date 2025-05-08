@@ -4,6 +4,7 @@ import io.github.jan.supabase.postgrest.Postgrest
 import ru.walkAndTalk.data.model.User
 import ru.walkAndTalk.domain.repository.AuthRepository
 import io.github.jan.supabase.postgrest.query.filter.TextSearchType
+
 class AuthRepositoryImpl(
     private val postgrest: Postgrest
 ) : AuthRepository {
