@@ -7,4 +7,7 @@ interface RemoteUsersRepository {
     suspend fun fetchAll(): List<User>
     suspend fun fetchById(id: String): User?
     suspend fun fetchByVkId(id: Long): User?
+    //Для SearchViewModel
+    suspend fun searchUsers(query: String): List<User>
+
 }

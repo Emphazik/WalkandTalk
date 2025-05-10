@@ -14,8 +14,13 @@ import kotlinx.serialization.Serializable
 @Serializable object Login
 @Serializable object Registration
 // Screen
-@Serializable object Main
+@Serializable
+data class Main(val userId: String)
 
 /** Local Main Screen **/
 // Screen
-@Serializable object Profile
+@Serializable data class Profile(val userId: String)
+@Serializable object Feed
+@Serializable object Chats
+@Serializable object Search
+

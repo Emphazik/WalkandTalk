@@ -3,6 +3,7 @@ package ru.walkAndTalk.data.repository
 import io.github.jan.supabase.postgrest.Postgrest
 import ru.walkAndTalk.data.model.UserDto
 import ru.walkAndTalk.domain.repository.AuthRepository
+import java.time.Instant
 
 class AuthRepositoryImpl(
     private val postgrest: Postgrest
@@ -26,7 +27,12 @@ class AuthRepositoryImpl(
                 phone = phone,
                 name = name,
                 profileImageUrl = "",
-                vkId = vkId
+                vkId = vkId,
+                cityKnowledgeLevelId = null, // Установим позже
+                bio = null, // Установим позже
+                goals = null, // Установим позже
+                createdAt = Instant.now().toString(),
+                updatedAt = null
             )
             postgrest["users"].insert(newUser).decodeSingle<UserDto>()
         }

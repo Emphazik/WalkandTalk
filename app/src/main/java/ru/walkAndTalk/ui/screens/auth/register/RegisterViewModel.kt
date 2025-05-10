@@ -122,7 +122,7 @@ class RegisterViewModel(
                 )
                 println("Register: Profile data saved to 'profiles' table")
                 reduce { state.copy(isLoading = false, isSuccess = true) }
-                postSideEffect(RegisterSideEffect.OnNavigateMain)
+                postSideEffect(RegisterSideEffect.OnNavigateMain(user.id))
             } else {
                 throw Exception("Не удалось зарегистрировать или войти пользователю: пользователь null.")
             }

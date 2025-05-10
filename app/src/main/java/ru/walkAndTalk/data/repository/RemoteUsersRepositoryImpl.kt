@@ -38,4 +38,21 @@ class RemoteUsersRepositoryImpl(
             ?.fromDto()
     }
 
+    override suspend fun searchUsers(query: String): List<User> {
+//        return supabaseWrapper[Table.USERS]
+//            .select {
+//                filter {
+//                    or(
+//                        listOf(
+//                            ilike("name", "%$query%"),
+//                            ilike("bio", "%$query%")
+//                        )
+//                    )
+//                }
+//            }
+//            .decodeList<UserDto>()
+//            .map { it.toDomain() }
+//    }
+        return TODO("Provide the return value")
+    }
 }

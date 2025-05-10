@@ -3,10 +3,14 @@ package ru.walkAndTalk.ui.screens.root
 import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.navigation.toRoute
+import kotlinx.serialization.Serializable
 import ru.walkAndTalk.ui.screens.Auth
 import ru.walkAndTalk.ui.screens.Login
 import ru.walkAndTalk.ui.screens.Main
@@ -26,13 +30,13 @@ fun RootScreen(intent: Intent) {
     val navController = rememberNavController()
     NavHost(
         navController = navController,
-        startDestination = Splash,
+        startDestination = Splash
     ) {
         composable<Splash> {
             SplashScreen(
-                onNavigateMain = {
-                    navController.navigate(Main) {
-                        popUpTo(navController.graph.startDestinationId) {
+                onNavigateMain = { userId ->
+                    navController.navigate(Main(userId)) {
+                        popUpTo(Splash) {
                             inclusive = true
                         }
                         launchSingleTop = true
@@ -81,9 +85,9 @@ fun RootScreen(intent: Intent) {
                             popUpTo(Login) { inclusive = true }
                         }
                     },
-                    onNavigateMain = {
-                        navController.navigate(Main) {
-                            popUpTo(navController.graph.startDestinationId) {
+                    onNavigateMain = { userId ->
+                        navController.navigate(Main(userId)) {
+                            popUpTo(Auth) { // Используем Routes.Auth как точку возврата
                                 inclusive = true
                             }
                             launchSingleTop = true
@@ -98,9 +102,9 @@ fun RootScreen(intent: Intent) {
                             popUpTo(Registration) { inclusive = true }
                         }
                     },
-                    onNavigateMain = {
-                        navController.navigate(Main) {
-                            popUpTo(navController.graph.startDestinationId) {
+                    onNavigateMain = {userId ->
+                        navController.navigate(Main(userId)) {
+                            popUpTo(Auth) {
                                 inclusive = true
                             }
                             launchSingleTop = true
@@ -109,16 +113,18 @@ fun RootScreen(intent: Intent) {
                 )
             }
         }
-        composable<Main> {
-            MainScreen()
+        composable<Main> { backStackEntry ->
+            val route = backStackEntry.toRoute<Main>()
+            val userId = route.userId
+            MainScreen(userId = userId)
         }
     }
 
     LaunchedEffect(intent) {
         intent.data?.let { uri ->
             if (uri.toString().startsWith("vk53306543://vk.com")) {
-                navController.navigate(Main) {
-                    popUpTo(navController.graph.startDestinationId) {
+                navController.navigate(Main("id")) { // Замени на реальный ID
+                    popUpTo(Splash) {
                         inclusive = true
                     }
                     launchSingleTop = true

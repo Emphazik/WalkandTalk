@@ -53,7 +53,7 @@ class LoginViewModel(
                     throw Exception("Сессия не установлена после входа.")
                 }
                 reduce { state.copy(isLoading = false, user = null) }
-                postSideEffect(LoginSideEffect.OnNavigateMain)
+                postSideEffect(LoginSideEffect.OnNavigateMain(user.id))
             } else {
                 throw Exception("Не удалось войти: пользователь не найден.")
             }
@@ -82,7 +82,7 @@ class LoginViewModel(
             supabaseWrapper.auth.signUpWith(Email) {
                 this.email = user.email
             }
-            postSideEffect(LoginSideEffect.OnNavigateMain)
+            postSideEffect(LoginSideEffect.OnNavigateMain(user.id)) // RemoteUsersRepository(пересваивать user id .) или SupabaseWrapper возвращать нового юзера
         } catch (e: Exception) {
             e.printStackTrace()
         }

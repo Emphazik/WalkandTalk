@@ -40,13 +40,13 @@ import ru.walkAndTalk.R
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel = koinViewModel(),
-    onNavigateMain: () -> Unit,
+    onNavigateMain: (String) -> Unit,
     onNavigateRegister: () -> Unit,
 ) {
     val state by viewModel.collectAsState()
     viewModel.collectSideEffect {
         when (it){
-            is LoginSideEffect.OnNavigateMain -> onNavigateMain()
+            is LoginSideEffect.OnNavigateMain -> onNavigateMain(it.id) // Передать функцию и навигацию изменить.
             is LoginSideEffect.OnNavigateRegister -> onNavigateRegister()
         }
     }

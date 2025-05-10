@@ -18,5 +18,17 @@ data class UserDto(
     @SerialName("vk_id")
     val vkId: Long? = null,
     @SerialName("password_hash")
-    val passwordHash: String? = null
+    val passwordHash: String? = null,
+    @SerialName("interest_ids")
+    val interestIds: List<String> = emptyList(),
+    @SerialName("city_knowledge_level_id")
+    val cityKnowledgeLevelId: String? = null,
+    @SerialName("bio")
+    val bio: String? = null,
+    @SerialName("goals")
+    val goals: String? = null,
+    @SerialName("created_at")
+    val createdAt: String, // Instant будет сериализоваться как строка
+    @SerialName("updated_at")
+    val updatedAt: String? = null
 )

@@ -25,9 +25,9 @@ class SplashViewModel(
          postSideEffect(
              when (state.isFirstLaunch) {
                  true -> SplashSideEffect.OnNavigateOnboarding
-                 else -> when (supabaseWrapper.auth.currentSessionOrNull()) {
+                 else -> when (val user = supabaseWrapper.auth.currentUserOrNull()) {
                      null -> SplashSideEffect.OnNavigateWelcome
-                     else -> SplashSideEffect.OnNavigateMain
+                     else -> SplashSideEffect.OnNavigateMain(user.id)
                  }
              }
          )

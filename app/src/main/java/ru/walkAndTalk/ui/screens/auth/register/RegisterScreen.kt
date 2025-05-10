@@ -44,13 +44,13 @@ import ru.walkAndTalk.R
 fun RegisterScreen(
     viewModel: RegisterViewModel = koinViewModel(),
     onNavigateLogin: () -> Unit,
-    onNavigateMain: () -> Unit,
+    onNavigateMain: (String) -> Unit,
 ) {
     val state by viewModel.collectAsState()
     viewModel.collectSideEffect {
         when (it) {
             is RegisterSideEffect.OnNavigateLogin -> onNavigateLogin()
-            is RegisterSideEffect.OnNavigateMain -> onNavigateMain()
+            is RegisterSideEffect.OnNavigateMain -> onNavigateMain(it.id)
         }
     }
 
