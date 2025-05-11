@@ -34,6 +34,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -158,14 +160,20 @@ fun ProfileScreen(
                     }
                 }
             }
-            item { Spacer(modifier = Modifier.height(24.dp)) } // Увеличенный отступ перед карточками
+            item { Spacer(modifier = Modifier.height(24.dp)) }
             item {
                 BioSection(
-                    bio = state.bio ?: "О себе не указано",
+                    bio = state.bio,
+                    isEditing = state.isEditingBio,
+                    newBio = state.newBio,
+                    onEditClick = viewModel::onEditBio,
+                    onBioChanged = viewModel::onBioChanged,
+                    onSaveClick = viewModel::onSaveBio,
+                    onCancelClick = viewModel::onCancelBio,
                     colorScheme = colorScheme
                 )
             }
-            item { Spacer(modifier = Modifier.height(16.dp)) } // Отступ между карточками
+            item { Spacer(modifier = Modifier.height(16.dp)) }
             item {
                 InterestSection(
                     interests = state.interests,
@@ -174,17 +182,22 @@ fun ProfileScreen(
                     colorScheme = colorScheme
                 )
             }
-            item { Spacer(modifier = Modifier.height(16.dp)) } // Отступ между карточками
+            item { Spacer(modifier = Modifier.height(16.dp)) }
             item {
                 GoalsSection(
-                    goals = state.goals ?: "Цели не указаны",
+                    goals = state.goals,
+                    isEditing = state.isEditingGoals,
+                    newGoals = state.newGoals,
+                    onEditClick = viewModel::onEditGoals,
+                    onGoalsChanged = viewModel::onGoalsChanged,
+                    onSaveClick = viewModel::onSaveGoals,
+                    onCancelClick = viewModel::onCancelGoals,
                     colorScheme = colorScheme
                 )
             }
-            item { Spacer(modifier = Modifier.height(80.dp)) } // Отступ для кнопок
+            item { Spacer(modifier = Modifier.height(80.dp)) }
         }
 
-        // Кнопки внизу по центру
         Box(
             modifier = Modifier
                 .fillMaxSize(),
@@ -198,7 +211,6 @@ fun ProfileScreen(
             )
         }
 
-        // Меню выбора интересов
         if (state.showInterestSelection) {
             InterestSelectionMenu(
                 availableInterests = state.availableInterests,
@@ -242,7 +254,7 @@ fun ProfileHeader(
             onDismissRequest = { showEditMenu = false },
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 48.dp, end = 16.dp) // Расположение строго под иконкой
+                .padding(top = 48.dp, end = 16.dp)
         ) {
             DropdownMenuItem(
                 text = {
@@ -283,6 +295,180 @@ fun ProfileHeader(
                 color = colorScheme.onBackground,
                 textAlign = TextAlign.Center
             )
+        }
+    }
+}
+
+@Composable
+fun BioSection(
+    bio: String?,
+    isEditing: Boolean,
+    newBio: String,
+    onEditClick: () -> Unit,
+    onBioChanged: (String) -> Unit,
+    onSaveClick: () -> Unit,
+    onCancelClick: () -> Unit,
+    colorScheme: ColorScheme
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, colorScheme.outline, RoundedCornerShape(8.dp)),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "О себе",
+                    fontFamily = montserratFont,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colorScheme.onSurface
+                )
+                if (!isEditing) {
+                    Text(
+                        text = "Изменить",
+                        fontFamily = montserratFont,
+                        fontSize = 14.sp,
+                        color = colorScheme.primary,
+                        modifier = Modifier.clickable { onEditClick() }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            if (isEditing) {
+                OutlinedTextField(
+                    value = newBio,
+                    onValueChange = onBioChanged,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Введите текст") },
+                    textStyle = TextStyle(
+                        fontFamily = montserratFont,
+                        fontSize = 14.sp,
+                        color = colorScheme.onSurface.copy(alpha = 0.8f)
+                    )
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = onSaveClick,
+                        colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Сохранить", fontFamily = montserratFont, fontSize = 14.sp, color = colorScheme.onPrimary)
+                    }
+                    Button(
+                        onClick = onCancelClick,
+                        colors = ButtonDefaults.buttonColors(containerColor = colorScheme.surfaceVariant),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Отмена", fontFamily = montserratFont, fontSize = 14.sp, color = colorScheme.onSurface)
+                    }
+                }
+            } else {
+                Text(
+                    text = bio ?: "О себе не указано",
+                    fontFamily = montserratFont,
+                    fontSize = 14.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.8f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun GoalsSection(
+    goals: String?,
+    isEditing: Boolean,
+    newGoals: String,
+    onEditClick: () -> Unit,
+    onGoalsChanged: (String) -> Unit,
+    onSaveClick: () -> Unit,
+    onCancelClick: () -> Unit,
+    colorScheme: ColorScheme
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, colorScheme.outline, RoundedCornerShape(8.dp)),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Цели",
+                    fontFamily = montserratFont,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colorScheme.onSurface
+                )
+                if (!isEditing) {
+                    Text(
+                        text = "Изменить",
+                        fontFamily = montserratFont,
+                        fontSize = 14.sp,
+                        color = colorScheme.primary,
+                        modifier = Modifier.clickable { onEditClick() }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            if (isEditing) {
+                OutlinedTextField(
+                    value = newGoals,
+                    onValueChange = onGoalsChanged,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Введите текст") },
+                    textStyle = TextStyle(
+                        fontFamily = montserratFont,
+                        fontSize = 14.sp,
+                        color = colorScheme.onSurface.copy(alpha = 0.8f)
+                    )
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = onSaveClick,
+                        colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Сохранить", fontFamily = montserratFont, fontSize = 14.sp, color = colorScheme.onPrimary)
+                    }
+                    Button(
+                        onClick = onCancelClick,
+                        colors = ButtonDefaults.buttonColors(containerColor = colorScheme.surfaceVariant),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Отмена", fontFamily = montserratFont, fontSize = 14.sp, color = colorScheme.onSurface)
+                    }
+                }
+            } else {
+                Text(
+                    text = goals ?: "Цели не указаны",
+                    fontFamily = montserratFont,
+                    fontSize = 14.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.8f)
+                )
+            }
         }
     }
 }
@@ -364,72 +550,6 @@ fun InterestSection(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun BioSection(
-    bio: String,
-    colorScheme: ColorScheme
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, colorScheme.outline, RoundedCornerShape(8.dp)),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "О себе",
-                fontFamily = montserratFont,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = bio,
-                fontFamily = montserratFont,
-                fontSize = 14.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.8f)
-            )
-        }
-    }
-}
-
-@Composable
-fun GoalsSection(
-    goals: String,
-    colorScheme: ColorScheme
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, colorScheme.outline, RoundedCornerShape(8.dp)),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "Цели",
-                fontFamily = montserratFont,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = goals,
-                fontFamily = montserratFont,
-                fontSize = 14.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.8f)
-            )
         }
     }
 }

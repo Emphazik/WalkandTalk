@@ -55,4 +55,31 @@ class RemoteUsersRepositoryImpl(
 //    }
         return TODO("Provide the return value")
     }
+
+    override suspend fun updateCityKnowledgeLevel(userId: String, levelId: String) {
+        supabaseWrapper.postgrest[Table.USERS]
+            .update(
+                mapOf("city_knowledge_level_id" to levelId)
+            ) {
+                filter { UserDto::id eq userId }
+            }
+    }
+
+    override suspend fun updateBio(userId: String, bio: String) {
+        supabaseWrapper.postgrest[Table.USERS]
+            .update(
+                mapOf("bio" to bio)
+            ) {
+                filter { UserDto::id eq userId }
+            }
+    }
+
+    override suspend fun updateGoals(userId: String, goals: String) {
+        supabaseWrapper.postgrest[Table.USERS]
+            .update(
+                mapOf("goals" to goals)
+            ) {
+                filter { UserDto::id eq userId }
+            }
+    }
 }

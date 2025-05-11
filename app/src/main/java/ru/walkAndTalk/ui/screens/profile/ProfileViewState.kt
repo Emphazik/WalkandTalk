@@ -14,10 +14,14 @@ data class ProfileViewState(
     val bio: String? = null,
     val interests: List<String> = emptyList(), // Список имен интересов пользователя
     val goals: String? = null,
-    val showEditMenu: Boolean = false,
-    val showCityStatusMenu: Boolean = false,
-    val cityStatuses: List<String> = listOf("Новичок", "Знаток", "Эксперт"),
     val photoURL: String? = null, // URI-ссылка на изображение в Supabase
     val availableInterests: List<String> = emptyList(), // Список всех доступных интересов
-    val showInterestSelection: Boolean = false // Состояние для показа меню выбора интересов
+    val showEditMenu: Boolean = false,
+    val showCityStatusMenu: Boolean = false,
+    val showInterestSelection: Boolean = false, // Состояние для показа меню выбора интересов
+    val cityStatuses: List<String> = emptyList(),
+    val isEditingBio: Boolean = false,
+    val isEditingGoals: Boolean = false,
+    val newBio: String = "",
+    val newGoals: String = ""
 )

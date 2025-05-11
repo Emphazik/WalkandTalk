@@ -1,14 +1,10 @@
 package ru.walkAndTalk.ui.screens.profile
 
-import android.nfc.Tag
 import android.util.Log
-import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.ViewModel
 import org.orbitmvi.orbit.Container
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
-import ru.walkAndTalk.R
-import ru.walkAndTalk.domain.model.User
 import ru.walkAndTalk.domain.repository.CityKnowledgeLevelRepository
 import ru.walkAndTalk.domain.repository.InterestsRepository
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
@@ -36,7 +32,7 @@ class ProfileViewModel(
         val availableInterests =
             interestsRepository.fetchAll().map { it.name } // Загружаем все доступные интересы
 
-        Log.d("ProfileViewModel", user.profileImageUrl)
+//        Log.d("ProfileViewModel", user.profileImageUrl)
         reduce {
             state.copy(
                 name = user.name,
@@ -45,7 +41,8 @@ class ProfileViewModel(
                 goals = user.goals,
                 interests = interests,
                 photoURL = user.profileImageUrl,
-                availableInterests = availableInterests
+                availableInterests = availableInterests,
+                cityStatuses = listOf("Новичёк", "Знаток", "Эксперт")
             )
         }
     }
@@ -72,7 +69,21 @@ class ProfileViewModel(
     }
 
     fun onCityStatusSelected(status: String) = intent {
-        reduce { state.copy(selectedCityStatus = status, showCityStatusMenu = false) }
+        val levels = cityKnowledgeLevelRepository.fetchAll()
+        val level = levels.find { it.name == status }
+        if (level != null) {
+            userId?.let { safeUserId ->
+                remoteUsersRepository.updateCityKnowledgeLevel(safeUserId, level.id) // Обновление в БД
+                reduce { state.copy(selectedCityStatus = status, showCityStatusMenu = false) }
+            } ?: run {
+                // Логирование или уведомление об ошибке
+                println("Ошибка: userId не определен")
+                Log.d("CityStatus", "huinya1")
+            }
+        } else {
+            println("Ошибка: статус $status не найден в списке уровней")
+            Log.d("CityStatus", "huinya2")
+        }
     }
 
     fun onAddInterestClick() = intent {
@@ -98,19 +109,62 @@ class ProfileViewModel(
             }
         }
     }
-        fun onInterestRemoved(interestName: String) = intent {
-            val interest = interestsRepository.fetchAll().find { it.name == interestName }
-            interest?.id?.let { interestId ->
-                userId?.let { id ->
-                    if (id.isNotEmpty()) {
-                        userInterestsRepository.removeInterest(id, interestId)
-                        val updatedInterests = state.interests - interestName
-                        reduce { state.copy(interests = updatedInterests) }
-                    }
+
+    fun onInterestRemoved(interestName: String) = intent {
+        val interest = interestsRepository.fetchAll().find { it.name == interestName }
+        interest?.id?.let { interestId ->
+            userId?.let { id ->
+                if (id.isNotEmpty()) {
+                    userInterestsRepository.removeInterest(id, interestId)
+                    val updatedInterests = state.interests - interestName
+                    reduce { state.copy(interests = updatedInterests) }
                 }
             }
         }
     }
+
+    fun onEditBio() = intent {
+        reduce { state.copy(isEditingBio = true, newBio = state.bio ?: "") }
+    }
+
+    fun onBioChanged(bio: String) = intent {
+        reduce { state.copy(newBio = bio) }
+    }
+
+    fun onSaveBio() = intent {
+        userId?.let { safeUserId ->
+            remoteUsersRepository.updateBio(safeUserId, state.newBio) // Обновление в БД
+            reduce { state.copy(bio = state.newBio, isEditingBio = false) }
+        } ?: run {
+            println("Ошибка: userId не определен при сохранении био")
+        }
+    }
+
+    fun onCancelBio() = intent {
+        reduce { state.copy(isEditingBio = false, newBio = state.bio ?: "") }
+    }
+
+    fun onEditGoals() = intent {
+        reduce { state.copy(isEditingGoals = true, newGoals = state.goals ?: "") }
+    }
+
+    fun onGoalsChanged(goals: String) = intent {
+        reduce { state.copy(newGoals = goals) }
+    }
+
+    fun onSaveGoals() = intent {
+        userId?.let { safeUserId ->
+            remoteUsersRepository.updateGoals(safeUserId, state.newGoals) // Обновление в БД
+            reduce { state.copy(goals = state.newGoals, isEditingGoals = false) }
+        } ?: run {
+            println("Ошибка: userId не определен при сохранении целей")
+        }
+    }
+
+    fun onCancelGoals() = intent {
+        reduce { state.copy(isEditingGoals = false, newGoals = state.goals ?: "") }
+    }
+}
 
 
 
