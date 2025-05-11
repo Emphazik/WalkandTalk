@@ -1,5 +1,6 @@
 package ru.walkAndTalk.ui.screens.profile
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import org.orbitmvi.orbit.Container
@@ -19,10 +20,9 @@ class ProfileViewModel(
 
     override val container: Container<ProfileViewState, ProfileSideEffect> =
         container(ProfileViewState())
-    private var userId: String? = null
 
     fun onCreate(id: String) = intent {
-        userId = id
+        state.userId = id
         val user = remoteUsersRepository.fetchById(id)
             ?: throw RuntimeException("Ошибка, пользователь не найден")
         val cityStatus = user.cityKnowledgeLevelId?.let { levelId ->
@@ -42,8 +42,44 @@ class ProfileViewModel(
                 interests = interests,
                 photoURL = user.profileImageUrl,
                 availableInterests = availableInterests,
-                cityStatuses = listOf("Новичёк", "Знаток", "Эксперт")
+                cityStatuses = listOf("Новичёк", "Знаток", "Эксперт"),
+                userId = id
             )
+        }
+    }
+
+    fun refreshData() = intent {
+        state.userId?.let { id ->
+            val user = remoteUsersRepository.fetchById(id) ?: throw RuntimeException("Ошибка, пользователь не найден")
+            val cityStatus = user.cityKnowledgeLevelId?.let { levelId ->
+                cityKnowledgeLevelRepository.fetchById(levelId)?.name
+            } ?: "Не указано"
+            val interests = userInterestsRepository.fetchInterestsForUser(id).map { it.name }
+            val availableInterests = interestsRepository.fetchAll().map { it.name }
+
+            reduce {
+                state.copy(
+                    name = user.name,
+                    selectedCityStatus = cityStatus,
+                    bio = user.bio,
+                    goals = user.goals,
+                    interests = interests,
+                    photoURL = user.profileImageUrl,
+                    availableInterests = availableInterests,
+                    cityStatuses = state.cityStatuses
+                )
+            }
+        }
+    }
+
+    fun onLogout() = intent {
+        try {
+            Log.d("ProfileViewModel", "Выход из профиля для userId: ${state.userId}")
+            remoteUsersRepository.logout()
+            postSideEffect(ProfileSideEffect.OnNavigateExit)
+        } catch (e: Exception) {
+            Log.e("ProfileViewModel", "Ошибка при выходе: ${e.message}")
+            postSideEffect(ProfileSideEffect.OnNavigateExit)
         }
     }
 
@@ -72,17 +108,38 @@ class ProfileViewModel(
         val levels = cityKnowledgeLevelRepository.fetchAll()
         val level = levels.find { it.name == status }
         if (level != null) {
-            userId?.let { safeUserId ->
+            state.userId?.let { safeUserId ->
+                Log.d("ProfileViewModel", "Обновление статуса для userId: $safeUserId, levelId: ${level.id}")
                 remoteUsersRepository.updateCityKnowledgeLevel(safeUserId, level.id) // Обновление в БД
+                refreshData()
                 reduce { state.copy(selectedCityStatus = status, showCityStatusMenu = false) }
             } ?: run {
-                // Логирование или уведомление об ошибке
-                println("Ошибка: userId не определен")
-                Log.d("CityStatus", "huinya1")
+                Log.d("ProfileViewModel", "Ошибка: userId не определен")
             }
         } else {
-            println("Ошибка: статус $status не найден в списке уровней")
-            Log.d("CityStatus", "huinya2")
+            Log.d("ProfileViewModel", "Ошибка: статус $status не найден в списке уровней")
+        }
+    }
+
+    fun onSaveBio() = intent {
+        state.userId?.let { safeUserId ->
+            Log.d("ProfileViewModel", "Обновление био для userId: $safeUserId, bio: ${state.newBio}")
+            remoteUsersRepository.updateBio(safeUserId, state.newBio) // Обновление в БД
+            refreshData()
+            reduce { state.copy(bio = state.newBio, isEditingBio = false) }
+        } ?: run {
+            Log.d("ProfileViewModel", "Ошибка: userId не определен при сохранении био")
+        }
+    }
+
+    fun onSaveGoals() = intent {
+        state.userId?.let { safeUserId ->
+            Log.d("ProfileViewModel", "Обновление целей для userId: $safeUserId, goals: ${state.newGoals}")
+            remoteUsersRepository.updateGoals(safeUserId, state.newGoals) // Обновление в БД
+            refreshData()
+            reduce { state.copy(goals = state.newGoals, isEditingGoals = false) }
+        } ?: run {
+            Log.d("ProfileViewModel", "Ошибка: userId не определен при сохранении целей")
         }
     }
 
@@ -98,7 +155,7 @@ class ProfileViewModel(
     fun onInterestSelected(interestName: String) = intent {
         val interest = interestsRepository.fetchAll().find { it.name == interestName }
         interest?.id?.let { interestId ->
-            userId?.let { safeUserId ->
+            state.userId?.let { safeUserId ->
                 // Логика сохранения в user_interests (нужна реализация в UserInterestsRepository)
                 userInterestsRepository.addInterest(
                     userId = safeUserId,
@@ -113,7 +170,7 @@ class ProfileViewModel(
     fun onInterestRemoved(interestName: String) = intent {
         val interest = interestsRepository.fetchAll().find { it.name == interestName }
         interest?.id?.let { interestId ->
-            userId?.let { id ->
+            state.userId?.let { id ->
                 if (id.isNotEmpty()) {
                     userInterestsRepository.removeInterest(id, interestId)
                     val updatedInterests = state.interests - interestName
@@ -131,15 +188,6 @@ class ProfileViewModel(
         reduce { state.copy(newBio = bio) }
     }
 
-    fun onSaveBio() = intent {
-        userId?.let { safeUserId ->
-            remoteUsersRepository.updateBio(safeUserId, state.newBio) // Обновление в БД
-            reduce { state.copy(bio = state.newBio, isEditingBio = false) }
-        } ?: run {
-            println("Ошибка: userId не определен при сохранении био")
-        }
-    }
-
     fun onCancelBio() = intent {
         reduce { state.copy(isEditingBio = false, newBio = state.bio ?: "") }
     }
@@ -152,17 +200,28 @@ class ProfileViewModel(
         reduce { state.copy(newGoals = goals) }
     }
 
-    fun onSaveGoals() = intent {
-        userId?.let { safeUserId ->
-            remoteUsersRepository.updateGoals(safeUserId, state.newGoals) // Обновление в БД
-            reduce { state.copy(goals = state.newGoals, isEditingGoals = false) }
-        } ?: run {
-            println("Ошибка: userId не определен при сохранении целей")
-        }
-    }
-
     fun onCancelGoals() = intent {
         reduce { state.copy(isEditingGoals = false, newGoals = state.goals ?: "") }
+    }
+
+    fun onImageSelected(imageUri: Uri) = intent {
+        state.userId?.let { userId ->
+            try {
+                Log.d("ProfileViewModel", "Загрузка изображения для userId: $userId")
+                val fileName = "${userId}/profile-${System.currentTimeMillis()}.jpg"
+                Log.d("ProfileViewModel", "Имя файла: $fileName")
+                remoteUsersRepository.uploadProfileImage(userId, imageUri, fileName) // Загружаем в Storage
+                val imageUrl = remoteUsersRepository.getProfileImageUrl(userId, fileName) // Получаем URL
+                Log.d("ProfileViewModel", "Загруженное изображение, URL: $imageUrl")
+                remoteUsersRepository.updateProfileImageUrl(userId, imageUrl) // Обновляем URL в профиле
+                refreshData() // Обновляем данные
+                reduce { state.copy(photoURL = imageUrl) } // Обновляем UI
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Ошибка загрузки изображения: ${e.message}")
+            }
+        } ?: run {
+            Log.d("ProfileViewModel", "Ошибка: userId не определен при загрузке изображения")
+        }
     }
 }
 

@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.orbitmvi.orbit.compose.collectSideEffect
@@ -49,7 +50,8 @@ import ru.walkAndTalk.R
 fun WelcomeScreen(
     viewModel: WelcomeViewModel = koinViewModel(),
     onNavigateLogin: () -> Unit,
-    onNavigateRegister: () -> Unit
+    onNavigateRegister: () -> Unit,
+    navController: NavHostController,
 ) {
     viewModel.collectSideEffect {
         when (it) {

@@ -3,14 +3,11 @@ package ru.walkAndTalk.ui.screens.root
 import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import androidx.navigation.toRoute
-import kotlinx.serialization.Serializable
 import ru.walkAndTalk.ui.screens.Auth
 import ru.walkAndTalk.ui.screens.Login
 import ru.walkAndTalk.ui.screens.Main
@@ -75,7 +72,8 @@ fun RootScreen(intent: Intent) {
                         navController.navigate(Registration) {
                             popUpTo(Welcome) { inclusive = true }
                         }
-                    }
+                    },
+                    navController = navController
                 )
             }
             composable<Login> {
@@ -116,7 +114,10 @@ fun RootScreen(intent: Intent) {
         composable<Main> { backStackEntry ->
             val route = backStackEntry.toRoute<Main>()
             val userId = route.userId
-            MainScreen(userId = userId)
+            MainScreen(
+                userId = userId,
+                rootNavController = navController // Передаем корневой NavController
+            )
         }
     }
 

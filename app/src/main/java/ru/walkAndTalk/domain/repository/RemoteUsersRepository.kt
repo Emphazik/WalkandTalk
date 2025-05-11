@@ -1,5 +1,6 @@
 package ru.walkAndTalk.domain.repository
 
+import android.net.Uri
 import ru.walkAndTalk.domain.model.User
 
 interface RemoteUsersRepository {
@@ -10,6 +11,10 @@ interface RemoteUsersRepository {
     suspend fun updateCityKnowledgeLevel(userId: String, levelId: String)
     suspend fun updateBio(userId: String, bio: String)
     suspend fun updateGoals(userId: String, goals: String)
+    suspend fun uploadProfileImage(userId: String, imageUri: Uri, fileName: String)
+    suspend fun getProfileImageUrl(userId: String, fileName: String): String
+    suspend fun updateProfileImageUrl(userId: String, imageUrl: String)
+    suspend fun logout()
     //Для SearchViewModel
     suspend fun searchUsers(query: String): List<User>
 

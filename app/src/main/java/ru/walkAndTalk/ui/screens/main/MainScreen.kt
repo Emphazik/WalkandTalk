@@ -10,12 +10,12 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -23,19 +23,22 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import org.koin.androidx.compose.koinViewModel
 import ru.walkAndTalk.R
-import ru.walkAndTalk.ui.screens.Profile
 import ru.walkAndTalk.ui.screens.Chats
 import ru.walkAndTalk.ui.screens.Feed
+import ru.walkAndTalk.ui.screens.Profile
 import ru.walkAndTalk.ui.screens.Search
 import ru.walkAndTalk.ui.screens.chat.ChatsScreen
 import ru.walkAndTalk.ui.screens.feed.FeedScreen
 import ru.walkAndTalk.ui.screens.profile.ProfileScreen
-import ru.walkAndTalk.ui.screens.profile.ProfileViewModel
 
 val montserratFont = FontFamily(Font(R.font.montserrat_semi_bold))
 
 @Composable
-fun MainScreen(userId: String, viewModel: MainViewModel = koinViewModel()) {
+fun MainScreen(
+    userId: String,
+    viewModel: MainViewModel = koinViewModel(),
+    rootNavController: NavHostController
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -94,7 +97,11 @@ fun MainScreen(userId: String, viewModel: MainViewModel = koinViewModel()) {
             composable<Search> { SearchScreen() }
             composable<Chats> { ChatsScreen() }
             composable<Profile> {
-                ProfileScreen(userId = it.toRoute<Profile>().userId)
+                ProfileScreen(
+                    userId = it.toRoute<Profile>().userId,
+                    navController = navController,
+                    rootNavController = rootNavController // Передаем корневой NavController
+                )
             }
         }
     }

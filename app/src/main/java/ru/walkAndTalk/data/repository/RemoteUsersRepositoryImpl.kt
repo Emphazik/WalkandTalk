@@ -1,16 +1,22 @@
 package ru.walkAndTalk.data.repository
 
+import android.net.Uri
+import android.util.Log
+import io.github.jan.supabase.postgrest.result.PostgrestResult
 import ru.walkAndTalk.data.mapper.fromDto
 import ru.walkAndTalk.data.mapper.fromDtoList
 import ru.walkAndTalk.data.mapper.toDto
 import ru.walkAndTalk.data.model.UserDto
 import ru.walkAndTalk.data.network.SupabaseWrapper
+import ru.walkAndTalk.domain.Bucket
 import ru.walkAndTalk.domain.Table
 import ru.walkAndTalk.domain.model.User
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
+import ru.walkAndTalk.domain.repository.StorageRepository
 
 class RemoteUsersRepositoryImpl(
-    private val supabaseWrapper: SupabaseWrapper
+    private val supabaseWrapper: SupabaseWrapper,
+    private val storageRepository: StorageRepository
 ) : RemoteUsersRepository {
 
     override suspend fun add(user: User) {
@@ -57,6 +63,7 @@ class RemoteUsersRepositoryImpl(
     }
 
     override suspend fun updateCityKnowledgeLevel(userId: String, levelId: String) {
+        Log.d("RemoteUsersRepository", "Обновление city_knowledge_level_id для userId: $userId, levelId: $levelId")
         supabaseWrapper.postgrest[Table.USERS]
             .update(
                 mapOf("city_knowledge_level_id" to levelId)
@@ -66,6 +73,7 @@ class RemoteUsersRepositoryImpl(
     }
 
     override suspend fun updateBio(userId: String, bio: String) {
+        Log.d("RemoteUsersRepository", "Обновление bio для userId: $userId, bio: $bio")
         supabaseWrapper.postgrest[Table.USERS]
             .update(
                 mapOf("bio" to bio)
@@ -75,11 +83,38 @@ class RemoteUsersRepositoryImpl(
     }
 
     override suspend fun updateGoals(userId: String, goals: String) {
+        Log.d("RemoteUsersRepository", "Обновление goals для userId: $userId, goals: $goals")
         supabaseWrapper.postgrest[Table.USERS]
             .update(
                 mapOf("goals" to goals)
             ) {
                 filter { UserDto::id eq userId }
             }
+    }
+
+    override suspend fun uploadProfileImage(userId: String, imageUri: Uri, fileName: String) {
+        Log.d("RemoteUsersRepository", "Загрузка изображения для userId: $userId, fileName: $fileName")
+        storageRepository.upload(Bucket.PROFILE_IMAGES, fileName, imageUri)
+    }
+
+    override suspend fun getProfileImageUrl(userId: String, fileName: String): String {
+        Log.d("RemoteUsersRepository", "Получение URL для userId: $userId, fileName: $fileName")
+        return storageRepository.createSignedUrl(Bucket.PROFILE_IMAGES, fileName)
+            ?: "https://tvecrsehuuqrjwjfgljf.supabase.co/storage/v1/object/sign/profile-images/default_profile.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2Y2YjA0NTBiLWVkNDktNGFkNi1iMGM2LWJiYzZmNzM0ZGY2YyJ9.eyJ1cmwiOiJwcm9maWxlLWltYWdlcy9kZWZhdWx0X3Byb2ZpbGUucG5nIiwiaWF0IjoxNzQ1NTI2MjM1LCJleHAiOjE3NzcwNjIyMzV9.RrxpUDm_OaKOOFFBICiPfVYgCdVTKMcyKqq6TKIYTv0"
+    }
+
+    override suspend fun updateProfileImageUrl(userId: String, imageUrl: String) {
+        Log.d("RemoteUsersRepository", "Обновление profile_image_url для userId: $userId, url: $imageUrl")
+        supabaseWrapper.postgrest[Table.USERS]
+            .update(
+                mapOf("profile_image_url" to imageUrl)
+            ) {
+                filter { UserDto::id eq userId }
+            }
+    }
+
+    override suspend fun logout() {
+        Log.d("RemoteUsersRepository", "Выполняется выход из аккаунта")
+        supabaseWrapper.auth.signOut()
     }
 }

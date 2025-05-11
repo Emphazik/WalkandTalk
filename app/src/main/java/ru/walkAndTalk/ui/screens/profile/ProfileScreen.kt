@@ -45,7 +45,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -53,25 +52,33 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import coil3.compose.rememberAsyncImagePainter
 import org.koin.androidx.compose.koinViewModel
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import ru.walkAndTalk.R
+import ru.walkAndTalk.ui.screens.Auth
+import ru.walkAndTalk.ui.screens.Welcome
 import ru.walkAndTalk.ui.screens.main.montserratFont
 
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = koinViewModel(),
-    userId: String
+    userId: String,
+    navController: NavController,
+    rootNavController: NavHostController
 ) {
     val state by viewModel.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
-    // Launcher для выбора изображения
+
     val launcher =
         rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
-                // Обработка выбранного изображения
+                result.data?.data?.let { uri ->
+                    viewModel.onImageSelected(uri)
+                }
             }
         }
 
@@ -81,12 +88,11 @@ fun ProfileScreen(
                 val intent = Intent(Intent.ACTION_PICK).apply { type = "image/*" }
                 launcher.launch(intent)
             }
-//            is ProfileSideEffect.OnNavigateEditProfile -> {
-//                // Логика навигации на экран редактирования профиля
-//            }
-//            is ProfileSideEffect.OnNavigateExit -> {
-//                // Логика выхода из профиля (очистка токена, навигация на экран авторизации)
-//            }
+            is ProfileSideEffect.OnNavigateExit -> {
+                rootNavController.navigate(Auth) { // Используем корневой NavController
+                    popUpTo(rootNavController.graph.startDestinationId) { inclusive = true }
+                }
+            }
 //            is ProfileSideEffect.OnNavigateStatisticUser -> {
 //                // Логика навигации на экран статистики
 //            }
@@ -206,7 +212,7 @@ fun ProfileScreen(
             ActionButtons(
                 onStatsClick = { /* Заглушка */ },
                 onEditClick = { viewModel.onEditClick() },
-                onLogoutClick = { /* Заглушка */ },
+                onLogoutClick = { viewModel.onLogout() },
                 colorScheme = colorScheme
             )
         }
@@ -580,21 +586,21 @@ fun ActionButtons(
                 color = colorScheme.onSecondaryContainer
             )
         }
-        Button(
-            onClick = onEditClick,
-            modifier = Modifier
-                .fillMaxWidth(0.8f)
-                .height(48.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.secondaryContainer),
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Text(
-                text = "Редактировать профиль",
-                fontFamily = montserratFont,
-                fontSize = 16.sp,
-                color = colorScheme.onSecondaryContainer
-            )
-        }
+//        Button(
+//            onClick = onEditClick,
+//            modifier = Modifier
+//                .fillMaxWidth(0.8f)
+//                .height(48.dp),
+//            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.secondaryContainer),
+//            shape = RoundedCornerShape(8.dp)
+//        ) {
+//            Text(
+//                text = "Редактировать профиль",
+//                fontFamily = montserratFont,
+//                fontSize = 16.sp,
+//                color = colorScheme.onSecondaryContainer
+//            )
+//        }
         Button(
             onClick = onLogoutClick,
             modifier = Modifier

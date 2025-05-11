@@ -17,8 +17,6 @@ data class UserDto(
     val profileImageUrl: String,
     @SerialName("vk_id")
     val vkId: Long? = null,
-    @SerialName("password_hash")
-    val passwordHash: String? = null,
     @SerialName("interest_ids")
     val interestIds: List<String> = emptyList(),
     @SerialName("city_knowledge_level_id")

@@ -9,6 +9,7 @@ import ru.walkAndTalk.domain.model.Interest
 
 @Immutable
 data class ProfileViewState(
+    var userId: String? = null,
     val name: String? = null,
     val selectedCityStatus: String? = null,
     val bio: String? = null,
