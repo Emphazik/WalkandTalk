@@ -30,9 +30,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vk.id.VKIDAuthFail
+import com.vk.id.auth.VKIDAuthUiParams
 import com.vk.id.onetap.common.OneTapStyle
 import com.vk.id.onetap.compose.onetap.OneTap
-import com.vk.id.onetap.compose.onetap.sheet.OneTapBottomSheet
 import org.koin.androidx.compose.koinViewModel
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
@@ -136,6 +136,9 @@ fun LoginScreen(
                 if (!state.isLoading) {
                     OneTap(
                         modifier = Modifier.fillMaxWidth(),
+                        authParams = VKIDAuthUiParams {
+                            this.scopes = setOf("vkid.personal_info", "email", "phone", "photos")
+                        },
                         style = OneTapStyle.Dark(),
                         onAuth = { _, accessToken -> viewModel.onVKAuth(accessToken) },
                         onFail = { _, fail ->

@@ -12,7 +12,7 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         VKID.init(this)
-        VKID.instance.setLocale(Locale("ru"))
+        VKID.instance.setLocale(Locale.getDefault())
         VKID.logsEnabled = true
         startKoin {
             androidLogger()
