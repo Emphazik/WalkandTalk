@@ -1,9 +1,13 @@
 package ru.walkAndTalk.data.mapper
 
+import android.util.Log
 import com.vk.sdk.api.users.dto.UsersUserFullDto
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Clock.System
 import kotlinx.datetime.Instant
 import ru.walkAndTalk.data.model.UserDto
 import ru.walkAndTalk.domain.model.User
+import java.util.UUID
 
 fun List<UserDto>.fromDtoList(): List<User> = map(UserDto::fromDto)
 
@@ -37,17 +41,29 @@ fun User.toDto(): UserDto = UserDto(
     updatedAt = updatedAt?.toString()
 )
 
-fun UsersUserFullDto.fromVkUser(): User = User(
-    id = "", // ID будет генерироваться позже
-    email = email ?: "",
-    phone = mobilePhone ?: "",
-    name = "$lastName $firstName",
-    profileImageUrl = photo50 ?: "",
-    vkId = id.value,
-    interestIds = emptyList(),
-    cityKnowledgeLevelId = null,
-    bio = null,
-    goals = null,
-    createdAt = Instant.fromEpochSeconds(0), // Заглушка, заменить на реальное время
-    updatedAt = null
-)
+fun UsersUserFullDto.fromVkUser(): User {
+    Log.d("VKUsersRepository", "Raw VK user data: " +
+            "id=${id.value}, " +
+            "firstName=$firstName, " +
+            "lastName=$lastName, " +
+            "email=$email, " +
+            "phone=$mobilePhone, " +
+            "photo50=$photo50"
+    )
+
+    return User(
+//        id = UUID.randomUUID().toString(),
+        id = "", // id будет установлен после регистрации через Supabase Auth
+        email = email.toString(),
+        phone = mobilePhone.toString(),
+        name = "$lastName $firstName",
+        profileImageUrl = photo50 ?: "",
+        vkId = id.value,
+        interestIds = emptyList(),
+        cityKnowledgeLevelId = null,
+        bio = null,
+        goals = null,
+        createdAt = System.now(),
+        updatedAt = System.now()
+    )
+}

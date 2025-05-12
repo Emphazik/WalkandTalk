@@ -1,13 +1,17 @@
 package ru.walkAndTalk.domain.repository
 
 import android.net.Uri
+import ru.walkAndTalk.data.model.UserDto
 import ru.walkAndTalk.domain.model.User
 
 interface RemoteUsersRepository {
-    suspend fun add(user: User)
+    suspend fun add(user: UserDto)
     suspend fun fetchAll(): List<User>
     suspend fun fetchById(id: String): User?
     suspend fun fetchByVkId(id: Long): User?
+    suspend fun fetchByEmail(email: String): User?
+    suspend fun updateVKId(userId: String, vkId: Long)
+    suspend fun registerNewUser(vkUser: User): User
     suspend fun updateCityKnowledgeLevel(userId: String, levelId: String)
     suspend fun updateBio(userId: String, bio: String)
     suspend fun updateGoals(userId: String, goals: String)

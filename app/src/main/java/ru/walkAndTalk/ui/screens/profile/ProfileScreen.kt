@@ -2,6 +2,7 @@ package ru.walkAndTalk.ui.screens.profile
 
 import android.app.Activity
 import android.content.Intent
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -227,7 +228,11 @@ fun ProfileScreen(
     }
 
     LaunchedEffect(userId) {
-        viewModel.onCreate(userId)
+        if (userId.isNotEmpty()) {
+            viewModel.onCreate(userId)
+        } else {
+            Log.e("ProfileScreen", "Invalid userId: $userId")
+        }
     }
 }
 

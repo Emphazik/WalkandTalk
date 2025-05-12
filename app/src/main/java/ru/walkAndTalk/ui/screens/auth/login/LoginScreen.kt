@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import com.vk.id.VKIDAuthFail
 import com.vk.id.onetap.common.OneTapStyle
 import com.vk.id.onetap.compose.onetap.OneTap
+import com.vk.id.onetap.compose.onetap.sheet.OneTapBottomSheet
 import org.koin.androidx.compose.koinViewModel
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect

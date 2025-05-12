@@ -19,8 +19,14 @@ class RemoteUsersRepositoryImpl(
     private val storageRepository: StorageRepository
 ) : RemoteUsersRepository {
 
-    override suspend fun add(user: User) {
-        supabaseWrapper.postgrest[Table.USERS].insert(user.toDto())
+    override suspend fun fetchByEmail(email: String): User? {
+        return supabaseWrapper.postgrest[Table.USERS]
+            .select {
+                filter { UserDto::email eq email }
+            }
+            .decodeSingleOrNull<UserDto>()
+            ?.fromDto()
+            .also { Log.d("RemoteUsersRepository", "Fetched user by email: $email, result: $it") }
     }
 
     override suspend fun fetchAll(): List<User> {
@@ -28,20 +34,57 @@ class RemoteUsersRepositoryImpl(
             .select()
             .decodeList<UserDto>()
             .fromDtoList()
+            .also { Log.d("RemoteUsersRepository", "Fetched all users: ${it.size}") }
     }
 
     override suspend fun fetchById(id: String): User? {
+        Log.d("RemoteUsersRepository", "Fetching user by id: $id")
         return supabaseWrapper.postgrest[Table.USERS]
             .select { filter { UserDto::id eq id } }
             .decodeSingleOrNull<UserDto>()
             ?.fromDto()
+            .also { Log.d("RemoteUsersRepository", "Fetched user by id: $id, result: $it") }
     }
 
-    override suspend fun fetchByVkId(id: Long): User? {
+    override suspend fun fetchByVkId(vkId: Long): User? {
+        Log.d("RemoteUsersRepository", "Fetching user by vkId: $vkId")
         return supabaseWrapper.postgrest[Table.USERS]
-            .select { filter { UserDto::vkId eq id } }
+            .select { filter { UserDto::vkId eq vkId } }
             .decodeSingleOrNull<UserDto>()
             ?.fromDto()
+            .also { Log.d("RemoteUsersRepository", "Fetched user by vkId: $vkId, result: $it") }
+    }
+
+    override suspend fun add(user: UserDto) {
+        Log.d("RemoteUsersRepository", "Adding user: id=${user.id}, email=${user.email}, phone=${user.phone}, vkId=${user.vkId}")
+        try {
+            supabaseWrapper.postgrest[Table.USERS].insert(user)
+            Log.d("RemoteUsersRepository", "User added successfully: ${user.email}")
+        } catch (e: Exception) {
+            Log.e("RemoteUsersRepository", "Failed to add user: ${e.message}", e)
+            throw e
+        }
+    }
+
+    override suspend fun registerNewUser(vkUser: User): User {
+        Log.d("RemoteUsersRepository", "Registering new user: ${vkUser.email}, vkId: ${vkUser.vkId}, id: ${vkUser.id}")
+        val newUserDto = vkUser.toDto()
+        add(newUserDto)
+        val createdUser = fetchByEmail(vkUser.email)
+            ?: throw IllegalStateException("Failed to fetch created user: ${vkUser.email}")
+        Log.d("RemoteUsersRepository", "New user registered with id: ${createdUser.id}")
+        return createdUser
+    }
+
+    override suspend fun updateVKId(userId: String, vkId: Long) {
+        Log.d("RemoteUsersRepository", "Updating vkId for userId: $userId, vkId: $vkId")
+        supabaseWrapper.postgrest[Table.USERS]
+            .update(
+                mapOf("vk_id" to vkId)
+            ) {
+                filter { UserDto::id eq userId }
+            }
+            .also { Log.d("RemoteUsersRepository", "vkId updated for userId: $userId") }
     }
 
     override suspend fun searchUsers(query: String): List<User> {

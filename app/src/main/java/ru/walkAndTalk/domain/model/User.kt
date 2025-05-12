@@ -13,6 +13,6 @@ data class User(
     val cityKnowledgeLevelId: String?, // UUID как строка
     val bio: String?,
     val goals: String?,
-    val createdAt: Instant,
+    val createdAt: Instant?,
     val updatedAt: Instant?
 )
