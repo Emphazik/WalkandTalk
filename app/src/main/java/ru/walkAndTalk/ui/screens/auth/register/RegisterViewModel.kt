@@ -3,30 +3,20 @@ package ru.walkAndTalk.ui.screens.auth.register
 import android.net.Uri
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.exceptions.RestException
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import org.orbitmvi.orbit.annotation.OrbitExperimental
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.Bucket
 import ru.walkAndTalk.domain.Regex
+import ru.walkAndTalk.domain.model.User
+import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 import ru.walkAndTalk.domain.repository.StorageRepository
 import ru.walkAndTalk.ui.orbit.ContainerViewModel
-
-@Serializable
-data class ProfileData(
-    @SerialName("user_id")
-    val userId: String,
-    val interests: List<String> = emptyList(),
-    val goals: String = "",
-    @SerialName("city_knowledge_level")
-    val cityKnowledgeLevel: String = "новичок",
-    val bio: String = ""
-)
 
 @OptIn(OrbitExperimental::class)
 class RegisterViewModel(
     private val supabaseWrapper: SupabaseWrapper,
-    private val storageRepository: StorageRepository
+    private val storageRepository: StorageRepository,
+    private val remoteUsersRepository: RemoteUsersRepository,
 ) : ContainerViewModel<RegisterViewState, RegisterSideEffect>(
     initialState = RegisterViewState()
 ) {
@@ -93,34 +83,23 @@ class RegisterViewModel(
                     val fileName = "${user.id}/profile.jpg"
                     storageRepository.upload(Bucket.PROFILE_IMAGES, fileName, uri)
                     storageRepository.createSignedUrl(Bucket.PROFILE_IMAGES, fileName)
-                } ?: "https://tvecrsehuuqrjwjfgljf.supabase.co/storage/v1/object/sign/profile-images/default_profile.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2Y2YjA0NTBiLWVkNDktNGFkNi1iMGM2LWJiYzZmNzM0ZGY2YyJ9.eyJ1cmwiOiJwcm9maWxlLWltYWdlcy9kZWZhdWx0X3Byb2ZpbGUucG5nIiwiaWF0IjoxNzQ1NTI2MjM1LCJleHAiOjE3NzcwNjIyMzV9.RrxpUDm_OaKOOFFBICiPfVYgCdVTKMcyKqq6TKIYTv0"
+                }
+                    ?: "https://tvecrsehuuqrjwjfgljf.supabase.co/storage/v1/object/sign/profile-images/default_profile.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2Y2YjA0NTBiLWVkNDktNGFkNi1iMGM2LWJiYzZmNzM0ZGY2YyJ9.eyJ1cmwiOiJwcm9maWxlLWltYWdlcy9kZWZhdWx0X3Byb2ZpbGUucG5nIiwiaWF0IjoxNzQ1NTI2MjM1LCJleHAiOjE3NzcwNjIyMzV9.RrxpUDm_OaKOOFFBICiPfVYgCdVTKMcyKqq6TKIYTv0"
                 println("Register: Загруженное изображение, URL: $imageUrl")
 
                 // Сохранение данных в таблицу users
                 println("Register: Saving user data to 'users' table...")
-                supabaseWrapper.postgrest["users"].insert(
-                    mapOf(
-                        "id" to user.id,
-                        "email" to state.email,
-                        "phone" to state.phone,
-                        "name" to state.name,
-                        "profile_image_url" to imageUrl
+                remoteUsersRepository.add(
+                    User(
+                        id = user.id,
+                        email = state.email,
+                        phone = state.phone,
+                        profileImageUrl = imageUrl,
+                        name = state.name,
+                        password = state.password,
                     )
                 )
                 println("Register: User data saved to 'users' table")
-
-                // Сохранение профиля
-                println("Register: Saving profile data to 'profiles' table...")
-                supabaseWrapper.postgrest["profiles"].insert(
-                    ProfileData(
-                        userId = user.id,
-                        interests = emptyList(),
-                        goals = "",
-                        cityKnowledgeLevel = "новичок",
-                        bio = ""
-                    )
-                )
-                println("Register: Profile data saved to 'profiles' table")
                 reduce { state.copy(isLoading = false, isSuccess = true) }
                 postSideEffect(RegisterSideEffect.OnNavigateMain(user.id))
             } else {

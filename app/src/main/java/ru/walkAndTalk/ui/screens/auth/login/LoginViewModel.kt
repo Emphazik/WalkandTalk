@@ -5,11 +5,8 @@ import com.vk.id.AccessToken
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.user.UserInfo
 import io.github.jan.supabase.exceptions.RestException
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Clock.System
-import kotlinx.datetime.Instant
 import org.orbitmvi.orbit.annotation.OrbitExperimental
-import ru.walkAndTalk.data.mapper.toDto
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.Regex
 import ru.walkAndTalk.domain.model.User
@@ -47,8 +44,6 @@ class LoginViewModel(
                 email = userData?.email ?: throw Exception("Телефон не зарегистрирован")
             }
 
-            supabaseWrapper.auth.signOut()
-
             supabaseWrapper.auth.signInWith(Email) {
                 this.email = email
                 this.password = state.password
@@ -83,7 +78,6 @@ class LoginViewModel(
 
     fun onVKAuth(accessToken: AccessToken) = intent {
         reduce { state.copy(isLoading = true, error = null) }
-        reduce { state.copy(isLoading = true, error = null) }
         try {
             Log.d("LoginViewModel", "Starting VK auth with accessToken: ${accessToken.userID}")
 
@@ -95,51 +89,58 @@ class LoginViewModel(
             val vkUser = vkUsersRepository.fetchUser(accessToken.userID)
             Log.d("LoginViewModel", "Fetched VK user: vkId=${vkUser.vkId}, email=${vkUser.email}, phone=${vkUser.phone}")
 
-            val userId: String
-            // Проверяем, есть ли пользователь в базе по vkId
-            val existingUser = vkUser.vkId?.let { remoteUsersRepository.fetchByVkId(it) }
-
-            if (existingUser != null) {
-                // Пользователь найден, берем его id
-                userId = existingUser.id
-                Log.d("LoginViewModel", "User found with vkId: ${vkUser.vkId}, userId: $userId")
-
-                // Входим в систему с помощью Supabase Auth (если нужно)
-                // Здесь можно добавить вызов supabaseWrapper.auth.signInWith(Email), если у тебя есть пароль
+            // Проверяем, есть ли пользователь в базе по почте
+            var existingUser = remoteUsersRepository.fetchByEmail(vkUser.email)
+            val userId = if (existingUser != null) {
+                remoteUsersRepository.updateVKId(existingUser.id, accessToken.userID)
+                existingUser.id
             } else {
-                // Пользователь не найден, регистрируем нового через Supabase Auth
-                val email = vkUser.email ?: throw IllegalStateException("Email is required for Supabase Auth signup")
-                val password = "tempPassword_${UUID.randomUUID()}" // Генерируем временный пароль
-                Log.d("LoginViewModel", "Signing up with email: $email")
+                // Проверяем, есть ли пользователь в базе по vkId
+                existingUser = remoteUsersRepository.fetchByVkId(accessToken.userID)
+                if (existingUser != null) {
+                    Log.d("LoginViewModel", "User found with vkId: ${vkUser.vkId}")
+                    supabaseWrapper.auth.signInWith(Email) {
+                        this.email = existingUser.email
+                        this.password = existingUser.password
+                    }
+                    existingUser.id
+                    // Входим в систему с помощью Supabase Auth (если нужно)
+                    // Здесь можно добавить вызов supabaseWrapper.auth.signInWith(Email), если у тебя есть пароль
+                } else {
+                    // Пользователь не найден, регистрируем нового через Supabase Auth
+                    val password = "tempPassword_${UUID.randomUUID()}" // Генерируем временный пароль
+                    Log.d("LoginViewModel", "Signing up with email: ${vkUser.email}")
 
-                val authResponse = supabaseWrapper.auth.signUpWith(Email) {
-                    this.email = email
-                    this.password = password
+                    val authResponse = supabaseWrapper.auth.signUpWith(Email) {
+                        this.email = vkUser.email
+                        this.password = password
+                    }
+
+                    // Получаем userId из ответа Supabase Auth
+                    val userId = authResponse?.id ?: throw IllegalStateException("Failed to get userId from Supabase Auth")
+                    Log.d("LoginViewModel", "Supabase Auth signup successful, userId: $userId")
+
+                    // Создаем объект User с id из Supabase Auth
+                    val newUser = User(
+                        id = userId,
+                        email = vkUser.email,
+                        password = password,
+                        phone = vkUser.phone,
+                        name = vkUser.name,
+                        profileImageUrl = vkUser.profileImageUrl,
+                        vkId = vkUser.vkId,
+                        interestIds = emptyList(),
+                        cityKnowledgeLevelId = null,
+                        bio = null,
+                        goals = null,
+                        createdAt = System.now(),
+                        updatedAt = System.now()
+                    )
+                    // Сохраняем пользователя в таблицу users
+                    remoteUsersRepository.add(newUser)
+                    Log.d("LoginViewModel", "New user added to users table with id: $userId")
+                    userId
                 }
-
-                // Получаем userId из ответа Supabase Auth
-                userId = authResponse?.id ?: throw IllegalStateException("Failed to get userId from Supabase Auth")
-                Log.d("LoginViewModel", "Supabase Auth signup successful, userId: $userId")
-
-                // Создаем объект User с id из Supabase Auth
-                val newUser = User(
-                    id = userId,
-                    email = vkUser.email,
-                    phone = vkUser.phone,
-                    name = vkUser.name,
-                    profileImageUrl = vkUser.profileImageUrl,
-                    vkId = vkUser.vkId,
-                    interestIds = emptyList(),
-                    cityKnowledgeLevelId = null,
-                    bio = null,
-                    goals = null,
-                    createdAt = System.now(),
-                    updatedAt = System.now()
-                )
-
-                // Сохраняем пользователя в таблицу users
-                remoteUsersRepository.add(newUser.toDto())
-                Log.d("LoginViewModel", "New user added to users table with id: $userId")
             }
 
             postSideEffect(LoginSideEffect.OnNavigateMain(userId))

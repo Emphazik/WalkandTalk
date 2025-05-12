@@ -5,7 +5,7 @@ import ru.walkAndTalk.data.model.UserDto
 import ru.walkAndTalk.domain.model.User
 
 interface RemoteUsersRepository {
-    suspend fun add(user: UserDto)
+    suspend fun add(user: User)
     suspend fun fetchAll(): List<User>
     suspend fun fetchById(id: String): User?
     suspend fun fetchByVkId(id: Long): User?

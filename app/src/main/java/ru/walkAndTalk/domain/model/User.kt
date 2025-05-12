@@ -7,12 +7,13 @@ data class User(
     val email: String,
     val phone: String,
     val name: String,
+    val password: String,
     val profileImageUrl: String,
-    val vkId: Long?,
+    val vkId: Long? = null,
     val interestIds: List<String> = emptyList(),
-    val cityKnowledgeLevelId: String?, // UUID как строка
-    val bio: String?,
-    val goals: String?,
-    val createdAt: Instant?,
-    val updatedAt: Instant?
+    val cityKnowledgeLevelId: String? = null, // UUID как строка
+    val bio: String? = null,
+    val goals: String? = null,
+    val createdAt: Instant? = null,
+    val updatedAt: Instant? = null
 )

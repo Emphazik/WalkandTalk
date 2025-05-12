@@ -55,10 +55,10 @@ class RemoteUsersRepositoryImpl(
             .also { Log.d("RemoteUsersRepository", "Fetched user by vkId: $vkId, result: $it") }
     }
 
-    override suspend fun add(user: UserDto) {
+    override suspend fun add(user: User) {
         Log.d("RemoteUsersRepository", "Adding user: id=${user.id}, email=${user.email}, phone=${user.phone}, vkId=${user.vkId}")
         try {
-            supabaseWrapper.postgrest[Table.USERS].insert(user)
+            supabaseWrapper.postgrest[Table.USERS].insert(user.toDto())
             Log.d("RemoteUsersRepository", "User added successfully: ${user.email}")
         } catch (e: Exception) {
             Log.e("RemoteUsersRepository", "Failed to add user: ${e.message}", e)
@@ -68,8 +68,7 @@ class RemoteUsersRepositoryImpl(
 
     override suspend fun registerNewUser(vkUser: User): User {
         Log.d("RemoteUsersRepository", "Registering new user: ${vkUser.email}, vkId: ${vkUser.vkId}, id: ${vkUser.id}")
-        val newUserDto = vkUser.toDto()
-        add(newUserDto)
+        add(vkUser)
         val createdUser = fetchByEmail(vkUser.email)
             ?: throw IllegalStateException("Failed to fetch created user: ${vkUser.email}")
         Log.d("RemoteUsersRepository", "New user registered with id: ${createdUser.id}")

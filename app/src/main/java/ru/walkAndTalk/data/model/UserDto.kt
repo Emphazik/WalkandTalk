@@ -13,6 +13,8 @@ data class UserDto(
     val phone: String,
     @SerialName("name")
     val name: String,
+    @SerialName("password")
+    val password: String,
     @SerialName("profile_image_url")
     val profileImageUrl: String,
     @SerialName("vk_id")
