@@ -68,8 +68,7 @@ import ru.walkAndTalk.ui.screens.main.montserratFont
 fun ProfileScreen(
     viewModel: ProfileViewModel = koinViewModel(),
     userId: String,
-    navController: NavController,
-    rootNavController: NavHostController
+    onNavigateAuth: () -> Unit,
 ) {
     val state by viewModel.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
@@ -89,11 +88,7 @@ fun ProfileScreen(
                 val intent = Intent(Intent.ACTION_PICK).apply { type = "image/*" }
                 launcher.launch(intent)
             }
-            is ProfileSideEffect.OnNavigateExit -> {
-                rootNavController.navigate(Auth) { // Используем корневой NavController
-                    popUpTo(rootNavController.graph.startDestinationId) { inclusive = true }
-                }
-            }
+            is ProfileSideEffect.OnNavigateExit -> onNavigateAuth()
 //            is ProfileSideEffect.OnNavigateStatisticUser -> {
 //                // Логика навигации на экран статистики
 //            }

@@ -46,8 +46,8 @@ fun LoginScreen(
 ) {
     val state by viewModel.collectAsState()
     viewModel.collectSideEffect {
-        when (it){
-            is LoginSideEffect.OnNavigateMain -> onNavigateMain(it.id) // Передать функцию и навигацию изменить.
+        when (it) {
+            is LoginSideEffect.OnNavigateMain -> onNavigateMain(it.id)
             is LoginSideEffect.OnNavigateRegister -> onNavigateRegister()
         }
     }

@@ -111,12 +111,16 @@ fun RootScreen(intent: Intent) {
                 )
             }
         }
-        composable<Main> { backStackEntry ->
-            val route = backStackEntry.toRoute<Main>()
-            val userId = route.userId
+        composable<Main> {
             MainScreen(
-                userId = userId,
-                rootNavController = navController // Передаем корневой NavController
+                userId = it.toRoute<Main>().userId,
+                onNavigateAuth = {
+                    navController.navigate(Auth) {
+                        popUpTo(navController.graph.startDestinationId) {
+                            inclusive = true
+                        }
+                    }
+                }
             )
         }
     }

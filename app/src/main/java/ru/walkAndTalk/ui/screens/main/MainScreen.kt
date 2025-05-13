@@ -35,9 +35,9 @@ val montserratFont = FontFamily(Font(R.font.montserrat_semi_bold))
 
 @Composable
 fun MainScreen(
-    userId: String,
     viewModel: MainViewModel = koinViewModel(),
-    rootNavController: NavHostController
+    userId: String,
+    onNavigateAuth: () -> Unit,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -91,16 +91,14 @@ fun MainScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-        )
-        {
+        ) {
             composable<Feed> { FeedScreen() }
             composable<Search> { SearchScreen() }
             composable<Chats> { ChatsScreen() }
             composable<Profile> {
                 ProfileScreen(
                     userId = it.toRoute<Profile>().userId,
-                    navController = navController,
-                    rootNavController = rootNavController // Передаем корневой NavController
+                    onNavigateAuth = onNavigateAuth
                 )
             }
         }
