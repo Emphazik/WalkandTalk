@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -88,6 +89,7 @@ fun ProfileScreen(
                 val intent = Intent(Intent.ACTION_PICK).apply { type = "image/*" }
                 launcher.launch(intent)
             }
+
             is ProfileSideEffect.OnNavigateExit -> onNavigateAuth()
 //            is ProfileSideEffect.OnNavigateStatisticUser -> {
 //                // Логика навигации на экран статистики
@@ -239,51 +241,50 @@ fun ProfileHeader(
     colorScheme: ColorScheme
 ) {
     var showEditMenu by remember { mutableStateOf(false) }
-    Box(modifier = Modifier.fillMaxWidth()) {
-        IconButton(
-            onClick = { showEditMenu = true },
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 16.dp, end = 16.dp)
-                .size(32.dp)
-                .background(colorScheme.primary.copy(alpha = 0.8f), CircleShape)
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_more128),
-                contentDescription = "Edit photo",
-                tint = colorScheme.onPrimary,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-        DropdownMenu(
-            expanded = showEditMenu,
-            onDismissRequest = { showEditMenu = false },
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 48.dp, end = 16.dp)
-        ) {
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        text = "Изменить изображение",
-                        fontFamily = montserratFont,
-                        fontSize = 16.sp,
-                        color = colorScheme.onSurface
-                    )
-                },
-                onClick = {
-                    showEditMenu = false
-                    val intent = Intent(Intent.ACTION_PICK).apply { type = "image/*" }
-                    onEditClick(intent)
-                }
-            )
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopEnd) {
+        Column(modifier = Modifier.padding(top = 16.dp, end = 16.dp)) {
+            IconButton(
+                onClick = { showEditMenu = true },
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(colorScheme.primary.copy(alpha = 0.8f), CircleShape)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_more128),
+                    contentDescription = "Edit photo",
+                    tint = colorScheme.onPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            DropdownMenu(
+                expanded = showEditMenu,
+                onDismissRequest = { showEditMenu = false },
+                modifier = Modifier
+            ) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = "Изменить изображение",
+                            fontFamily = montserratFont,
+                            fontSize = 16.sp,
+                            color = colorScheme.onSurface
+                        )
+                    },
+                    onClick = {
+                        showEditMenu = false
+                        val intent = Intent(Intent.ACTION_PICK).apply { type = "image/*" }
+                        onEditClick(intent)
+                    }
+                )
+            }
         }
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Image(
-                painter = photoURL?.let { rememberAsyncImagePainter(it) } ?: painterResource(id = R.drawable.preview_profile),
+                painter = photoURL?.let { rememberAsyncImagePainter(it) }
+                    ?: painterResource(id = R.drawable.preview_profile),
                 contentDescription = "Profile picture",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -370,14 +371,24 @@ fun BioSection(
                         colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Сохранить", fontFamily = montserratFont, fontSize = 14.sp, color = colorScheme.onPrimary)
+                        Text(
+                            "Сохранить",
+                            fontFamily = montserratFont,
+                            fontSize = 14.sp,
+                            color = colorScheme.onPrimary
+                        )
                     }
                     Button(
                         onClick = onCancelClick,
                         colors = ButtonDefaults.buttonColors(containerColor = colorScheme.surfaceVariant),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Отмена", fontFamily = montserratFont, fontSize = 14.sp, color = colorScheme.onSurface)
+                        Text(
+                            "Отмена",
+                            fontFamily = montserratFont,
+                            fontSize = 14.sp,
+                            color = colorScheme.onSurface
+                        )
                     }
                 }
             } else {
@@ -457,14 +468,24 @@ fun GoalsSection(
                         colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Сохранить", fontFamily = montserratFont, fontSize = 14.sp, color = colorScheme.onPrimary)
+                        Text(
+                            "Сохранить",
+                            fontFamily = montserratFont,
+                            fontSize = 14.sp,
+                            color = colorScheme.onPrimary
+                        )
                     }
                     Button(
                         onClick = onCancelClick,
                         colors = ButtonDefaults.buttonColors(containerColor = colorScheme.surfaceVariant),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Отмена", fontFamily = montserratFont, fontSize = 14.sp, color = colorScheme.onSurface)
+                        Text(
+                            "Отмена",
+                            fontFamily = montserratFont,
+                            fontSize = 14.sp,
+                            color = colorScheme.onSurface
+                        )
                     }
                 }
             } else {
@@ -521,7 +542,11 @@ fun InterestSection(
                 items(interests) { interest ->
                     Card(
                         shape = RoundedCornerShape(8.dp),
-                        colors = CardDefaults.cardColors(containerColor = colorScheme.primary.copy(alpha = 0.1f))
+                        colors = CardDefaults.cardColors(
+                            containerColor = colorScheme.primary.copy(
+                                alpha = 0.1f
+                            )
+                        )
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
