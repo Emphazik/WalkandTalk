@@ -2,7 +2,6 @@ package ru.walkAndTalk.domain
 
 object Table {
     const val USERS = "users"
-    const val PROFILES = "profiles"
     const val CHATS = "chats"
     const val CITY_KNOWLEDGE_LEVELS = "city_knowledge_levels"
     const val EVENTS = "events"

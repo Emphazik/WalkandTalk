@@ -2,7 +2,6 @@ package ru.walkAndTalk.data.repository
 
 import android.net.Uri
 import android.util.Log
-import io.github.jan.supabase.postgrest.result.PostgrestResult
 import ru.walkAndTalk.data.mapper.fromDto
 import ru.walkAndTalk.data.mapper.fromDtoList
 import ru.walkAndTalk.data.mapper.toDto
@@ -46,13 +45,13 @@ class RemoteUsersRepositoryImpl(
             .also { Log.d("RemoteUsersRepository", "Fetched user by id: $id, result: $it") }
     }
 
-    override suspend fun fetchByVkId(vkId: Long): User? {
-        Log.d("RemoteUsersRepository", "Fetching user by vkId: $vkId")
+    override suspend fun fetchByVkId(id: Long): User? {
+        Log.d("RemoteUsersRepository", "Fetching user by vkId: $id")
         return supabaseWrapper.postgrest[Table.USERS]
-            .select { filter { UserDto::vkId eq vkId } }
+            .select { filter { UserDto::vkId eq id } }
             .decodeSingleOrNull<UserDto>()
             ?.fromDto()
-            .also { Log.d("RemoteUsersRepository", "Fetched user by vkId: $vkId, result: $it") }
+            .also { Log.d("RemoteUsersRepository", "Fetched user by vkId: $id, result: $it") }
     }
 
     override suspend fun add(user: User) {
@@ -142,7 +141,7 @@ class RemoteUsersRepositoryImpl(
     override suspend fun getProfileImageUrl(userId: String, fileName: String): String {
         Log.d("RemoteUsersRepository", "Получение URL для userId: $userId, fileName: $fileName")
         return storageRepository.createSignedUrl(Bucket.PROFILE_IMAGES, fileName)
-            ?: "https://tvecrsehuuqrjwjfgljf.supabase.co/storage/v1/object/sign/profile-images/default_profile.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2Y2YjA0NTBiLWVkNDktNGFkNi1iMGM2LWJiYzZmNzM0ZGY2YyJ9.eyJ1cmwiOiJwcm9maWxlLWltYWdlcy9kZWZhdWx0X3Byb2ZpbGUucG5nIiwiaWF0IjoxNzQ1NTI2MjM1LCJleHAiOjE3NzcwNjIyMzV9.RrxpUDm_OaKOOFFBICiPfVYgCdVTKMcyKqq6TKIYTv0"
+            //?: "https://tvecrsehuuqrjwjfgljf.supabase.co/storage/v1/object/sign/profile-images/default_profile.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2Y2YjA0NTBiLWVkNDktNGFkNi1iMGM2LWJiYzZmNzM0ZGY2YyJ9.eyJ1cmwiOiJwcm9maWxlLWltYWdlcy9kZWZhdWx0X3Byb2ZpbGUucG5nIiwiaWF0IjoxNzQ1NTI2MjM1LCJleHAiOjE3NzcwNjIyMzV9.RrxpUDm_OaKOOFFBICiPfVYgCdVTKMcyKqq6TKIYTv0"
     }
 
     override suspend fun updateProfileImageUrl(userId: String, imageUrl: String) {

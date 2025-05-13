@@ -1,7 +1,9 @@
 package ru.walkAndTalk.ui.screens.auth.login
 
 import android.util.Log
+import com.vk.api.sdk.VK
 import com.vk.id.AccessToken
+import com.vk.id.VKID
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.user.UserInfo
 import io.github.jan.supabase.exceptions.RestException
@@ -81,9 +83,7 @@ class LoginViewModel(
         try {
             Log.d("LoginViewModel", "Starting VK auth with accessToken: ${accessToken.userID}")
 
-            // Сохраняем accessToken для дальнейшего использования
-            val savedAccessToken = accessToken
-            Log.d("LoginViewModel", "Saved accessToken: ${savedAccessToken.userID}")
+            Log.d("LoginViewModel", "Saved accessToken: ${accessToken.userID}")
 
             // Получаем данные пользователя из VK API
             val vkUser = vkUsersRepository.fetchUser(accessToken.userID)

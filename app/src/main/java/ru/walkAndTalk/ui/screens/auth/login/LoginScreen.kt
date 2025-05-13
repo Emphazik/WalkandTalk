@@ -137,7 +137,7 @@ fun LoginScreen(
                     OneTap(
                         modifier = Modifier.fillMaxWidth(),
                         authParams = VKIDAuthUiParams {
-                            this.scopes = setOf("vkid.personal_info", "email", "phone", "photos")
+                            scopes = setOf("vkid.personal_info", "email", "phone", "photos")
                         },
                         style = OneTapStyle.Dark(),
                         onAuth = { _, accessToken -> viewModel.onVKAuth(accessToken) },
