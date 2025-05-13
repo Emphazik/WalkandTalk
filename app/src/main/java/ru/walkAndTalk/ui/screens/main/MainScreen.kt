@@ -1,6 +1,7 @@
 package ru.walkAndTalk.ui.screens.main
 
 import SearchScreen
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
@@ -15,13 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import org.koin.androidx.compose.koinViewModel
+import org.koin.core.parameter.parametersOf
 import ru.walkAndTalk.R
 import ru.walkAndTalk.ui.screens.Chats
 import ru.walkAndTalk.ui.screens.Feed
@@ -33,28 +34,42 @@ import ru.walkAndTalk.ui.screens.profile.ProfileScreen
 
 val montserratFont = FontFamily(Font(R.font.montserrat_semi_bold))
 
+sealed class BottomNavBarItem(
+    val route: Any,
+    val label: String,
+    @DrawableRes val iconId: Int,
+) {
+    data object FeedItem : BottomNavBarItem(Feed, "Главная", R.drawable.ic_home1)
+    data object SearchItem : BottomNavBarItem(Search, "Поиск", R.drawable.ic_people64)
+    data object ChatsItem : BottomNavBarItem(Chats, "Чаты", R.drawable.ic_chat64)
+    data class ProfileItem(val id: String) : BottomNavBarItem(Profile(id), "Профиль", R.drawable.ic_profile1)
+}
+
 @Composable
 fun MainScreen(
-    viewModel: MainViewModel = koinViewModel(),
     userId: String,
     onNavigateAuth: () -> Unit,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val tabs = listOf(Feed, Search, Chats, Profile(userId))
-    val tabLabels = listOf("Главная", "Поиск", "Чаты", "Профиль")
+    val tabs = listOf(
+        BottomNavBarItem.FeedItem,
+        BottomNavBarItem.SearchItem,
+        BottomNavBarItem.ChatsItem,
+        BottomNavBarItem.ProfileItem(userId),
+    )
     val colorScheme = MaterialTheme.colorScheme
 
     Scaffold(
         bottomBar = {
             NavigationBar {
-                tabs.forEachIndexed { index, route ->
-                    val selected = currentRoute == route
+                tabs.forEach { item ->
+                    val selected = currentRoute == item.route
                     NavigationBarItem(
                         selected = selected,
                         onClick = {
-                            navController.navigate(route) {
+                            navController.navigate(item.route) {
                                 popUpTo(navController.graph.startDestinationId) {
                                     inclusive = true
                                     saveState = true
@@ -63,18 +78,11 @@ fun MainScreen(
                                 launchSingleTop = true
                             }
                         },
-                        label = { Text(tabLabels[index]) },
+                        label = { Text(item.label) },
                         icon = {
                             Icon(
-                                painter = painterResource(
-                                    id = when (index) {
-                                        0 -> R.drawable.ic_home1
-                                        1 -> R.drawable.ic_people64
-                                        2 -> R.drawable.ic_chat64
-                                        else -> R.drawable.ic_profile1
-                                    }
-                                ),
-                                contentDescription = tabLabels[index],
+                                painter = painterResource(item.iconId),
+                                contentDescription = item.label,
                                 tint = if (selected) colorScheme.primary else colorScheme.onBackground.copy(
                                     alpha = 0.5f
                                 )
@@ -97,90 +105,14 @@ fun MainScreen(
             composable<Chats> { ChatsScreen() }
             composable<Profile> {
                 ProfileScreen(
-                    userId = it.toRoute<Profile>().userId,
+                    viewModel = koinViewModel(
+                        parameters = {
+                            parametersOf(it.toRoute<Profile>().userId)
+                        }
+                    ),
                     onNavigateAuth = onNavigateAuth
                 )
             }
         }
     }
 }
-//@Composable
-//fun MainScreen(userId: String, viewModel: MainViewModel = koinViewModel()) {
-//    val state by viewModel.collectAsState()
-//    val tabs = listOf("Главная", "Поиск", "Чаты", "Профиль")
-//    val colorScheme = MaterialTheme.colorScheme
-//
-//    Scaffold(
-//        bottomBar = {
-//            NavigationBar(
-//                containerColor = colorScheme.background,
-//                modifier = Modifier.height(128.dp)
-//            ) {
-//                tabs.forEachIndexed { index, title ->
-//                    val selected = state.selectedTab == index
-//                    NavigationBarItem(
-//                        icon = {
-//                            Icon(
-//                                painter = painterResource(
-//                                    id = when (index) {
-//                                        0 -> R.drawable.ic_home1
-//                                        1 -> R.drawable.ic_people64
-//                                        2 -> R.drawable.ic_chat64
-//                                        else -> R.drawable.ic_profile1
-//                                    }
-//                                ),
-//                                contentDescription = title,
-//                                tint = if (selected) colorScheme.primary else colorScheme.onBackground.copy(
-//                                    alpha = 0.5f
-//                                )
-//                            )
-//                        },
-//                        label = {
-//                            Text(
-//                                text = title,
-//                                fontFamily = montserratFont,
-//                                fontSize = 12.sp,
-//                                color = if (selected) colorScheme.primary else colorScheme.onBackground.copy(
-//                                    alpha = 0.5f
-//                                )
-//                            )
-//                        },
-//                        selected = selected,
-//                        onClick = { viewModel.onSelectedTabChange(index) }
-//                    )
-//                }
-//            }
-//        }
-//    ) { padding ->
-//        // Здесь поменять табы на NavHost(RootScreen). и связать с bottomBar. Вынести Screens.
-//        when (state.selectedTab) {
-//            0 -> FeedScreen()
-//            1 -> SearchScreen()
-//            2 -> ChatsScreen()
-//            3 -> ProfileScreen()
-//        }
-//    }
-//}
-
-
-//import androidx.compose.foundation.layout.Box
-//import androidx.compose.foundation.layout.fillMaxSize
-//import androidx.compose.material3.Text
-//import androidx.compose.runtime.Composable
-//import androidx.compose.ui.Alignment
-//import androidx.compose.ui.Modifier
-//import androidx.compose.ui.unit.sp
-//import androidx.navigation.NavHostController
-//
-//@Composable
-//fun MainScreen(navController: NavHostController) {
-//    Box(
-//        modifier = Modifier.fillMaxSize(),
-//        contentAlignment = Alignment.Center
-//    ) {
-//        Text(
-//            text = "Welcome to Main Screen!",
-//            fontSize = 24.sp
-//        )
-//    }
-//}

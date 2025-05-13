@@ -54,21 +54,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import androidx.navigation.NavHostController
 import coil3.compose.rememberAsyncImagePainter
 import org.koin.androidx.compose.koinViewModel
+import org.koin.core.parameter.parametersOf
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import ru.walkAndTalk.R
-import ru.walkAndTalk.ui.screens.Auth
-import ru.walkAndTalk.ui.screens.Welcome
 import ru.walkAndTalk.ui.screens.main.montserratFont
 
 @Composable
 fun ProfileScreen(
-    viewModel: ProfileViewModel = koinViewModel(),
-    userId: String,
+    viewModel: ProfileViewModel,
     onNavigateAuth: () -> Unit,
 ) {
     val state by viewModel.collectAsState()
@@ -111,7 +107,7 @@ fun ProfileScreen(
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 ProfileHeader(
-                    name = state.name.toString(),
+                    name = state.name,
                     onEditClick = { intent -> launcher.launch(intent) },
                     photoURL = state.photoURL,
                     colorScheme = colorScheme
@@ -221,14 +217,6 @@ fun ProfileScreen(
                 onDismiss = viewModel::onDismissInterestSelection,
                 onInterestSelected = viewModel::onInterestSelected
             )
-        }
-    }
-
-    LaunchedEffect(userId) {
-        if (userId.isNotEmpty()) {
-            viewModel.onCreate(userId)
-        } else {
-            Log.e("ProfileScreen", "Invalid userId: $userId")
         }
     }
 }

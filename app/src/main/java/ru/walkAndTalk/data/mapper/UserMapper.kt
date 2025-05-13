@@ -1,8 +1,8 @@
 package ru.walkAndTalk.data.mapper
 
 import android.util.Log
+import com.vk.id.VKIDUser
 import com.vk.sdk.api.users.dto.UsersUserFullDto
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Clock.System
 import kotlinx.datetime.Instant
 import ru.walkAndTalk.data.model.UserDto
@@ -14,6 +14,7 @@ fun List<UserDto>.fromDtoList(): List<User> = map(UserDto::fromDto)
 fun UserDto.fromDto(): User = User(
     id = id,
     email = email,
+    password = password,
     phone = phone,
     name = name,
     profileImageUrl = profileImageUrl,
@@ -29,6 +30,7 @@ fun UserDto.fromDto(): User = User(
 fun User.toDto(): UserDto = UserDto(
     id = id,
     email = email,
+    password = password,
     phone = phone,
     name = name,
     profileImageUrl = profileImageUrl,
@@ -39,6 +41,24 @@ fun User.toDto(): UserDto = UserDto(
     goals = goals,
     createdAt = createdAt.toString(),
     updatedAt = updatedAt?.toString()
+)
+
+fun VKIDUser.toUser(
+    vkId: Long
+): User = User(
+    id = "", // id будет установлен после регистрации через Supabase Auth
+    email = email.toString(),
+    password = UUID.randomUUID().toString(),
+    phone = phone.toString(),
+    name = "$lastName $firstName",
+    profileImageUrl = photo200 ?: "",
+    vkId = vkId,
+    interestIds = emptyList(),
+    cityKnowledgeLevelId = null,
+    bio = null,
+    goals = null,
+    createdAt = System.now(),
+    updatedAt = System.now()
 )
 
 fun UsersUserFullDto.fromVkUser(): User {
@@ -52,12 +72,12 @@ fun UsersUserFullDto.fromVkUser(): User {
     )
 
     return User(
-//        id = UUID.randomUUID().toString(),
         id = "", // id будет установлен после регистрации через Supabase Auth
         email = email.toString(),
+        password = UUID.randomUUID().toString(),
         phone = mobilePhone.toString(),
         name = "$lastName $firstName",
-        profileImageUrl = photo50 ?: "",
+        profileImageUrl = cropPhoto?.photo?.photo256 ?: "",
         vkId = id.value,
         interestIds = emptyList(),
         cityKnowledgeLevelId = null,

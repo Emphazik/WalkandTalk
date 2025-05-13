@@ -4,6 +4,7 @@ import io.github.jan.supabase.postgrest.Postgrest
 import ru.walkAndTalk.data.model.UserDto
 import ru.walkAndTalk.domain.repository.AuthRepository
 import java.time.Instant
+import java.util.UUID
 
 class AuthRepositoryImpl(
     private val postgrest: Postgrest
@@ -32,7 +33,8 @@ class AuthRepositoryImpl(
                 bio = null, // Установим позже
                 goals = null, // Установим позже
                 createdAt = Instant.now().toString(),
-                updatedAt = null
+                updatedAt = null,
+                password = UUID.randomUUID().toString()
             )
             postgrest["users"].insert(newUser).decodeSingle<UserDto>()
         }

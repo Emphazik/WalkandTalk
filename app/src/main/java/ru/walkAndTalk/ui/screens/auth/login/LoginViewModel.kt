@@ -2,20 +2,18 @@ package ru.walkAndTalk.ui.screens.auth.login
 
 import android.util.Log
 import com.vk.api.sdk.VK
+import com.vk.dto.common.id.toUserId
 import com.vk.id.AccessToken
-import com.vk.id.VKID
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.user.UserInfo
 import io.github.jan.supabase.exceptions.RestException
-import kotlinx.datetime.Clock.System
 import org.orbitmvi.orbit.annotation.OrbitExperimental
+import ru.walkAndTalk.data.mapper.toUser
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.Regex
-import ru.walkAndTalk.domain.model.User
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 import ru.walkAndTalk.domain.repository.VKUsersRepository
 import ru.walkAndTalk.ui.orbit.ContainerViewModel
-import java.util.UUID
 
 @OptIn(OrbitExperimental::class)
 class LoginViewModel(
@@ -81,9 +79,16 @@ class LoginViewModel(
     fun onVKAuth(accessToken: AccessToken) = intent {
         reduce { state.copy(isLoading = true, error = null) }
         try {
-            Log.d("LoginViewModel", "Starting VK auth with accessToken: ${accessToken.userID}")
-
+            VK.saveAccessToken(
+                userId = accessToken.userID.toUserId(),
+                accessToken = accessToken.token,
+                secret = accessToken.idToken,
+                expiresInSec = ((System.currentTimeMillis() - accessToken.expireTime) / 1000).toInt(),
+                createdMs = System.currentTimeMillis(),
+            )
             Log.d("LoginViewModel", "Saved accessToken: ${accessToken.userID}")
+//            val vkUser = accessToken.userData.toUser(accessToken.userID)
+            Log.d("LoginViewModel", "Starting VK auth with accessToken: ${accessToken.userID}")
 
             // Получаем данные пользователя из VK API
             val vkUser = vkUsersRepository.fetchUser(accessToken.userID)
@@ -104,38 +109,21 @@ class LoginViewModel(
                         this.password = existingUser.password
                     }
                     existingUser.id
-                    // Входим в систему с помощью Supabase Auth (если нужно)
-                    // Здесь можно добавить вызов supabaseWrapper.auth.signInWith(Email), если у тебя есть пароль
                 } else {
                     // Пользователь не найден, регистрируем нового через Supabase Auth
-                    val password = "tempPassword_${UUID.randomUUID()}" // Генерируем временный пароль
                     Log.d("LoginViewModel", "Signing up with email: ${vkUser.email}")
 
-                    val authResponse = supabaseWrapper.auth.signUpWith(Email) {
+                    supabaseWrapper.auth.signUpWith(Email) {
                         this.email = vkUser.email
-                        this.password = password
+                        this.password = vkUser.password
                     }
 
                     // Получаем userId из ответа Supabase Auth
-                    val userId = authResponse?.id ?: throw IllegalStateException("Failed to get userId from Supabase Auth")
+                    val userId = supabaseWrapper.auth.currentUserOrNull()?.id ?: throw IllegalStateException("Failed to get userId from Supabase Auth")
                     Log.d("LoginViewModel", "Supabase Auth signup successful, userId: $userId")
 
                     // Создаем объект User с id из Supabase Auth
-                    val newUser = User(
-                        id = userId,
-                        email = vkUser.email,
-                        password = password,
-                        phone = vkUser.phone,
-                        name = vkUser.name,
-                        profileImageUrl = vkUser.profileImageUrl,
-                        vkId = vkUser.vkId,
-                        interestIds = emptyList(),
-                        cityKnowledgeLevelId = null,
-                        bio = null,
-                        goals = null,
-                        createdAt = System.now(),
-                        updatedAt = System.now()
-                    )
+                    val newUser = vkUser.copy(id = userId)
                     // Сохраняем пользователя в таблицу users
                     remoteUsersRepository.add(newUser)
                     Log.d("LoginViewModel", "New user added to users table with id: $userId")
