@@ -18,8 +18,5 @@ data class EventDto(
     @SerialName("event_date") val eventDate: String,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("route_id") val routeId: String? = null,
-
-    // Добавляем поле для изображения (заглушка)
-    val image: @Composable () -> @Contextual Painter = { painterResource(id = R.drawable.default_event_image) }
-
+    @SerialName("event_image_url") val eventImageUrl: String? = null,
 )

@@ -1,8 +1,7 @@
-package ru.walkAndTalk.ui.screens.profile
+package ru.walkAndTalk.ui.screens.main.profile
 
 import android.app.Activity
 import android.content.Intent
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,7 +37,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,8 +52,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.rememberAsyncImagePainter
-import org.koin.androidx.compose.koinViewModel
-import org.koin.core.parameter.parametersOf
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import ru.walkAndTalk.R
@@ -82,7 +77,7 @@ fun ProfileScreen(
     viewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
             is ProfileSideEffect.LaunchImagePicker -> {
-                val intent = Intent(Intent.ACTION_PICK).apply { type = "image/*" }
+                val intent = Intent(Intent.ACTION_PICK).apply { this.type = "image/*" }
                 launcher.launch(intent)
             }
 
@@ -109,6 +104,7 @@ fun ProfileScreen(
                 ProfileHeader(
                     name = state.name,
                     onEditClick = { intent -> launcher.launch(intent) },
+                    onLogoutClick = { viewModel.onLogout() },
                     photoURL = state.photoURL,
                     colorScheme = colorScheme
                 )
@@ -225,6 +221,7 @@ fun ProfileScreen(
 fun ProfileHeader(
     name: String,
     onEditClick: (Intent) -> Unit,
+    onLogoutClick: () -> Unit,
     photoURL: String?,
     colorScheme: ColorScheme
 ) {
@@ -260,8 +257,21 @@ fun ProfileHeader(
                     },
                     onClick = {
                         showEditMenu = false
-                        val intent = Intent(Intent.ACTION_PICK).apply { type = "image/*" }
+                        val intent = Intent(Intent.ACTION_PICK).apply { this.type = "image/*" }
                         onEditClick(intent)
+                    }
+                )
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = "Выйти",
+                            fontFamily = montserratFont,
+                            fontSize = 16.sp,
+                            color = colorScheme.onSurface
+                        )
+                    },
+                    onClick = {
+                        onLogoutClick()
                     }
                 )
             }
@@ -614,21 +624,21 @@ fun ActionButtons(
 //                color = colorScheme.onSecondaryContainer
 //            )
 //        }
-        Button(
-            onClick = onLogoutClick,
-            modifier = Modifier
-                .fillMaxWidth(0.8f)
-                .height(48.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.errorContainer),
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Text(
-                text = "Выйти",
-                fontFamily = montserratFont,
-                fontSize = 16.sp,
-                color = colorScheme.onErrorContainer
-            )
-        }
+//        Button(
+//            onClick = onLogoutClick,
+//            modifier = Modifier
+//                .fillMaxWidth(0.8f)
+//                .height(48.dp),
+//            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.errorContainer),
+//            shape = RoundedCornerShape(8.dp)
+//        ) {
+//            Text(
+//                text = "Выйти",
+//                fontFamily = montserratFont,
+//                fontSize = 16.sp,
+//                color = colorScheme.onErrorContainer
+//            )
+//        }
     }
 }
 

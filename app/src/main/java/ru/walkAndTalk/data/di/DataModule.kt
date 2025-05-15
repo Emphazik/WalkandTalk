@@ -11,6 +11,7 @@ import ru.walkAndTalk.data.repository.InterestsRepositoryImpl
 import ru.walkAndTalk.data.repository.LocalDataStoreRepositoryImpl
 import ru.walkAndTalk.data.repository.RemoteUsersRepositoryImpl
 import ru.walkAndTalk.data.repository.StorageRepositoryImpl
+import ru.walkAndTalk.data.repository.UserEventRepositoryImpl
 import ru.walkAndTalk.data.repository.UserInterestsRepositoryImpl
 import ru.walkAndTalk.data.repository.VKUsersRepositoryImpl
 import ru.walkAndTalk.domain.repository.ChatsRepository
@@ -20,6 +21,7 @@ import ru.walkAndTalk.domain.repository.InterestsRepository
 import ru.walkAndTalk.domain.repository.LocalDataStoreRepository
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 import ru.walkAndTalk.domain.repository.StorageRepository
+import ru.walkAndTalk.domain.repository.UserEventRepository
 import ru.walkAndTalk.domain.repository.UserInterestsRepository
 import ru.walkAndTalk.domain.repository.VKUsersRepository
 
@@ -37,6 +39,7 @@ private val repositoryModule = module {
     singleOf(::CityKnowledgeLevelRepositoryImpl) {bind<CityKnowledgeLevelRepository>() }
     singleOf(::InterestsRepositoryImpl) {bind<InterestsRepository>()}
     singleOf(::UserInterestsRepositoryImpl) {bind<UserInterestsRepository>()}
+    singleOf(::UserEventRepositoryImpl) {bind<UserEventRepository>()}
 }
 
 internal val dataModule = module {

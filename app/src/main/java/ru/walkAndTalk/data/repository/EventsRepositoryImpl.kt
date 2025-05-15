@@ -24,4 +24,14 @@ class EventsRepositoryImpl(
             .decodeSingleOrNull<EventDto>()
             ?.toDomain()
     }
+
+    override suspend fun updateEventImage(eventId: String, imageUrl: String) {
+        supabaseWrapper.postgrest[Table.EVENTS].update(
+            mapOf(
+                "event_image_url" to imageUrl
+            )
+        ) {
+            filter { EventDto::id eq eventId }
+        }
+    }
 }

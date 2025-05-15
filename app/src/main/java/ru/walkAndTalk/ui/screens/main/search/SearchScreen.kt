@@ -33,9 +33,9 @@ import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import ru.walkAndTalk.R
 import ru.walkAndTalk.domain.model.User
-import ru.walkAndTalk.ui.screens.feed.SearchBar
-import ru.walkAndTalk.ui.screens.search.SearchSideEffect
-import ru.walkAndTalk.ui.screens.search.SearchViewModel
+import ru.walkAndTalk.ui.screens.main.feed.SearchBar
+import ru.walkAndTalk.ui.screens.main.search.SearchSideEffect
+import ru.walkAndTalk.ui.screens.main.search.SearchViewModel
 import ru.walkAndTalk.ui.theme.montserratFont
 
 @Composable

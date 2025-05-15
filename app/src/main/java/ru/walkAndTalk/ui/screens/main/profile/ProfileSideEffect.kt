@@ -1,4 +1,4 @@
-package ru.walkAndTalk.ui.screens.profile
+package ru.walkAndTalk.ui.screens.main.profile
 
 sealed interface ProfileSideEffect {
     data object OnNavigateExit : ProfileSideEffect

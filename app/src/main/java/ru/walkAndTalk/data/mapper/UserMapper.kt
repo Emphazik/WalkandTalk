@@ -26,7 +26,6 @@ fun UserDto.fromDto(): User = User(
     createdAt = Instant.parse(createdAt),
     updatedAt = updatedAt?.let { Instant.parse(it) }
 )
-
 fun User.toDto(): UserDto = UserDto(
     id = id,
     email = email,
@@ -49,8 +48,8 @@ fun VKIDUser.toUser(
     id = "", // id будет установлен после регистрации через Supabase Auth
     email = email.toString(),
     password = UUID.randomUUID().toString(),
-    phone = phone.toString(),
-    name = "$lastName $firstName",
+    phone = "+$phone",
+    name = firstName,
     profileImageUrl = photo200 ?: "",
     vkId = vkId,
     interestIds = emptyList(),
@@ -77,7 +76,7 @@ fun UsersUserFullDto.fromVkUser(): User {
         password = UUID.randomUUID().toString(),
         phone = mobilePhone.toString(),
         name = "$lastName $firstName",
-        profileImageUrl = cropPhoto?.photo?.photo256 ?: "",
+        profileImageUrl = photo200 ?: "",
         vkId = id.value,
         interestIds = emptyList(),
         cityKnowledgeLevelId = null,

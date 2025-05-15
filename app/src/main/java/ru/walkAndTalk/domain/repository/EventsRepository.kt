@@ -5,4 +5,5 @@ import ru.walkAndTalk.domain.model.Event
 interface EventsRepository {
     suspend fun fetchAllEvents(): List<Event>
     suspend fun fetchEventById(id: String): Event?
+    suspend fun updateEventImage(eventId: String, imageUrl: String)
 }

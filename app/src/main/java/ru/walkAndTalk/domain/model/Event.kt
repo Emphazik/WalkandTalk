@@ -8,5 +8,7 @@ data class Event(
     val location: String,
     val eventDate: String,
     val createdAt: String,
-    val imageUrl: String? = null // Добавим поле для URL изображения
+    val eventImageUrl: String?,
+
+    val organizerName: String? = null
 )

@@ -1,4 +1,4 @@
-package ru.walkAndTalk.ui.screens.feed
+package ru.walkAndTalk.ui.screens.main.feed
 
 import androidx.compose.runtime.Immutable
 import ru.walkAndTalk.domain.model.Event

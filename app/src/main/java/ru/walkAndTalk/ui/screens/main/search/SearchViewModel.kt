@@ -1,10 +1,9 @@
-package ru.walkAndTalk.ui.screens.search
+package ru.walkAndTalk.ui.screens.main.search
 
 import androidx.lifecycle.ViewModel
 import org.orbitmvi.orbit.Container
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
-import ru.walkAndTalk.domain.model.User
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 
 class SearchViewModel(

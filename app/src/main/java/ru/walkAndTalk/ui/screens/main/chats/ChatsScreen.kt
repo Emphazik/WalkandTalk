@@ -36,8 +36,8 @@ import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import ru.walkAndTalk.R
 import ru.walkAndTalk.domain.model.Chat
-import ru.walkAndTalk.ui.screens.chats.ChatsSideEffect
-import ru.walkAndTalk.ui.screens.chats.ChatsViewModel
+import ru.walkAndTalk.ui.screens.main.chats.ChatsSideEffect
+import ru.walkAndTalk.ui.screens.main.chats.ChatsViewModel
 import ru.walkAndTalk.ui.theme.montserratFont
 
 @Composable

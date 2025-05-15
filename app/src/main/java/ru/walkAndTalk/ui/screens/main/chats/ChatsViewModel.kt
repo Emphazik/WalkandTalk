@@ -1,4 +1,4 @@
-package ru.walkAndTalk.ui.screens.chats
+package ru.walkAndTalk.ui.screens.main.chats
 
 import androidx.lifecycle.ViewModel
 import org.orbitmvi.orbit.Container

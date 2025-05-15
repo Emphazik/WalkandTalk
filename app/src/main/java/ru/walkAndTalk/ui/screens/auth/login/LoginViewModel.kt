@@ -87,16 +87,20 @@ class LoginViewModel(
                 createdMs = System.currentTimeMillis(),
             )
             Log.d("LoginViewModel", "Saved accessToken: ${accessToken.userID}")
-//            val vkUser = accessToken.userData.toUser(accessToken.userID)
+            val vkUser = accessToken.userData.toUser(accessToken.userID)
             Log.d("LoginViewModel", "Starting VK auth with accessToken: ${accessToken.userID}")
 
             // Получаем данные пользователя из VK API
-            val vkUser = vkUsersRepository.fetchUser(accessToken.userID)
+//            val vkUser = vkUsersRepository.fetchUser(accessToken.userID)
             Log.d("LoginViewModel", "Fetched VK user: vkId=${vkUser.vkId}, email=${vkUser.email}, phone=${vkUser.phone}")
 
             // Проверяем, есть ли пользователь в базе по почте
             var existingUser = remoteUsersRepository.fetchByEmail(vkUser.email)
             val userId = if (existingUser != null) {
+                supabaseWrapper.auth.signInWith(Email) {
+                    this.email = existingUser.email
+                    this.password = existingUser.password
+                }
                 remoteUsersRepository.updateVKId(existingUser.id, accessToken.userID)
                 existingUser.id
             } else {
@@ -130,7 +134,6 @@ class LoginViewModel(
                     userId
                 }
             }
-
             postSideEffect(LoginSideEffect.OnNavigateMain(userId))
             reduce { state.copy(isLoading = false) }
         } catch (e: Exception) {

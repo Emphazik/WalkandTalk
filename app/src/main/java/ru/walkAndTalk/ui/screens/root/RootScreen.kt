@@ -8,7 +8,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import org.koin.java.KoinJavaComponent.get
+import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.ui.screens.Auth
+import ru.walkAndTalk.ui.screens.EventDetails
 import ru.walkAndTalk.ui.screens.Login
 import ru.walkAndTalk.ui.screens.Main
 import ru.walkAndTalk.ui.screens.Onboarding
@@ -18,6 +21,7 @@ import ru.walkAndTalk.ui.screens.Welcome
 import ru.walkAndTalk.ui.screens.auth.login.LoginScreen
 import ru.walkAndTalk.ui.screens.auth.register.RegisterScreen
 import ru.walkAndTalk.ui.screens.main.MainScreen
+import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsScreen
 import ru.walkAndTalk.ui.screens.onboarding.OnboardingScreen
 import ru.walkAndTalk.ui.screens.splash.SplashScreen
 import ru.walkAndTalk.ui.screens.welcome.WelcomeScreen
@@ -124,11 +128,10 @@ fun RootScreen(intent: Intent) {
             )
         }
     }
-
     LaunchedEffect(intent) {
         intent.data?.let { uri ->
             if (uri.toString().startsWith("vk53306543://vk.com")) {
-                navController.navigate(Main("id")) { // Замени на реальный ID
+                navController.navigate(Main("id")) {
                     popUpTo(Splash) {
                         inclusive = true
                     }

@@ -1,4 +1,4 @@
-package ru.walkAndTalk.ui.screens.feed
+package ru.walkAndTalk.ui.screens.main.feed
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -39,24 +39,32 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import coil3.compose.rememberAsyncImagePainter
 import org.koin.androidx.compose.koinViewModel
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import ru.walkAndTalk.R
 import ru.walkAndTalk.domain.model.Event
+import ru.walkAndTalk.ui.screens.EventDetails
+import ru.walkAndTalk.ui.screens.main.feed.FeedViewModel
 import ru.walkAndTalk.ui.theme.montserratFont
 
 @Composable
-fun FeedScreen(viewModel: FeedViewModel = koinViewModel()) {
-    val state by viewModel.collectAsState()
+fun FeedScreen(
+    navController: NavController,
+    feedViewModel: FeedViewModel = koinViewModel()
+) {
+    val state by feedViewModel.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
 
-    // Обработка побочных эффектов (например, переход к деталям мероприятия)
-    viewModel.collectSideEffect { sideEffect ->
+    feedViewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
             is FeedSideEffect.NavigateToEventDetails -> {
-                // Здесь можно добавить навигацию к экрану деталей мероприятия
+                navController.navigate(EventDetails.createRoute(sideEffect.eventId))
+            }
+            is FeedSideEffect.ParticipateInEvent -> {
+                // Оставляем пустым, так как обработка будет в MainScreen
             }
         }
     }
@@ -77,7 +85,7 @@ fun FeedScreen(viewModel: FeedViewModel = koinViewModel()) {
             )
             SearchBar(
                 query = state.searchQuery,
-                onQueryChange = { viewModel.onSearchQueryChange(it) },
+                onQueryChange = { feedViewModel.onSearchQueryChange(it) },
                 onFilterClick = { /* Заглушка для фильтра */ },
                 colorScheme = colorScheme
             )
@@ -100,14 +108,17 @@ fun FeedScreen(viewModel: FeedViewModel = koinViewModel()) {
             }
         } else {
             items(state.events) { event ->
-                EventCard(event = event, viewModel = viewModel)
+                EventCard(event = event, viewModel = feedViewModel)
             }
         }
     }
 }
 
 @Composable
-fun EventCard(event: Event, viewModel: FeedViewModel) {
+fun EventCard(
+    event: Event,
+    viewModel: FeedViewModel,
+    ) {
     val colorScheme = MaterialTheme.colorScheme
     Card(
         modifier = Modifier
@@ -121,13 +132,16 @@ fun EventCard(event: Event, viewModel: FeedViewModel) {
         Column {
             // Изображение мероприятия
             Image(
-                painter = event.imageUrl?.let { rememberAsyncImagePainter(it) }
-                    ?: painterResource(id = R.drawable.default_event_image),
+                painter = if (event.eventImageUrl.isNullOrBlank()) {
+                    painterResource(id = R.drawable.default_event_image)
+                } else {
+                    rememberAsyncImagePainter(event.eventImageUrl)
+                },
                 contentDescription = event.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(150.dp)
+                    .height(200.dp)
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
             )
 
@@ -171,6 +185,26 @@ fun EventCard(event: Event, viewModel: FeedViewModel) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Кнопка для теста обновления изображения
+//                Button(
+//                    onClick = {
+//                        viewModel.updateEventImage(event.id, "https://example.com/new_image.jpg")
+//                    },
+//                    modifier = Modifier
+//                        .fillMaxWidth()
+//                        .height(40.dp),
+//                    colors = ButtonDefaults.buttonColors(
+//                        containerColor = colorScheme.secondary
+//                    ),
+//                    shape = RoundedCornerShape(8.dp)
+//                ) {
+//                    Text(
+//                        text = "Обновить изображение",
+//                        fontFamily = montserratFont,
+//                        fontSize = 14.sp,
+//                        color = colorScheme.onSecondary
+//                    )
+//                }
                 // Кнопка "Подробнее"
                 Button(
                     onClick = { viewModel.onEventClick(event.id) },
@@ -187,6 +221,26 @@ fun EventCard(event: Event, viewModel: FeedViewModel) {
                         fontFamily = montserratFont,
                         fontSize = 14.sp,
                         color = colorScheme.onPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                // Кнопка "Присоединиться"
+
+                Button(
+                    onClick = { viewModel.onParticipateClick(event.id) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorScheme.primaryContainer
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "Присоединиться",
+                        fontFamily = montserratFont,
+                        fontSize = 14.sp,
+                        color = colorScheme.onPrimaryContainer
                     )
                 }
             }

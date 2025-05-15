@@ -1,4 +1,4 @@
-package ru.walkAndTalk.ui.screens.chats
+package ru.walkAndTalk.ui.screens.main.chats
 
 import androidx.compose.runtime.Immutable
 import ru.walkAndTalk.domain.model.Chat

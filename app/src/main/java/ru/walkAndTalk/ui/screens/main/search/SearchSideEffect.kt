@@ -1,4 +1,4 @@
-package ru.walkAndTalk.ui.screens.search
+package ru.walkAndTalk.ui.screens.main.search
 
 import androidx.compose.runtime.Immutable
 import ru.walkAndTalk.domain.model.User

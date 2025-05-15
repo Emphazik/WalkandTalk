@@ -1,4 +1,4 @@
-package ru.walkAndTalk.ui.screens.profile
+package ru.walkAndTalk.ui.screens.main.profile
 
 import androidx.compose.runtime.Immutable
 
