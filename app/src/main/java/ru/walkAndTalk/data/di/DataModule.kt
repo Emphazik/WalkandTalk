@@ -6,6 +6,7 @@ import org.koin.dsl.module
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.data.repository.ChatsRepositoryImpl
 import ru.walkAndTalk.data.repository.CityKnowledgeLevelRepositoryImpl
+import ru.walkAndTalk.data.repository.EventParticipantsRepositoryImpl
 import ru.walkAndTalk.data.repository.EventsRepositoryImpl
 import ru.walkAndTalk.data.repository.InterestsRepositoryImpl
 import ru.walkAndTalk.data.repository.LocalDataStoreRepositoryImpl
@@ -16,6 +17,7 @@ import ru.walkAndTalk.data.repository.UserInterestsRepositoryImpl
 import ru.walkAndTalk.data.repository.VKUsersRepositoryImpl
 import ru.walkAndTalk.domain.repository.ChatsRepository
 import ru.walkAndTalk.domain.repository.CityKnowledgeLevelRepository
+import ru.walkAndTalk.domain.repository.EventParticipantsRepository
 import ru.walkAndTalk.domain.repository.EventsRepository
 import ru.walkAndTalk.domain.repository.InterestsRepository
 import ru.walkAndTalk.domain.repository.LocalDataStoreRepository
@@ -40,6 +42,7 @@ private val repositoryModule = module {
     singleOf(::InterestsRepositoryImpl) {bind<InterestsRepository>()}
     singleOf(::UserInterestsRepositoryImpl) {bind<UserInterestsRepository>()}
     singleOf(::UserEventRepositoryImpl) {bind<UserEventRepository>()}
+    singleOf(::EventParticipantsRepositoryImpl) {bind<EventParticipantsRepository>()}
 }
 
 internal val dataModule = module {

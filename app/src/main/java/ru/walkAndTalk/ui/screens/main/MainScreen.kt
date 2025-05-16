@@ -76,9 +76,12 @@ fun MainScreen(
     val colorScheme = MaterialTheme.colorScheme
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val feedViewModel: FeedViewModel = koinViewModel(
+        parameters = { parametersOf(userId) } // Передаем userId в FeedViewModel
+    )
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }, // Добавляем SnackbarHost в Scaffold
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         bottomBar = {
             NavigationBar {
                 tabs.forEach { item ->
@@ -118,9 +121,7 @@ fun MainScreen(
                 .padding(innerPadding)
         ) {
             composable<Feed> { backStackEntry ->
-                val feedViewModel: FeedViewModel = koinViewModel()
-                FeedScreen(navController = navController, feedViewModel = feedViewModel)
-                // Используем LaunchedEffect для обработки побочных эффектов
+                FeedScreen(navController = navController, feedViewModel = feedViewModel) // Передаем один экземпляр
                 LaunchedEffect(feedViewModel) {
                     feedViewModel.container.sideEffectFlow.collect { sideEffect ->
                         when (sideEffect) {
@@ -128,9 +129,17 @@ fun MainScreen(
                                 navController.navigate(EventDetails.createRoute(sideEffect.eventId))
                             }
                             is FeedSideEffect.ParticipateInEvent -> {
+                                val event = feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
-                                        message = "Вы записались на мероприятие с ID: ${sideEffect.eventId}!"
+                                        message = "Вы успешно записались на '${event?.title ?: "мероприятие"}' ${event?.let { feedViewModel.formatEventDate(it.eventDate) } ?: ""}!"
+                                    )
+                                }
+                            }
+                            is FeedSideEffect.ShowError -> {
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = sideEffect.message
                                     )
                                 }
                             }
@@ -156,12 +165,11 @@ fun MainScreen(
             ) { navBackStackEntry ->
                 val eventId = navBackStackEntry.arguments?.getString("eventId")
                 if (eventId != null) {
-                    val feedViewModel: FeedViewModel = koinViewModel()
                     EventDetailsScreen(
                         onNavigateBack = { navController.popBackStack() },
                         eventId = eventId,
                         viewModel = koinViewModel(),
-                        feedViewModel = feedViewModel
+                        feedViewModel = feedViewModel // Передаем один экземпляр
                     )
                 } else {
                     Box(modifier = Modifier.fillMaxSize()) {

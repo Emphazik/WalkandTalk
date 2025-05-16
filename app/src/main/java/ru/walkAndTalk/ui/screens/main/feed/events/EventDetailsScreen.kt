@@ -63,7 +63,6 @@ fun EventDetailsScreen(
     val coroutineScope = rememberCoroutineScope()
 
     viewModel.loadEvent(eventId)
-    // Обработка побочных эффектов
 
 // Обработка побочных эффектов EventDetailsViewModel
     viewModel.collectSideEffect { sideEffect ->
@@ -83,6 +82,13 @@ fun EventDetailsScreen(
                                 message = "Вы успешно записались на '${state.event?.title ?: "мероприятие"}' ${state.event?.let { viewModel.formatEventDate(it.eventDate) } ?: ""}!"
                             )
                         }
+                    }
+                }
+                is FeedSideEffect.ShowError -> {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = sideEffect.message // Отображаем ошибку (например, "Вы уже участвуете")
+                        )
                     }
                 }
                 else -> Unit

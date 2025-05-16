@@ -7,10 +7,13 @@ import kotlinx.datetime.toLocalDateTime
 import org.orbitmvi.orbit.Container
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
+import ru.walkAndTalk.domain.repository.EventParticipantsRepository
 import ru.walkAndTalk.domain.repository.EventsRepository
 
 class FeedViewModel(
-    private val eventsRepository: EventsRepository
+    private val eventsRepository: EventsRepository,
+    private val eventParticipantsRepository: EventParticipantsRepository,
+    private val currentUserId: String // Предположим, у нас есть ID текущего пользователя
 ) : ViewModel(), ContainerHost<FeedViewState, FeedSideEffect> {
 
     override val container: Container<FeedViewState, FeedSideEffect> = container(FeedViewState())
@@ -31,7 +34,6 @@ class FeedViewModel(
 
     fun onSearchQueryChange(query: String) = intent {
         reduce { state.copy(searchQuery = query) }
-        // Фильтрация событий по запросу (опционально)
         val filteredEvents = eventsRepository.fetchAllEvents().filter {
             it.title.contains(query, ignoreCase = true) || it.description.contains(
                 query,
@@ -46,7 +48,22 @@ class FeedViewModel(
     }
 
     fun onParticipateClick(eventId: String) = intent {
-        postSideEffect(FeedSideEffect.ParticipateInEvent(eventId))
+        try {
+            val isParticipating = eventParticipantsRepository.isUserParticipating(eventId, currentUserId)
+            if (isParticipating) {
+                postSideEffect(FeedSideEffect.ShowError("Вы уже участвуете в этом мероприятии"))
+                return@intent
+            }
+
+            val result = eventParticipantsRepository.joinEvent(eventId, currentUserId)
+            result.onSuccess {
+                postSideEffect(FeedSideEffect.ParticipateInEvent(eventId))
+            }.onFailure { error ->
+                postSideEffect(FeedSideEffect.ShowError(error.message ?: "Ошибка при регистрации"))
+            }
+        } catch (e: Exception) {
+            postSideEffect(FeedSideEffect.ShowError("Ошибка: ${e.message}"))
+        }
     }
 
     fun updateEventImage(eventId: String, imageUrl: String) = intent {

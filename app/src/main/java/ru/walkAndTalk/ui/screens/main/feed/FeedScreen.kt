@@ -66,6 +66,8 @@ fun FeedScreen(
             is FeedSideEffect.ParticipateInEvent -> {
                 // Оставляем пустым, так как обработка будет в MainScreen
             }
+
+            is FeedSideEffect.ShowError -> TODO()
         }
     }
 
@@ -205,24 +207,24 @@ fun EventCard(
 //                        color = colorScheme.onSecondary
 //                    )
 //                }
-                // Кнопка "Подробнее"
-                Button(
-                    onClick = { viewModel.onEventClick(event.id) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colorScheme.primary
-                    ),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = "Подробнее",
-                        fontFamily = montserratFont,
-                        fontSize = 14.sp,
-                        color = colorScheme.onPrimary
-                    )
-                }
+//                // Кнопка "Подробнее"
+//                Button(
+//                    onClick = { viewModel.onEventClick(event.id) },
+//                    modifier = Modifier
+//                        .fillMaxWidth()
+//                        .height(40.dp),
+//                    colors = ButtonDefaults.buttonColors(
+//                        containerColor = colorScheme.primary
+//                    ),
+//                    shape = RoundedCornerShape(8.dp)
+//                ) {
+//                    Text(
+//                        text = "Подробнее",
+//                        fontFamily = montserratFont,
+//                        fontSize = 14.sp,
+//                        color = colorScheme.onPrimary
+//                    )
+//                }
                 Spacer(modifier = Modifier.height(12.dp))
                 // Кнопка "Присоединиться"
 
