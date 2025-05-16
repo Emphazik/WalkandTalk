@@ -1,6 +1,7 @@
 package ru.walkAndTalk.ui.screens.main.feed
 
 import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -63,6 +64,25 @@ class FeedViewModel(
             }
         } catch (e: Exception) {
             postSideEffect(FeedSideEffect.ShowError("Ошибка: ${e.message}"))
+        }
+    }
+
+    fun onLeaveEventClick(eventId: String) = intent {
+        try {
+            val result = eventParticipantsRepository.leaveEvent(eventId, currentUserId)
+            result.onSuccess {
+                postSideEffect(FeedSideEffect.LeaveEventSuccess(eventId))
+            }.onFailure { error ->
+                postSideEffect(FeedSideEffect.ShowError(error.message ?: "Ошибка при отмене участия"))
+            }
+        } catch (e: Exception) {
+            postSideEffect(FeedSideEffect.ShowError("Ошибка: ${e.message}"))
+        }
+    }
+
+    fun isUserParticipating(eventId: String): Boolean {
+        return runBlocking {
+            eventParticipantsRepository.isUserParticipating(eventId, currentUserId)
         }
     }
 

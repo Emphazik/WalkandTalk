@@ -46,4 +46,19 @@ class EventParticipantsRepositoryImpl(
             false
         }
     }
+
+    override suspend fun leaveEvent(eventId: String, userId: String): Result<Unit> {
+        return try {
+            supabaseWrapper.postgrest.from("event_participants")
+                .delete {
+                    filter {
+                        eq("event_id", eventId)
+                        eq("user_id", userId)
+                    }
+                }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

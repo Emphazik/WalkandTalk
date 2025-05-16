@@ -79,11 +79,18 @@ fun EventDetailsScreen(
                     if (sideEffect.eventId == eventId) { // Убедимся, что это событие для текущего экрана
                         coroutineScope.launch {
                             snackbarHostState.showSnackbar(
-                                message = "Вы успешно записались на '${state.event?.title ?: "мероприятие"}' ${state.event?.let { viewModel.formatEventDate(it.eventDate) } ?: ""}!"
+                                message = "Вы успешно записались на '${state.event?.title ?: "мероприятие"}' ${
+                                    state.event?.let {
+                                        viewModel.formatEventDate(
+                                            it.eventDate
+                                        )
+                                    } ?: ""
+                                }!"
                             )
                         }
                     }
                 }
+
                 is FeedSideEffect.ShowError -> {
                     coroutineScope.launch {
                         snackbarHostState.showSnackbar(
@@ -91,6 +98,17 @@ fun EventDetailsScreen(
                         )
                     }
                 }
+
+                is FeedSideEffect.LeaveEventSuccess -> {
+                    if (sideEffect.eventId == eventId) {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = "Вы успешно отменили участие в '${state.event?.title ?: "мероприятии"}'!"
+                            )
+                        }
+                    }
+                }
+
                 else -> Unit
             }
         }
@@ -126,6 +144,8 @@ fun EventDetailsScreen(
                 event = state.event!!,
                 onNavigateBack = onNavigateBack,
                 onParticipateClick = { feedViewModel.onParticipateClick(eventId) }, // Вызов через FeedViewModel
+                isParticipating = feedViewModel.isUserParticipating(eventId),
+                onLeaveClick = { feedViewModel.onLeaveEventClick(eventId) },
                 colorScheme = colorScheme,
                 viewModel = viewModel
             )
@@ -138,6 +158,8 @@ fun EventDetailsContent(
     event: Event,
     onNavigateBack: () -> Unit,
     onParticipateClick: () -> Unit,
+    isParticipating: Boolean,
+    onLeaveClick: () -> Unit,
     colorScheme: ColorScheme,
     viewModel: EventDetailsViewModel = koinViewModel()
 ) {
@@ -294,21 +316,26 @@ fun EventDetailsContent(
 
         // Кнопка "Участвовать"
         Button(
-            onClick = onParticipateClick,
+            onClick = {
+                if (isParticipating) {
+                    onLeaveClick()
+                } else {
+                    onParticipateClick()
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
-                .height(48.dp),
+                .height(50.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = colorScheme.primary
+                containerColor = if (isParticipating) colorScheme.secondaryContainer else colorScheme.primaryContainer
             ),
             shape = RoundedCornerShape(8.dp)
         ) {
             Text(
-                text = "Участвовать",
+                text = if (isParticipating) "Отменить участие" else "Участвовать",
                 fontFamily = montserratFont,
                 fontSize = 16.sp,
-                color = colorScheme.onPrimary
+                color = if (isParticipating) colorScheme.onSecondaryContainer else colorScheme.onPrimaryContainer
             )
         }
     }

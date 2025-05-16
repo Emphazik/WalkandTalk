@@ -143,6 +143,14 @@ fun MainScreen(
                                     )
                                 }
                             }
+                            is FeedSideEffect.LeaveEventSuccess -> {
+                                val event = feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = "Вы успешно отменили участие в '${event?.title ?: "мероприятии"}'!"
+                                    )
+                                }
+                            }
                         }
                     }
                 }

@@ -63,11 +63,9 @@ fun FeedScreen(
             is FeedSideEffect.NavigateToEventDetails -> {
                 navController.navigate(EventDetails.createRoute(sideEffect.eventId))
             }
-            is FeedSideEffect.ParticipateInEvent -> {
-                // Оставляем пустым, так как обработка будет в MainScreen
+            else -> {
+                // Делегируем все остальные случаи MainScreen
             }
-
-            is FeedSideEffect.ShowError -> TODO()
         }
     }
 
@@ -122,6 +120,8 @@ fun EventCard(
     viewModel: FeedViewModel,
     ) {
     val colorScheme = MaterialTheme.colorScheme
+    val isParticipating = viewModel.isUserParticipating(event.id) // Проверяем статус участия
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -229,20 +229,26 @@ fun EventCard(
                 // Кнопка "Присоединиться"
 
                 Button(
-                    onClick = { viewModel.onParticipateClick(event.id) },
+                    onClick = {
+                        if (isParticipating) {
+                            viewModel.onLeaveEventClick(event.id)
+                        } else {
+                            viewModel.onParticipateClick(event.id)
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(40.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = colorScheme.primaryContainer
+                        containerColor = if (isParticipating) colorScheme.secondaryContainer else colorScheme.primaryContainer
                     ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        text = "Присоединиться",
+                        text = if (isParticipating) "Отменить участие" else "Присоединиться",
                         fontFamily = montserratFont,
                         fontSize = 14.sp,
-                        color = colorScheme.onPrimaryContainer
+                        color = if (isParticipating) colorScheme.onSecondaryContainer else colorScheme.onPrimaryContainer
                     )
                 }
             }
