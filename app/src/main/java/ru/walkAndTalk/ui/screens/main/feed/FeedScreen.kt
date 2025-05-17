@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -25,10 +26,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil3.compose.rememberAsyncImagePainter
+import kotlinx.coroutines.flow.map
 import org.koin.androidx.compose.koinViewModel
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
@@ -108,7 +115,16 @@ fun FeedScreen(
             }
         } else {
             items(state.events) { event ->
-                EventCard(event = event, viewModel = feedViewModel)
+                // Указываем тип Boolean для collectAsState
+                val isParticipating = feedViewModel.participationState
+                    .map { it[event.id] ?: false }
+                    .collectAsState(initial = false).value
+
+                EventCard(
+                    event = event,
+                    viewModel = feedViewModel,
+                    isParticipating = isParticipating
+                )
             }
         }
     }
@@ -118,9 +134,10 @@ fun FeedScreen(
 fun EventCard(
     event: Event,
     viewModel: FeedViewModel,
+    isParticipating: Boolean
     ) {
     val colorScheme = MaterialTheme.colorScheme
-    val isParticipating = viewModel.isUserParticipating(event.id) // Проверяем статус участия
+    var showLeaveConfirmation by remember { mutableStateOf(false) } // Добавляем состояние для диалога
 
     Card(
         modifier = Modifier
@@ -225,13 +242,13 @@ fun EventCard(
 //                        color = colorScheme.onPrimary
 //                    )
 //                }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 // Кнопка "Присоединиться"
 
                 Button(
                     onClick = {
                         if (isParticipating) {
-                            viewModel.onLeaveEventClick(event.id)
+                            showLeaveConfirmation = true
                         } else {
                             viewModel.onParticipateClick(event.id)
                         }
@@ -245,10 +262,34 @@ fun EventCard(
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        text = if (isParticipating) "Отменить участие" else "Присоединиться",
+                        text = if (isParticipating) "Вы уже участвуете" else "Присоединиться",
                         fontFamily = montserratFont,
                         fontSize = 14.sp,
                         color = if (isParticipating) colorScheme.onSecondaryContainer else colorScheme.onPrimaryContainer
+                    )
+                }
+                if (showLeaveConfirmation) {
+                    AlertDialog(
+                        onDismissRequest = { showLeaveConfirmation = false },
+                        title = { Text("Подтверждение") },
+                        text = { Text("Вы уверены, что хотите отменить участие в '${event.title}'?") },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    viewModel.onLeaveEventClick(event.id)
+                                    showLeaveConfirmation = false
+                                }
+                            ) {
+                                Text("Да")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(
+                                onClick = { showLeaveConfirmation = false }
+                            ) {
+                                Text("Нет")
+                            }
+                        }
                     )
                 }
             }

@@ -62,7 +62,10 @@ fun RegisterScreen(
         unfocusedContainerColor = colorScheme.background,
         cursorColor = colorScheme.primary,
         focusedIndicatorColor = colorScheme.primary,
-        unfocusedIndicatorColor = colorScheme.secondary
+        unfocusedIndicatorColor = colorScheme.secondary,
+        errorIndicatorColor = Color.Red, // Цвет индикатора при ошибке
+        errorLabelColor = Color.Red,
+        errorTextColor = Color.Red
     )
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -92,19 +95,25 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(16.dp))
             Box(
                 modifier = Modifier
-                    .size(150.dp)
+                    .size(160.dp)
                     .clip(CircleShape)
                     .clickable { launcher.launch("image/*") },
                 contentAlignment = Alignment.Center
             ) {
                 val painter = when (state.profileImageUri != null) {
-                    true -> rememberAsyncImagePainter(state.profileImageUri)
-                    else -> painterResource(id = R.drawable.ic_profile)
+                    true -> rememberAsyncImagePainter(
+                        model = state.profileImageUri,
+                        contentScale = ContentScale.Crop // Обрезаем по центру
+                    )
+                    else -> painterResource(id = R.drawable.preview_profile)
                 }
                 Image(
                     painter = painter,
                     contentDescription = "Фото профиля",
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .size(160.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop // Обрезаем по центру
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -112,21 +121,36 @@ fun RegisterScreen(
                 value = state.name,
                 onValueChange = { viewModel.onNameChange(it) },
                 label = { Text("Имя") },
-                colors = textFieldColors
+                colors = textFieldColors,
+                isError = state.nameError != null,
+                supportingText = { if (state.nameError != null) Text(state.nameError!!, color = Color.Red) }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            TextField(
+                value = state.surname,
+                onValueChange = { viewModel.onSurnameChange(it) },
+                label = { Text("Фамилия") },
+                colors = textFieldColors,
+                isError = state.surnameError != null,
+                supportingText = { if (state.surnameError != null) Text(state.surnameError!!, color = Color.Red) }
             )
             Spacer(modifier = Modifier.height(8.dp))
             TextField(
                 value = state.phone,
                 onValueChange = { viewModel.onPhoneChange(it) },
                 label = { Text("Телефон") },
-                colors = textFieldColors
+                colors = textFieldColors,
+                isError = state.phoneError != null,
+                supportingText = { if (state.phoneError != null) Text(state.phoneError!!, color = Color.Red) }
             )
             Spacer(modifier = Modifier.height(8.dp))
             TextField(
                 value = state.email,
                 onValueChange = { viewModel.onEmailChange(it) },
                 label = { Text("E-mail") },
-                colors = textFieldColors
+                colors = textFieldColors,
+                isError = state.emailError != null,
+                supportingText = { if (state.emailError != null) Text(state.emailError!!, color = Color.Red) }
             )
             Spacer(modifier = Modifier.height(8.dp))
             TextField(
@@ -134,7 +158,9 @@ fun RegisterScreen(
                 onValueChange = { viewModel.onPasswordChange(it) },
                 label = { Text("Пароль") },
                 visualTransformation = PasswordVisualTransformation(),
-                colors = textFieldColors
+                colors = textFieldColors,
+                isError = state.passwordError != null,
+                supportingText = { if (state.passwordError != null) Text(state.passwordError!!, color = Color.Red) }
             )
             Spacer(modifier = Modifier.height(16.dp))
             if (state.error != null) {

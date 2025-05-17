@@ -1,6 +1,10 @@
 package ru.walkAndTalk.ui.screens.main.feed
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -14,13 +18,17 @@ import ru.walkAndTalk.domain.repository.EventsRepository
 class FeedViewModel(
     private val eventsRepository: EventsRepository,
     private val eventParticipantsRepository: EventParticipantsRepository,
-    private val currentUserId: String // Предположим, у нас есть ID текущего пользователя
+    private val currentUserId: String
 ) : ViewModel(), ContainerHost<FeedViewState, FeedSideEffect> {
 
     override val container: Container<FeedViewState, FeedSideEffect> = container(FeedViewState())
 
+    private val _participationState = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val participationState = _participationState.asStateFlow()
+
     init {
         loadEvents()
+        loadParticipationStates()
     }
 
     private fun loadEvents() = intent {
@@ -30,6 +38,16 @@ class FeedViewModel(
             reduce { state.copy(events = events, isLoading = false) }
         } catch (e: Exception) {
             reduce { state.copy(isLoading = false, error = e.message) }
+        }
+    }
+
+    private fun loadParticipationStates() {
+        viewModelScope.launch {
+            val eventIds = container.stateFlow.value.events.map { it.id }
+            val states = eventIds.associateWith { eventId ->
+                eventParticipantsRepository.isUserParticipating(eventId, currentUserId)
+            }
+            _participationState.value = states
         }
     }
 
@@ -58,6 +76,12 @@ class FeedViewModel(
 
             val result = eventParticipantsRepository.joinEvent(eventId, currentUserId)
             result.onSuccess {
+                viewModelScope.launch {
+                    val updatedStates = _participationState.value.toMutableMap().apply {
+                        this[eventId] = true
+                    }
+                    _participationState.value = updatedStates
+                }
                 postSideEffect(FeedSideEffect.ParticipateInEvent(eventId))
             }.onFailure { error ->
                 postSideEffect(FeedSideEffect.ShowError(error.message ?: "Ошибка при регистрации"))
@@ -71,6 +95,12 @@ class FeedViewModel(
         try {
             val result = eventParticipantsRepository.leaveEvent(eventId, currentUserId)
             result.onSuccess {
+                viewModelScope.launch {
+                    val updatedStates = _participationState.value.toMutableMap().apply {
+                        this[eventId] = false
+                    }
+                    _participationState.value = updatedStates
+                }
                 postSideEffect(FeedSideEffect.LeaveEventSuccess(eventId))
             }.onFailure { error ->
                 postSideEffect(FeedSideEffect.ShowError(error.message ?: "Ошибка при отмене участия"))

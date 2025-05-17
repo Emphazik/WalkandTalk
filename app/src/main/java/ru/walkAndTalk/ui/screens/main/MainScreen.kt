@@ -2,6 +2,12 @@ package ru.walkAndTalk.ui.screens.main
 
 import SearchScreen
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -10,14 +16,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -79,9 +88,34 @@ fun MainScreen(
     val feedViewModel: FeedViewModel = koinViewModel(
         parameters = { parametersOf(userId) } // Передаем userId в FeedViewModel
     )
+    var isSnackbarVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(snackbarHostState.currentSnackbarData) {
+        isSnackbarVisible = snackbarHostState.currentSnackbarData != null
+    }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        snackbarHost = {
+            AnimatedVisibility(
+                visible = isSnackbarVisible,
+                enter = fadeIn(animationSpec = tween(durationMillis = 300)) + slideInVertically(
+                    animationSpec = tween(durationMillis = 300),
+                    initialOffsetY = { it }
+                ),
+                exit = fadeOut(animationSpec = tween(durationMillis = 300)) + slideOutVertically(
+                    animationSpec = tween(durationMillis = 300),
+                    targetOffsetY = { it }
+                )
+            ) {
+                SnackbarHost(hostState = snackbarHostState) { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        contentColor = colorScheme.onSurface,
+                        containerColor = colorScheme.surfaceVariant
+                    )
+                }
+            }
+        },
         bottomBar = {
             NavigationBar {
                 tabs.forEach { item ->

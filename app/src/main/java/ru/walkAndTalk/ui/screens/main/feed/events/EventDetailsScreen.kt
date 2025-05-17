@@ -1,5 +1,11 @@
 package ru.walkAndTalk.ui.screens.main.feed.events
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -22,14 +29,19 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.runtime.remember
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -40,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.rememberAsyncImagePainter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.orbitmvi.orbit.compose.collectAsState
@@ -61,17 +74,24 @@ fun EventDetailsScreen(
     val colorScheme = MaterialTheme.colorScheme
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val isParticipating = feedViewModel.participationState
+        .map { it[eventId] ?: false }
+        .collectAsState(initial = false).value
+
+    var isSnackbarVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(snackbarHostState.currentSnackbarData) {
+        isSnackbarVisible = snackbarHostState.currentSnackbarData != null
+    }
 
     viewModel.loadEvent(eventId)
 
-// Обработка побочных эффектов EventDetailsViewModel
     viewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
             is EventDetailsSideEffect.OnNavigateBack -> onNavigateBack()
         }
     }
 
-    // Обработка побочных эффектов FeedViewModel
     LaunchedEffect(feedViewModel) {
         feedViewModel.container.sideEffectFlow.collect { sideEffect ->
             when (sideEffect) {
@@ -108,7 +128,6 @@ fun EventDetailsScreen(
                         }
                     }
                 }
-
                 else -> Unit
             }
         }
@@ -144,7 +163,7 @@ fun EventDetailsScreen(
                 event = state.event!!,
                 onNavigateBack = onNavigateBack,
                 onParticipateClick = { feedViewModel.onParticipateClick(eventId) }, // Вызов через FeedViewModel
-                isParticipating = feedViewModel.isUserParticipating(eventId),
+                isParticipating = isParticipating,
                 onLeaveClick = { feedViewModel.onLeaveEventClick(eventId) },
                 colorScheme = colorScheme,
                 viewModel = viewModel
@@ -163,6 +182,8 @@ fun EventDetailsContent(
     colorScheme: ColorScheme,
     viewModel: EventDetailsViewModel = koinViewModel()
 ) {
+    var showLeaveConfirmation by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -314,11 +335,10 @@ fun EventDetailsContent(
             }
         }
 
-        // Кнопка "Участвовать"
         Button(
             onClick = {
                 if (isParticipating) {
-                    onLeaveClick()
+                    showLeaveConfirmation = true
                 } else {
                     onParticipateClick()
                 }
@@ -336,6 +356,31 @@ fun EventDetailsContent(
                 fontFamily = montserratFont,
                 fontSize = 16.sp,
                 color = if (isParticipating) colorScheme.onSecondaryContainer else colorScheme.onPrimaryContainer
+            )
+        }
+
+        if (showLeaveConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showLeaveConfirmation = false },
+                title = { Text("Подтверждение") },
+                text = { Text("Вы уверены, что хотите отменить участие в '${event.title}'?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onLeaveClick()
+                            showLeaveConfirmation = false
+                        }
+                    ) {
+                        Text("Да")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showLeaveConfirmation = false }
+                    ) {
+                        Text("Нет")
+                    }
+                }
             )
         }
     }
