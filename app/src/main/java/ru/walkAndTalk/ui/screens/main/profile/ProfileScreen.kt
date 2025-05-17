@@ -16,18 +16,25 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -36,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +52,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -80,7 +89,6 @@ fun ProfileScreen(
                 val intent = Intent(Intent.ACTION_PICK).apply { this.type = "image/*" }
                 launcher.launch(intent)
             }
-
             is ProfileSideEffect.OnNavigateExit -> onNavigateAuth()
 //            is ProfileSideEffect.OnNavigateStatisticUser -> {
 //                // Логика навигации на экран статистики
@@ -174,7 +182,6 @@ fun ProfileScreen(
                 InterestSection(
                     interests = state.interests,
                     onAddInterest = { viewModel.onAddInterestClick() },
-                    onRemoveInterest = { interest -> viewModel.onInterestRemoved(interest) },
                     colorScheme = colorScheme
                 )
             }
@@ -210,8 +217,10 @@ fun ProfileScreen(
         if (state.showInterestSelection) {
             InterestSelectionMenu(
                 availableInterests = state.availableInterests,
-                onDismiss = viewModel::onDismissInterestSelection,
-                onInterestSelected = viewModel::onInterestSelected
+                selectedInterests = state.tempSelectedInterests,
+                onInterestToggled = { interest -> viewModel.onInterestToggled(interest) },
+                onDismiss = { viewModel.onDismissInterestSelection() },
+                colorScheme = colorScheme
             )
         }
     }
@@ -256,6 +265,7 @@ fun ProfileHeader(
                         )
                     },
                     onClick = {
+
                         showEditMenu = false
                         val intent = Intent(Intent.ACTION_PICK).apply { this.type = "image/*" }
                         onEditClick(intent)
@@ -390,11 +400,13 @@ fun BioSection(
                     }
                 }
             } else {
+                val displayText = bio?.ifEmpty { "О себе не указано" } ?: "О себе не указано"
                 Text(
-                    text = bio ?: "О себе не указано",
+                    text = displayText,
                     fontFamily = montserratFont,
                     fontSize = 14.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.8f)
+                    color = colorScheme.onSurface.copy(alpha = 0.8f),
+                    modifier = Modifier.padding(top = 4.dp) // Добавим небольшой отступ для видимости
                 )
             }
         }
@@ -502,7 +514,6 @@ fun GoalsSection(
 fun InterestSection(
     interests: List<String>,
     onAddInterest: () -> Unit,
-    onRemoveInterest: (String) -> Unit,
     colorScheme: ColorScheme
 ) {
     Card(
@@ -536,51 +547,146 @@ fun InterestSection(
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(interests) { interest ->
-                    Card(
-                        shape = RoundedCornerShape(8.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = colorScheme.primary.copy(
-                                alpha = 0.1f
-                            )
-                        )
+            // Разделяем интересы на ряды по 4 элемента
+            val rows = interests.chunked(4) // Делим список на группы по 4
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rows.forEach { rowInterests ->
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = interest,
-                                fontFamily = montserratFont,
-                                fontSize = 14.sp,
-                                color = colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_clear128),
-                                contentDescription = "Remove interest",
-                                tint = colorScheme.primary.copy(alpha = 0.6f),
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clickable { onRemoveInterest(interest) }
+                        items(rowInterests) { interest ->
+                            InterestItem(
+                                interest = interest,
+                                colorScheme = colorScheme
                             )
                         }
                     }
                 }
                 if (interests.isEmpty()) {
-                    item {
-                        Text(
-                            text = "Не указано",
-                            fontFamily = montserratFont,
-                            fontSize = 14.sp,
-                            color = colorScheme.onSurface.copy(alpha = 0.8f)
-                        )
-                    }
+                    Text(
+                        text = "Не указано",
+                        fontFamily = montserratFont,
+                        fontSize = 14.sp,
+                        color = colorScheme.onSurface.copy(alpha = 0.8f)
+                    )
                 }
             }
         }
     }
+}
+
+@Composable
+fun InterestItem(
+    interest: String,
+    colorScheme: ColorScheme
+) {
+    Box(
+        modifier = Modifier
+            .background(
+                color = Color(0xFF4CAF50),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .wrapContentWidth() // Убедимся, что слово не переносится
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = interest,
+            fontFamily = montserratFont,
+            fontSize = 14.sp,
+            color = Color.White,
+            fontWeight = FontWeight.Medium,
+            softWrap = false // Отключаем перенос слов
+        )
+    }
+}
+
+@Composable
+fun InterestSelectionMenu(
+    availableInterests: List<String>,
+    selectedInterests: List<String>,
+    onInterestToggled: (String) -> Unit,
+    onDismiss: () -> Unit,
+    colorScheme: ColorScheme
+) {
+    AlertDialog(
+        onDismissRequest = { /* Не закрываем при нажатии на фон */ },
+        title = {
+            Text(
+                text = "Выберите интересы",
+                fontFamily = montserratFont,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onSurface
+            )
+        },
+        text = {
+            LazyColumn(
+                modifier = Modifier
+                    .heightIn(max = 300.dp)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(availableInterests) { interest ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = if (selectedInterests.contains(interest)) Color(0xFF4CAF50).copy(alpha = 0.1f) else colorScheme.surface,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .clickable { onInterestToggled(interest) }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = selectedInterests.contains(interest),
+                            onCheckedChange = { onInterestToggled(interest) },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = Color(0xFF4CAF50),
+                                uncheckedColor = colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = interest,
+                            fontFamily = montserratFont,
+                            fontSize = 16.sp,
+                            color = colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onDismiss() }
+            ) {
+                Text(
+                    text = "Готово",
+                    fontFamily = montserratFont,
+                    fontSize = 16.sp,
+                    color = colorScheme.primary
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = { onDismiss() }
+            ) {
+                Text(
+                    text = "Отмена",
+                    fontFamily = montserratFont,
+                    fontSize = 16.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+        },
+        containerColor = colorScheme.surface,
+        shape = RoundedCornerShape(16.dp)
+    )
 }
 
 @Composable
@@ -652,22 +758,3 @@ fun Divider(colorScheme: ColorScheme) {
     )
 }
 
-@Composable
-fun InterestSelectionMenu(
-    availableInterests: List<String>,
-    onDismiss: () -> Unit,
-    onInterestSelected: (String) -> Unit
-) {
-    DropdownMenu(
-        expanded = true,
-        onDismissRequest = onDismiss,
-        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-    ) {
-        availableInterests.forEach { interest ->
-            DropdownMenuItem(
-                text = { Text(interest, fontFamily = montserratFont, fontSize = 16.sp) },
-                onClick = { onInterestSelected(interest) }
-            )
-        }
-    }
-}

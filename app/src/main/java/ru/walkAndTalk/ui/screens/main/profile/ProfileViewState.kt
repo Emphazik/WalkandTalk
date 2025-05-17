@@ -1,6 +1,7 @@
 package ru.walkAndTalk.ui.screens.main.profile
 
 import androidx.compose.runtime.Immutable
+import ru.walkAndTalk.domain.model.Interest
 
 @Immutable
 data class ProfileViewState(
@@ -18,5 +19,6 @@ data class ProfileViewState(
     val isEditingBio: Boolean = false,
     val isEditingGoals: Boolean = false,
     val newBio: String = "",
-    val newGoals: String = ""
+    val newGoals: String = "",
+    val tempSelectedInterests: List<String> = emptyList() // Временный список для выбора интересов
 )

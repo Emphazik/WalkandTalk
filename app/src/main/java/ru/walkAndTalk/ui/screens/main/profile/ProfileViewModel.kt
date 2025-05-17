@@ -41,7 +41,8 @@ class ProfileViewModel(
                 interests = interests,
                 photoURL = user.profileImageUrl,
                 availableInterests = availableInterests,
-                cityStatuses = cityStatuses
+                cityStatuses = cityStatuses,
+                tempSelectedInterests = interests // Инициализируем временный список
             )
         }
     }
@@ -82,14 +83,8 @@ class ProfileViewModel(
         val levels = cityKnowledgeLevelRepository.fetchAll()
         val level = levels.find { it.name == status }
         if (level != null) {
-            Log.d(
-                "ProfileViewModel",
-                "Обновление статуса для userId: $userId, levelId: ${level.id}"
-            )
-            remoteUsersRepository.updateCityKnowledgeLevel(
-                userId,
-                level.id
-            ) // Обновление в БД
+            Log.d("ProfileViewModel", "Обновление статуса для userId: $userId, levelId: ${level.id}")
+            remoteUsersRepository.updateCityKnowledgeLevel(userId, level.id)
             refreshData()
             reduce { state.copy(selectedCityStatus = status, showCityStatusMenu = false) }
         } else {
@@ -98,21 +93,15 @@ class ProfileViewModel(
     }
 
     fun onSaveBio() = intent {
-        Log.d(
-            "ProfileViewModel",
-            "Обновление био для userId: $userId, bio: ${state.newBio}"
-        )
-        remoteUsersRepository.updateBio(userId, state.newBio) // Обновление в БД
+        Log.d("ProfileViewModel", "Обновление био для userId: $userId, bio: ${state.newBio}")
+        remoteUsersRepository.updateBio(userId, state.newBio)
         refreshData()
         reduce { state.copy(bio = state.newBio, isEditingBio = false) }
     }
 
     fun onSaveGoals() = intent {
-        Log.d(
-            "ProfileViewModel",
-            "Обновление целей для userId: $userId, goals: ${state.newGoals}"
-        )
-        remoteUsersRepository.updateGoals(userId, state.newGoals) // Обновление в БД
+        Log.d("ProfileViewModel", "Обновление целей для userId: $userId, goals: ${state.newGoals}")
+        remoteUsersRepository.updateGoals(userId, state.newGoals)
         refreshData()
         reduce { state.copy(goals = state.newGoals, isEditingGoals = false) }
     }
@@ -122,21 +111,39 @@ class ProfileViewModel(
     }
 
     fun onDismissInterestSelection() = intent {
-        reduce { state.copy(showInterestSelection = false) }
+        // При закрытии обновляем интересы в базе данных
+        val addedInterests = state.tempSelectedInterests.filter { !state.interests.contains(it) }
+        val removedInterests = state.interests.filter { !state.tempSelectedInterests.contains(it) }
+
+        addedInterests.forEach { interestName ->
+            val interest = interestsRepository.fetchAll().find { it.name == interestName }
+            interest?.id?.let { interestId ->
+                userInterestsRepository.addInterest(userId = userId, interestId = interestId)
+            }
+        }
+
+        removedInterests.forEach { interestName ->
+            val interest = interestsRepository.fetchAll().find { it.name == interestName }
+            interest?.id?.let { interestId ->
+                userInterestsRepository.removeInterest(userId, interestId)
+            }
+        }
+
+        reduce {
+            state.copy(
+                interests = state.tempSelectedInterests,
+                showInterestSelection = false
+            )
+        }
     }
 
-
-    fun onInterestSelected(interestName: String) = intent {
-        val interest = interestsRepository.fetchAll().find { it.name == interestName }
-        interest?.id?.let { interestId ->
-            // Логика сохранения в user_interests (нужна реализация в UserInterestsRepository)
-            userInterestsRepository.addInterest(
-                userId = userId,
-                interestId = interestId
-            )
-            val updatedInterests = state.interests + interestName
-            reduce { state.copy(interests = updatedInterests, showInterestSelection = false) }
+    fun onInterestToggled(interestName: String) = intent {
+        val newTempSelectedInterests = if (state.tempSelectedInterests.contains(interestName)) {
+            state.tempSelectedInterests - interestName
+        } else {
+            state.tempSelectedInterests + interestName
         }
+        reduce { state.copy(tempSelectedInterests = newTempSelectedInterests) }
     }
 
     fun onInterestRemoved(interestName: String) = intent {
@@ -144,7 +151,7 @@ class ProfileViewModel(
         interest?.id?.let { interestId ->
             userInterestsRepository.removeInterest(userId, interestId)
             val updatedInterests = state.interests - interestName
-            reduce { state.copy(interests = updatedInterests) }
+            reduce { state.copy(interests = updatedInterests, tempSelectedInterests = updatedInterests) }
         }
     }
 
@@ -177,20 +184,12 @@ class ProfileViewModel(
             Log.d("ProfileViewModel", "Загрузка изображения для userId: $userId")
             val fileName = "${userId}/profile-${System.currentTimeMillis()}.jpg"
             Log.d("ProfileViewModel", "Имя файла: $fileName")
-            remoteUsersRepository.uploadProfileImage(
-                userId,
-                imageUri,
-                fileName
-            ) // Загружаем в Storage
-            val imageUrl =
-                remoteUsersRepository.getProfileImageUrl(userId, fileName) // Получаем URL
+            remoteUsersRepository.uploadProfileImage(userId, imageUri, fileName)
+            val imageUrl = remoteUsersRepository.getProfileImageUrl(userId, fileName)
             Log.d("ProfileViewModel", "Загруженное изображение, URL: $imageUrl")
-            remoteUsersRepository.updateProfileImageUrl(
-                userId,
-                imageUrl
-            ) // Обновляем URL в профиле
-            refreshData() // Обновляем данные
-            reduce { state.copy(photoURL = imageUrl) } // Обновляем UI
+            remoteUsersRepository.updateProfileImageUrl(userId, imageUrl)
+            refreshData()
+            reduce { state.copy(photoURL = imageUrl) }
         } catch (e: Exception) {
             Log.e("ProfileViewModel", "Ошибка загрузки изображения: ${e.message}")
         }
