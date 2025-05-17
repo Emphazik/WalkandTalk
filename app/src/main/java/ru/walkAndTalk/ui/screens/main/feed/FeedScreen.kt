@@ -3,6 +3,7 @@ package ru.walkAndTalk.ui.screens.main.feed
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -54,6 +55,7 @@ import org.orbitmvi.orbit.compose.collectSideEffect
 import ru.walkAndTalk.R
 import ru.walkAndTalk.domain.model.Event
 import ru.walkAndTalk.ui.screens.EventDetails
+import ru.walkAndTalk.ui.screens.Profile
 import ru.walkAndTalk.ui.screens.main.feed.FeedViewModel
 import ru.walkAndTalk.ui.theme.montserratFont
 
@@ -76,66 +78,65 @@ fun FeedScreen(
         }
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colorScheme.background)
-            .padding(horizontal = 16.dp)
-    ) {
-        item {
-            Text(
-                text = "Мероприятия рядом",
-                fontFamily = montserratFont,
-                fontSize = 24.sp,
-                color = colorScheme.onBackground,
-                modifier = Modifier.padding(top = 16.dp)
-            )
-            SearchBar(
-                query = state.searchQuery,
-                onQueryChange = { feedViewModel.onSearchQueryChange(it) },
-                onFilterClick = { /* Заглушка для фильтра */ },
-                colorScheme = colorScheme
-            )
-        }
-        if (state.isLoading) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+        ) {
             item {
                 Text(
-                    text = "Загрузка...",
-                    modifier = Modifier.padding(16.dp),
-                    color = colorScheme.onBackground
+                    text = "Мероприятия рядом",
+                    fontFamily = montserratFont,
+                    fontSize = 24.sp,
+                    color = colorScheme.onBackground,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
+                SearchBar(
+                    query = state.searchQuery,
+                    onQueryChange = { feedViewModel.onSearchQueryChange(it) },
+                    onFilterClick = { /* Заглушка для фильтра */ },
+                    colorScheme = colorScheme
                 )
             }
-        } else if (state.error != null) {
-            item {
-                Text(
-                    text = "Ошибка: ${state.error}",
-                    modifier = Modifier.padding(16.dp),
-                    color = colorScheme.error
-                )
-            }
-        } else {
-            items(state.events) { event ->
-                // Указываем тип Boolean для collectAsState
-                val isParticipating = feedViewModel.participationState
-                    .map { it[event.id] ?: false }
-                    .collectAsState(initial = false).value
+            if (state.isLoading) {
+                item {
+                    Text(
+                        text = "Загрузка...",
+                        modifier = Modifier.padding(16.dp),
+                        color = colorScheme.onBackground
+                    )
+                }
+            } else if (state.error != null) {
+                item {
+                    Text(
+                        text = "Ошибка: ${state.error}",
+                        modifier = Modifier.padding(16.dp),
+                        color = colorScheme.error
+                    )
+                }
+            } else {
+                items(state.events) { event ->
+                    val isParticipating = feedViewModel.participationState
+                        .map { it[event.id] ?: false }
+                        .collectAsState(initial = false).value
 
-                EventCard(
-                    event = event,
-                    viewModel = feedViewModel,
-                    isParticipating = isParticipating
-                )
+                    EventCard(
+                        event = event,
+                        viewModel = feedViewModel,
+                        isParticipating = isParticipating
+                    )
+                }
             }
         }
     }
-}
+
 
 @Composable
 fun EventCard(
     event: Event,
     viewModel: FeedViewModel,
     isParticipating: Boolean
-    ) {
+) {
     val colorScheme = MaterialTheme.colorScheme
     var showLeaveConfirmation by remember { mutableStateOf(false) } // Добавляем состояние для диалога
 

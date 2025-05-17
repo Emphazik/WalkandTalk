@@ -14,11 +14,13 @@ import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
 import ru.walkAndTalk.domain.repository.EventParticipantsRepository
 import ru.walkAndTalk.domain.repository.EventsRepository
+import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 
 class FeedViewModel(
     private val eventsRepository: EventsRepository,
     private val eventParticipantsRepository: EventParticipantsRepository,
-    private val currentUserId: String
+    private val remoteUsersRepository: RemoteUsersRepository,
+    private val currentUserId: String,
 ) : ViewModel(), ContainerHost<FeedViewState, FeedSideEffect> {
 
     override val container: Container<FeedViewState, FeedSideEffect> = container(FeedViewState())

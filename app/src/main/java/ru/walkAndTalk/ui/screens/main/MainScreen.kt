@@ -198,7 +198,8 @@ fun MainScreen(
                             parametersOf(it.toRoute<Profile>().userId)
                         }
                     ),
-                    onNavigateAuth = onNavigateAuth
+                    onNavigateAuth = onNavigateAuth,
+                    navController = navController
                 )
             }
             composable(

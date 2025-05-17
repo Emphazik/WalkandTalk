@@ -17,14 +17,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,6 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import coil3.compose.rememberAsyncImagePainter
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
@@ -68,6 +68,7 @@ import ru.walkAndTalk.ui.screens.main.montserratFont
 
 @Composable
 fun ProfileScreen(
+    navController: NavController,
     viewModel: ProfileViewModel,
     onNavigateAuth: () -> Unit,
 ) {
@@ -89,118 +90,251 @@ fun ProfileScreen(
                 val intent = Intent(Intent.ACTION_PICK).apply { this.type = "image/*" }
                 launcher.launch(intent)
             }
+
             is ProfileSideEffect.OnNavigateExit -> onNavigateAuth()
 //            is ProfileSideEffect.OnNavigateStatisticUser -> {
 //                // Логика навигации на экран статистики
 //            }
         }
     }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(colorScheme.background)
     ) {
+        // Основной контент (карточка и секции)
         LazyColumn(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
+                .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Верхняя часть с фоном
             item {
-                Spacer(modifier = Modifier.height(16.dp))
-                ProfileHeader(
-                    name = state.name,
-                    onEditClick = { intent -> launcher.launch(intent) },
-                    onLogoutClick = { viewModel.onLogout() },
-                    photoURL = state.photoURL,
-                    colorScheme = colorScheme
-                )
-            }
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .background(colorScheme.background)
                 ) {
-                    Text(
-                        text = "Статус в городе:",
-                        fontFamily = montserratFont,
-                        fontSize = 16.sp,
-                        color = colorScheme.onBackground.copy(alpha = 0.8f)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box {
-                        Text(
-                            text = state.selectedCityStatus.toString(),
-                            fontFamily = montserratFont,
-                            fontSize = 16.sp,
-                            color = colorScheme.primary,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(colorScheme.primary.copy(alpha = 0.1f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                                .clickable { viewModel.onCityStatusClick() }
-                        )
+                    // Верхняя панель
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Кнопка "назад"
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_back),
+                                contentDescription = "Back",
+                                tint = colorScheme.onSurface
+                            )
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        // Иконка трёх точек (меню)
+                        var showEditMenu by remember { mutableStateOf(false) }
+                        IconButton(onClick = { showEditMenu = true }) { // Убираем модификаторы
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_more128),
+                                contentDescription = "Menu",
+                                tint = colorScheme.onSurface
+                            )
+                        }
                         DropdownMenu(
-                            expanded = state.showCityStatusMenu,
-                            onDismissRequest = viewModel::onDismissCityStatusMenu,
+                            expanded = showEditMenu,
+                            onDismissRequest = { showEditMenu = false },
                             modifier = Modifier.background(colorScheme.surface)
                         ) {
-                            state.cityStatuses.forEach { status ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            text = status,
-                                            fontFamily = montserratFont,
-                                            fontSize = 16.sp,
-                                            color = colorScheme.onSurface
-                                        )
-                                    },
-                                    onClick = { viewModel.onCityStatusSelected(status) }
-                                )
-                            }
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "Изменить изображение",
+                                        fontFamily = montserratFont,
+                                        fontSize = 16.sp,
+                                        color = colorScheme.onSurface
+                                    )
+                                },
+                                onClick = {
+                                    showEditMenu = false
+                                    val intent =
+                                        Intent(Intent.ACTION_PICK).apply { this.type = "image/*" }
+                                    launcher.launch(intent)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "Выйти",
+                                        fontFamily = montserratFont,
+                                        fontSize = 16.sp,
+                                        color = colorScheme.onSurface
+                                    )
+                                },
+                                onClick = {
+                                    showEditMenu = false
+//                                    viewModel.onLogoutClick()
+                                }
+                            )
                         }
                     }
                 }
             }
-            item { Spacer(modifier = Modifier.height(24.dp)) }
+
+            // Карточка с информацией и секциями
             item {
-                BioSection(
-                    bio = state.bio,
-                    isEditing = state.isEditingBio,
-                    newBio = state.newBio,
-                    onEditClick = viewModel::onEditBio,
-                    onBioChanged = viewModel::onBioChanged,
-                    onSaveClick = viewModel::onSaveBio,
-                    onCancelClick = viewModel::onCancelBio,
-                    colorScheme = colorScheme
-                )
-            }
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-            item {
-                InterestSection(
-                    interests = state.interests,
-                    onAddInterest = { viewModel.onAddInterestClick() },
-                    colorScheme = colorScheme
-                )
-            }
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-            item {
-                GoalsSection(
-                    goals = state.goals,
-                    isEditing = state.isEditingGoals,
-                    newGoals = state.newGoals,
-                    onEditClick = viewModel::onEditGoals,
-                    onGoalsChanged = viewModel::onGoalsChanged,
-                    onSaveClick = viewModel::onSaveGoals,
-                    onCancelClick = viewModel::onCancelGoals,
-                    colorScheme = colorScheme
-                )
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .offset(y = (-60).dp), // Смещаем карточку вверх, чтобы она заходила под аватарку
+                    colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
+                    shape = RoundedCornerShape(8.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Имя пользователя
+                        Text(
+                            text = state.name,
+                            fontFamily = montserratFont,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorScheme.onSurface,
+                            modifier = Modifier.padding(top = 64.dp) // Отступ для выравнивания под аватаркой
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        // Возраст (заглушка)
+                        Text(
+                            text = "Дата рождения: 01.01.2000",
+                            fontFamily = montserratFont,
+                            fontSize = 14.sp,
+                            color = colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        // Местоположение
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_location),
+                                contentDescription = "Location",
+                                tint = colorScheme.onSurface.copy(alpha = 0.6f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Город не указан",
+                                fontFamily = montserratFont,
+                                fontSize = 14.sp,
+                                color = colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Секции внутри карточки
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Статус в городе:",
+                                fontFamily = montserratFont,
+                                fontSize = 16.sp,
+                                color = colorScheme.onBackground.copy(alpha = 0.8f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box {
+                                Text(
+                                    text = state.selectedCityStatus.toString(),
+                                    fontFamily = montserratFont,
+                                    fontSize = 16.sp,
+                                    color = colorScheme.primary,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(colorScheme.primary.copy(alpha = 0.1f))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        .clickable { viewModel.onCityStatusClick() }
+                                )
+                                DropdownMenu(
+                                    expanded = state.showCityStatusMenu,
+                                    onDismissRequest = viewModel::onDismissCityStatusMenu,
+                                    modifier = Modifier.background(colorScheme.surface)
+                                ) {
+                                    state.cityStatuses.forEach { status ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    text = status,
+                                                    fontFamily = montserratFont,
+                                                    fontSize = 16.sp,
+                                                    color = colorScheme.onSurface
+                                                )
+                                            },
+                                            onClick = { viewModel.onCityStatusSelected(status) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
+                        BioSection(
+                            bio = state.bio,
+                            isEditing = state.isEditingBio,
+                            newBio = state.newBio,
+                            onEditClick = viewModel::onEditBio,
+                            onBioChanged = viewModel::onBioChanged,
+                            onSaveClick = viewModel::onSaveBio,
+                            onCancelClick = viewModel::onCancelBio,
+                            colorScheme = colorScheme
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        InterestSection(
+                            interests = state.interests,
+                            onAddInterest = { viewModel.onAddInterestClick() },
+                            colorScheme = colorScheme
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        GoalsSection(
+                            goals = state.goals,
+                            isEditing = state.isEditingGoals,
+                            newGoals = state.newGoals,
+                            onEditClick = viewModel::onEditGoals,
+                            onGoalsChanged = viewModel::onGoalsChanged,
+                            onSaveClick = viewModel::onSaveGoals,
+                            onCancelClick = viewModel::onCancelGoals,
+                            colorScheme = colorScheme
+                        )
+                    }
+                }
             }
             item { Spacer(modifier = Modifier.height(80.dp)) }
         }
 
+        // Верхний слой с аватаркой
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(modifier = Modifier.height(60.dp)) // Отступ для верхней панели
+            Image(
+                painter = state.photoURL?.let { rememberAsyncImagePainter(it) }
+                    ?: painterResource(id = R.drawable.ic_profile1),
+                contentScale = ContentScale.Crop,
+                contentDescription = "Profile picture",
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .background(colorScheme.onSurface.copy(alpha = 0.2f))
+                    .border(2.dp, colorScheme.onSurface.copy(alpha = 0.3f), CircleShape)
+            )
+        }
+
+        // Нижние кнопки
         Box(
             modifier = Modifier
                 .fillMaxSize(),
@@ -214,6 +348,7 @@ fun ProfileScreen(
             )
         }
 
+        // Меню выбора интересов
         if (state.showInterestSelection) {
             InterestSelectionMenu(
                 availableInterests = state.availableInterests,
@@ -221,94 +356,6 @@ fun ProfileScreen(
                 onInterestToggled = { interest -> viewModel.onInterestToggled(interest) },
                 onDismiss = { viewModel.onDismissInterestSelection() },
                 colorScheme = colorScheme
-            )
-        }
-    }
-}
-
-@Composable
-fun ProfileHeader(
-    name: String,
-    onEditClick: (Intent) -> Unit,
-    onLogoutClick: () -> Unit,
-    photoURL: String?,
-    colorScheme: ColorScheme
-) {
-    var showEditMenu by remember { mutableStateOf(false) }
-    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopEnd) {
-        Column(modifier = Modifier.padding(top = 16.dp, end = 16.dp)) {
-            IconButton(
-                onClick = { showEditMenu = true },
-                modifier = Modifier
-                    .size(32.dp)
-                    .background(colorScheme.primary.copy(alpha = 0.8f), CircleShape)
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_more128),
-                    contentDescription = "Edit photo",
-                    tint = colorScheme.onPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            DropdownMenu(
-                expanded = showEditMenu,
-                onDismissRequest = { showEditMenu = false },
-                modifier = Modifier
-            ) {
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = "Изменить изображение",
-                            fontFamily = montserratFont,
-                            fontSize = 16.sp,
-                            color = colorScheme.onSurface
-                        )
-                    },
-                    onClick = {
-
-                        showEditMenu = false
-                        val intent = Intent(Intent.ACTION_PICK).apply { this.type = "image/*" }
-                        onEditClick(intent)
-                    }
-                )
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = "Выйти",
-                            fontFamily = montserratFont,
-                            fontSize = 16.sp,
-                            color = colorScheme.onSurface
-                        )
-                    },
-                    onClick = {
-                        onLogoutClick()
-                    }
-                )
-            }
-        }
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Image(
-                painter = photoURL?.let { rememberAsyncImagePainter(it) }
-                    ?: painterResource(id = R.drawable.preview_profile),
-                contentDescription = "Profile picture",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .background(colorScheme.onSurface.copy(alpha = 0.2f))
-                    .border(2.dp, colorScheme.onSurface.copy(alpha = 0.3f), CircleShape)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = name,
-                fontFamily = montserratFont,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = colorScheme.onBackground,
-                textAlign = TextAlign.Center
             )
         }
     }
@@ -634,7 +681,9 @@ fun InterestSelectionMenu(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(
-                                color = if (selectedInterests.contains(interest)) Color(0xFF4CAF50).copy(alpha = 0.1f) else colorScheme.surface,
+                                color = if (selectedInterests.contains(interest)) Color(0xFF4CAF50).copy(
+                                    alpha = 0.1f
+                                ) else colorScheme.surface,
                                 shape = RoundedCornerShape(8.dp)
                             )
                             .clickable { onInterestToggled(interest) }
@@ -700,21 +749,21 @@ fun ActionButtons(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Button(
-            onClick = onStatsClick,
-            modifier = Modifier
-                .fillMaxWidth(0.8f)
-                .height(48.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.secondaryContainer),
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Text(
-                text = "Статистика мероприятий",
-                fontFamily = montserratFont,
-                fontSize = 16.sp,
-                color = colorScheme.onSecondaryContainer
-            )
-        }
+//        Button(
+//            onClick = onStatsClick,
+//            modifier = Modifier
+//                .fillMaxWidth(0.8f)
+//                .height(48.dp),
+//            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.secondaryContainer),
+//            shape = RoundedCornerShape(8.dp)
+//        ) {
+//            Text(
+//                text = "Статистика мероприятий",
+//                fontFamily = montserratFont,
+//                fontSize = 16.sp,
+//                color = colorScheme.onSecondaryContainer
+//            )
+//        }
 //        Button(
 //            onClick = onEditClick,
 //            modifier = Modifier
