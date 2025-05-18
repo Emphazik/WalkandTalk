@@ -45,6 +45,7 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import ru.walkAndTalk.R
 import ru.walkAndTalk.ui.screens.Chats
+import ru.walkAndTalk.ui.screens.EditProfile
 import ru.walkAndTalk.ui.screens.EventDetails
 import ru.walkAndTalk.ui.screens.Feed
 import ru.walkAndTalk.ui.screens.Profile
@@ -55,6 +56,8 @@ import ru.walkAndTalk.ui.screens.main.feed.FeedSideEffect
 import ru.walkAndTalk.ui.screens.main.feed.FeedViewModel
 import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsScreen
 import ru.walkAndTalk.ui.screens.main.profile.ProfileScreen
+import ru.walkAndTalk.ui.screens.main.profile.ProfileViewModel
+import ru.walkAndTalk.ui.screens.main.profile.edit.EditProfileScreen
 
 val montserratFont = FontFamily(Font(R.font.montserrat_semi_bold))
 
@@ -72,7 +75,7 @@ sealed class BottomNavBarItem(
 @Composable
 fun MainScreen(
     userId: String,
-    onNavigateAuth: () -> Unit,
+    onNavigateAuth: () -> Unit
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -88,6 +91,9 @@ fun MainScreen(
     val coroutineScope = rememberCoroutineScope()
     val feedViewModel: FeedViewModel = koinViewModel(
         parameters = { parametersOf(userId) } // Передаем userId в FeedViewModel
+    )
+    val profileViewModel: ProfileViewModel = koinViewModel(
+        parameters = { parametersOf(userId) } // Передайте userId, например, из состояния или аргументов
     )
     var isSnackbarVisible by remember { mutableStateOf(false) }
 
@@ -156,21 +162,33 @@ fun MainScreen(
                 .padding(innerPadding)
         ) {
             composable<Feed> { backStackEntry ->
-                FeedScreen(navController = navController, feedViewModel = feedViewModel) // Передаем один экземпляр
+                FeedScreen(
+                    navController = navController,
+                    feedViewModel = feedViewModel
+                ) // Передаем один экземпляр
                 LaunchedEffect(feedViewModel) {
                     feedViewModel.container.sideEffectFlow.collect { sideEffect ->
                         when (sideEffect) {
                             is FeedSideEffect.NavigateToEventDetails -> {
                                 navController.navigate(EventDetails.createRoute(sideEffect.eventId))
                             }
+
                             is FeedSideEffect.ParticipateInEvent -> {
-                                val event = feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
+                                val event =
+                                    feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
-                                        message = "Вы успешно записались на '${event?.title ?: "мероприятие"}' ${event?.let { feedViewModel.formatEventDate(it.eventDate) } ?: ""}!"
+                                        message = "Вы успешно записались на '${event?.title ?: "мероприятие"}' ${
+                                            event?.let {
+                                                feedViewModel.formatEventDate(
+                                                    it.eventDate
+                                                )
+                                            } ?: ""
+                                        }!"
                                     )
                                 }
                             }
+
                             is FeedSideEffect.ShowError -> {
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
@@ -178,8 +196,10 @@ fun MainScreen(
                                     )
                                 }
                             }
+
                             is FeedSideEffect.LeaveEventSuccess -> {
-                                val event = feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
+                                val event =
+                                    feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
                                         message = "Вы успешно отменили участие в '${event?.title ?: "мероприятии"}'!"
@@ -200,7 +220,10 @@ fun MainScreen(
                         }
                     ),
                     onNavigateAuth = onNavigateAuth,
-                    navController = navController
+                    navController = navController,
+                    onNavigateEditProfile = {
+                        navController.navigate(EditProfile) // Локальная навигация
+                    }
                 )
             }
             composable(
@@ -213,7 +236,7 @@ fun MainScreen(
                         onNavigateBack = { navController.popBackStack() },
                         eventId = eventId,
                         viewModel = koinViewModel(),
-                        feedViewModel = feedViewModel // Передаем один экземпляр
+                        feedViewModel = feedViewModel
                     )
                 } else {
                     Box(modifier = Modifier.fillMaxSize()) {
@@ -223,6 +246,16 @@ fun MainScreen(
                         )
                     }
                 }
+            }
+            composable<EditProfile> {
+                EditProfileScreen(
+                    navController = navController,
+                    viewModel = koinViewModel(
+                        parameters = {
+                            parametersOf(userId)
+                        }
+                    )
+                )
             }
         }
     }

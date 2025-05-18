@@ -1,13 +1,8 @@
 package ru.walkAndTalk.ui.screens.main.profile
 
-import android.app.Activity
-import android.content.Intent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,8 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,25 +18,18 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,21 +39,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import coil3.compose.rememberAsyncImagePainter
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import ru.walkAndTalk.R
-import ru.walkAndTalk.ui.screens.Auth
-import ru.walkAndTalk.ui.screens.Login
-import ru.walkAndTalk.ui.screens.Splash
 import ru.walkAndTalk.ui.screens.main.montserratFont
 
 @Composable
@@ -75,44 +56,33 @@ fun ProfileScreen(
     navController: NavController,
     viewModel: ProfileViewModel,
     onNavigateAuth: () -> Unit,
+    onNavigateEditProfile: () -> Unit,
 ) {
     val state by viewModel.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
-    val context = LocalContext.current
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
 
-    val launcher =
-        rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                result.data?.data?.let { uri ->
-                    viewModel.onImageSelected(uri)
-                }
-            }
-        }
+    LaunchedEffect(navBackStackEntry?.destination?.route) {
+        viewModel.refreshData() // Добавьте этот метод в ProfileViewModel
+    }
 
     viewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
-            is ProfileSideEffect.LaunchImagePicker -> {
-                val intent = Intent(Intent.ACTION_PICK).apply { this.type = "image/*" }
-                launcher.launch(intent)
-            }
-
             is ProfileSideEffect.OnNavigateExit -> onNavigateAuth()
-//            is ProfileSideEffect.OnNavigateStatisticUser -> {
-//                // Логика навигации на экран статистики
-//            }
+            is ProfileSideEffect.LaunchImagePicker -> { /* Ничего не делаем, так как редактирование убрано с этого экрана */ }
         }
     }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(colorScheme.background)
-//            .background(colorScheme.primary.copy(alpha = 0.1f)) // Лёгкий фон на весь экран
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Аватарка (квадратная)
+            // Аватарка
             item {
                 Box(
                     modifier = Modifier
@@ -141,7 +111,7 @@ fun ProfileScreen(
                 }
             }
 
-            // Карточка с информацией и секциями
+            // Карточка с информацией
             item {
                 Card(
                     modifier = Modifier
@@ -167,9 +137,9 @@ fun ProfileScreen(
                             color = colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        // Возраст (заглушка)
+                        // Дата рождения (заглушка)
                         Text(
-                            text = "Дата рождения: 01.01.2000",
+                            text = "Дата рождения: ${state.birthDate?.ifEmpty { "Не указано" } ?: "Не указано"}",
                             fontFamily = montserratFont,
                             fontSize = 14.sp,
                             color = colorScheme.onSurface.copy(alpha = 0.6f)
@@ -195,7 +165,7 @@ fun ProfileScreen(
                         }
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Секции внутри карточки
+                        // Статус в городе (только отображение)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
@@ -207,65 +177,32 @@ fun ProfileScreen(
                                 color = colorScheme.onBackground.copy(alpha = 0.8f)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Box {
-                                Text(
-                                    text = state.selectedCityStatus.toString(),
-                                    fontFamily = montserratFont,
-                                    fontSize = 16.sp,
-                                    color = colorScheme.primary,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(colorScheme.primary.copy(alpha = 0.1f))
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                        .clickable { viewModel.onCityStatusClick() }
-                                )
-                                DropdownMenu(
-                                    expanded = state.showCityStatusMenu,
-                                    onDismissRequest = viewModel::onDismissCityStatusMenu,
-                                    modifier = Modifier.background(colorScheme.surface)
-                                ) {
-                                    state.cityStatuses.forEach { status ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Text(
-                                                    text = status,
-                                                    fontFamily = montserratFont,
-                                                    fontSize = 16.sp,
-                                                    color = colorScheme.onSurface
-                                                )
-                                            },
-                                            onClick = { viewModel.onCityStatusSelected(status) }
-                                        )
-                                    }
-                                }
-                            }
+                            Text(
+                                text = state.selectedCityStatus?.ifEmpty { "Не указано" } ?: "Не указано",
+                                fontFamily = montserratFont,
+                                fontSize = 16.sp,
+                                color = colorScheme.primary
+                            )
                         }
                         Spacer(modifier = Modifier.height(24.dp))
+
+                        // О себе (только отображение)
                         BioSection(
                             bio = state.bio,
-                            isEditing = state.isEditingBio,
-                            newBio = state.newBio,
-                            onEditClick = viewModel::onEditBio,
-                            onBioChanged = viewModel::onBioChanged,
-                            onSaveClick = viewModel::onSaveBio,
-                            onCancelClick = viewModel::onCancelBio,
                             colorScheme = colorScheme
                         )
                         Spacer(modifier = Modifier.height(16.dp))
+
+                        // Интересы (только отображение)
                         InterestSection(
                             interests = state.interests,
-                            onAddInterest = { viewModel.onAddInterestClick() },
                             colorScheme = colorScheme
                         )
                         Spacer(modifier = Modifier.height(16.dp))
+
+                        // Цели (только отображение)
                         GoalsSection(
                             goals = state.goals,
-                            isEditing = state.isEditingGoals,
-                            newGoals = state.newGoals,
-                            onEditClick = viewModel::onEditGoals,
-                            onGoalsChanged = viewModel::onGoalsChanged,
-                            onSaveClick = viewModel::onSaveGoals,
-                            onCancelClick = viewModel::onCancelGoals,
                             colorScheme = colorScheme
                         )
                     }
@@ -274,7 +211,7 @@ fun ProfileScreen(
             item { Spacer(modifier = Modifier.height(80.dp)) }
         }
 
-        // Верхняя панель (остаётся неподвижной)
+        // Верхняя панель
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -285,7 +222,7 @@ fun ProfileScreen(
             IconButton(
                 onClick = { navController.popBackStack() },
                 modifier = Modifier
-                    .background(Color.Gray.copy(alpha = 0.2f), shape = RoundedCornerShape(8.dp)) // Серый прозрачный фон
+                    .background(Color.Gray.copy(alpha = 0.2f), shape = RoundedCornerShape(8.dp))
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_back),
@@ -298,7 +235,7 @@ fun ProfileScreen(
                 IconButton(
                     onClick = { showEditMenu = true },
                     modifier = Modifier
-                        .background(Color.Gray.copy(alpha = 0.2f), shape = RoundedCornerShape(8.dp)) // Серый прозрачный фон
+                        .background(Color.Gray.copy(alpha = 0.2f), shape = RoundedCornerShape(8.dp))
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_more128),
@@ -335,7 +272,7 @@ fun ProfileScreen(
                         },
                         onClick = {
                             showEditMenu = false
-                            viewModel.onEditClick()
+                            onNavigateEditProfile()
                         }
                     )
                     DropdownMenuItem(
@@ -392,7 +329,7 @@ fun ProfileScreen(
             }
         }
 
-        // Нижние кнопки
+        // Нижние кнопки (оставляем пустыми, так как редактирование убрано)
         Box(
             modifier = Modifier
                 .fillMaxSize(),
@@ -400,19 +337,8 @@ fun ProfileScreen(
         ) {
             ActionButtons(
                 onStatsClick = { /* Заглушка */ },
-                onEditClick = { viewModel.onEditClick() },
-                onLogoutClick = { viewModel.onLogout() },
-                colorScheme = colorScheme
-            )
-        }
-
-        // Меню выбора интересов
-        if (state.showInterestSelection) {
-            InterestSelectionMenu(
-                availableInterests = state.availableInterests,
-                selectedInterests = state.tempSelectedInterests,
-                onInterestToggled = { interest -> viewModel.onInterestToggled(interest) },
-                onDismiss = { viewModel.onDismissInterestSelection() },
+                onEditClick = { /* Убрано */ },
+                onLogoutClick = { /* Убрано */ },
                 colorScheme = colorScheme
             )
         }
@@ -422,12 +348,6 @@ fun ProfileScreen(
 @Composable
 fun BioSection(
     bio: String?,
-    isEditing: Boolean,
-    newBio: String,
-    onEditClick: () -> Unit,
-    onBioChanged: (String) -> Unit,
-    onSaveClick: () -> Unit,
-    onCancelClick: () -> Unit,
     colorScheme: ColorScheme
 ) {
     Card(
@@ -440,80 +360,21 @@ fun BioSection(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "О себе",
-                    fontFamily = montserratFont,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colorScheme.onSurface
-                )
-                if (!isEditing) {
-                    Text(
-                        text = "Изменить",
-                        fontFamily = montserratFont,
-                        fontSize = 14.sp,
-                        color = colorScheme.primary,
-                        modifier = Modifier.clickable { onEditClick() }
-                    )
-                }
-            }
+            Text(
+                text = "О себе",
+                fontFamily = montserratFont,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onSurface
+            )
             Spacer(modifier = Modifier.height(8.dp))
-            if (isEditing) {
-                OutlinedTextField(
-                    value = newBio,
-                    onValueChange = onBioChanged,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Введите текст") },
-                    textStyle = TextStyle(
-                        fontFamily = montserratFont,
-                        fontSize = 14.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.8f)
-                    )
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = onSaveClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            "Сохранить",
-                            fontFamily = montserratFont,
-                            fontSize = 14.sp,
-                            color = colorScheme.onPrimary
-                        )
-                    }
-                    Button(
-                        onClick = onCancelClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = colorScheme.surfaceVariant),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            "Отмена",
-                            fontFamily = montserratFont,
-                            fontSize = 14.sp,
-                            color = colorScheme.onSurface
-                        )
-                    }
-                }
-            } else {
-                val displayText = bio?.ifEmpty { "О себе не указано" } ?: "О себе не указано"
-                Text(
-                    text = displayText,
-                    fontFamily = montserratFont,
-                    fontSize = 14.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.8f),
-                    modifier = Modifier.padding(top = 4.dp) // Добавим небольшой отступ для видимости
-                )
-            }
+            Text(
+                text = bio?.ifEmpty { "О себе не указано" } ?: "О себе не указано",
+                fontFamily = montserratFont,
+                fontSize = 14.sp,
+                color = colorScheme.onSurface.copy(alpha = 0.8f),
+                modifier = Modifier.padding(top = 4.dp)
+            )
         }
     }
 }
@@ -521,12 +382,6 @@ fun BioSection(
 @Composable
 fun GoalsSection(
     goals: String?,
-    isEditing: Boolean,
-    newGoals: String,
-    onEditClick: () -> Unit,
-    onGoalsChanged: (String) -> Unit,
-    onSaveClick: () -> Unit,
-    onCancelClick: () -> Unit,
     colorScheme: ColorScheme
 ) {
     Card(
@@ -539,78 +394,20 @@ fun GoalsSection(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Цели",
-                    fontFamily = montserratFont,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colorScheme.onSurface
-                )
-                if (!isEditing) {
-                    Text(
-                        text = "Изменить",
-                        fontFamily = montserratFont,
-                        fontSize = 14.sp,
-                        color = colorScheme.primary,
-                        modifier = Modifier.clickable { onEditClick() }
-                    )
-                }
-            }
+            Text(
+                text = "Цели",
+                fontFamily = montserratFont,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onSurface
+            )
             Spacer(modifier = Modifier.height(8.dp))
-            if (isEditing) {
-                OutlinedTextField(
-                    value = newGoals,
-                    onValueChange = onGoalsChanged,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Введите текст") },
-                    textStyle = TextStyle(
-                        fontFamily = montserratFont,
-                        fontSize = 14.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.8f)
-                    )
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = onSaveClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            "Сохранить",
-                            fontFamily = montserratFont,
-                            fontSize = 14.sp,
-                            color = colorScheme.onPrimary
-                        )
-                    }
-                    Button(
-                        onClick = onCancelClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = colorScheme.surfaceVariant),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            "Отмена",
-                            fontFamily = montserratFont,
-                            fontSize = 14.sp,
-                            color = colorScheme.onSurface
-                        )
-                    }
-                }
-            } else {
-                Text(
-                    text = goals ?: "Цели не указаны",
-                    fontFamily = montserratFont,
-                    fontSize = 14.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.8f)
-                )
-            }
+            Text(
+                text = goals?.ifEmpty { "Цели не указаны" } ?: "Цели не указаны",
+                fontFamily = montserratFont,
+                fontSize = 14.sp,
+                color = colorScheme.onSurface.copy(alpha = 0.8f)
+            )
         }
     }
 }
@@ -618,7 +415,6 @@ fun GoalsSection(
 @Composable
 fun InterestSection(
     interests: List<String>,
-    onAddInterest: () -> Unit,
     colorScheme: ColorScheme
 ) {
     Card(
@@ -631,29 +427,15 @@ fun InterestSection(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Интересы",
-                    fontFamily = montserratFont,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colorScheme.onSurface
-                )
-                Text(
-                    text = "Добавить",
-                    fontFamily = montserratFont,
-                    fontSize = 14.sp,
-                    color = colorScheme.primary,
-                    modifier = Modifier.clickable { onAddInterest() }
-                )
-            }
+            Text(
+                text = "Интересы",
+                fontFamily = montserratFont,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onSurface
+            )
             Spacer(modifier = Modifier.height(8.dp))
-            // Разделяем интересы на ряды по 4 элемента
-            val rows = interests.chunked(4) // Делим список на группы по 4
+            val rows = interests.chunked(4)
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -694,7 +476,7 @@ fun InterestItem(
                 color = Color(0xFF4CAF50),
                 shape = RoundedCornerShape(16.dp)
             )
-            .wrapContentWidth() // Убедимся, что слово не переносится
+            .wrapContentWidth()
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Text(
@@ -703,97 +485,9 @@ fun InterestItem(
             fontSize = 14.sp,
             color = Color.White,
             fontWeight = FontWeight.Medium,
-            softWrap = false // Отключаем перенос слов
+            softWrap = false
         )
     }
-}
-
-@Composable
-fun InterestSelectionMenu(
-    availableInterests: List<String>,
-    selectedInterests: List<String>,
-    onInterestToggled: (String) -> Unit,
-    onDismiss: () -> Unit,
-    colorScheme: ColorScheme
-) {
-    AlertDialog(
-        onDismissRequest = { /* Не закрываем при нажатии на фон */ },
-        title = {
-            Text(
-                text = "Выберите интересы",
-                fontFamily = montserratFont,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = colorScheme.onSurface
-            )
-        },
-        text = {
-            LazyColumn(
-                modifier = Modifier
-                    .heightIn(max = 300.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(availableInterests) { interest ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                color = if (selectedInterests.contains(interest)) Color(0xFF4CAF50).copy(
-                                    alpha = 0.1f
-                                ) else colorScheme.surface,
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            .clickable { onInterestToggled(interest) }
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = selectedInterests.contains(interest),
-                            onCheckedChange = { onInterestToggled(interest) },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = Color(0xFF4CAF50),
-                                uncheckedColor = colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = interest,
-                            fontFamily = montserratFont,
-                            fontSize = 16.sp,
-                            color = colorScheme.onSurface
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onDismiss() }
-            ) {
-                Text(
-                    text = "Готово",
-                    fontFamily = montserratFont,
-                    fontSize = 16.sp,
-                    color = colorScheme.primary
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = { onDismiss() }
-            ) {
-                Text(
-                    text = "Отмена",
-                    fontFamily = montserratFont,
-                    fontSize = 16.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-            }
-        },
-        containerColor = colorScheme.surface,
-        shape = RoundedCornerShape(16.dp)
-    )
 }
 
 @Composable
@@ -807,51 +501,7 @@ fun ActionButtons(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-//        Button(
-//            onClick = onStatsClick,
-//            modifier = Modifier
-//                .fillMaxWidth(0.8f)
-//                .height(48.dp),
-//            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.secondaryContainer),
-//            shape = RoundedCornerShape(8.dp)
-//        ) {
-//            Text(
-//                text = "Статистика мероприятий",
-//                fontFamily = montserratFont,
-//                fontSize = 16.sp,
-//                color = colorScheme.onSecondaryContainer
-//            )
-//        }
-//        Button(
-//            onClick = onEditClick,
-//            modifier = Modifier
-//                .fillMaxWidth(0.8f)
-//                .height(48.dp),
-//            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.secondaryContainer),
-//            shape = RoundedCornerShape(8.dp)
-//        ) {
-//            Text(
-//                text = "Редактировать профиль",
-//                fontFamily = montserratFont,
-//                fontSize = 16.sp,
-//                color = colorScheme.onSecondaryContainer
-//            )
-//        }
-//        Button(
-//            onClick = onLogoutClick,
-//            modifier = Modifier
-//                .fillMaxWidth(0.8f)
-//                .height(48.dp),
-//            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.errorContainer),
-//            shape = RoundedCornerShape(8.dp)
-//        ) {
-//            Text(
-//                text = "Выйти",
-//                fontFamily = montserratFont,
-//                fontSize = 16.sp,
-//                color = colorScheme.onErrorContainer
-//            )
-//        }
+        // Кнопки убраны, так как редактирование теперь в отдельном экране
     }
 }
 
@@ -864,4 +514,3 @@ fun Divider(colorScheme: ColorScheme) {
             .background(colorScheme.outline)
     )
 }
-

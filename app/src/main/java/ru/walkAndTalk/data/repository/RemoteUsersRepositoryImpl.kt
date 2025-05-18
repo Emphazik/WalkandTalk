@@ -2,16 +2,22 @@ package ru.walkAndTalk.data.repository
 
 import android.net.Uri
 import android.util.Log
+import io.github.jan.supabase.postgrest.from
 import ru.walkAndTalk.data.mapper.fromDto
 import ru.walkAndTalk.data.mapper.fromDtoList
 import ru.walkAndTalk.data.mapper.toDto
 import ru.walkAndTalk.data.model.UserDto
+import ru.walkAndTalk.data.model.UserProfileUpdate
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.Bucket
 import ru.walkAndTalk.domain.Table
 import ru.walkAndTalk.domain.model.User
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 import ru.walkAndTalk.domain.repository.StorageRepository
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 class RemoteUsersRepositoryImpl(
     private val supabaseWrapper: SupabaseWrapper,
@@ -152,6 +158,66 @@ class RemoteUsersRepositoryImpl(
             ) {
                 filter { UserDto::id eq userId }
             }
+    }
+
+    override suspend fun updateUserProfile(
+        userId: String,
+        fullName: String?,
+        birthDate: String?,
+        photoURL: String?,
+        bio: String?,
+        goals: String?
+    ) {
+        // Валидация
+        require(userId.isNotBlank()) { "ID пользователя не может быть пустым" }
+        if (fullName != null) {
+            require(fullName.isNotBlank()) { "Имя не может быть пустым" }
+            require(fullName.length <= 50) { "Имя не может быть длиннее 50 символов" }
+            require(fullName.matches(Regex("^[a-zA-Zа-яА-ЯёЁ\\s'-]+$"))) {
+                "Имя может содержать только буквы, пробелы, дефисы или апострофы"
+            }
+        }
+        if (birthDate != null) {
+            try {
+                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                sdf.isLenient = false
+                val date = sdf.parse(birthDate) ?: throw IllegalArgumentException("Неверный формат даты")
+                val currentDate = Date()
+                val minAgeDate = Calendar.getInstance().apply { add(Calendar.YEAR, -13) }.time
+                require(date.before(currentDate)) { "Дата рождения не может быть в будущем" }
+                require(date.before(minAgeDate)) { "Пользователь должен быть старше 13 лет" }
+            } catch (e: Exception) {
+                throw IllegalArgumentException("Неверный формат даты: $birthDate")
+            }
+        }
+        if (photoURL != null) {
+            require(photoURL.startsWith("http://") || photoURL.startsWith("https://")) {
+                "Недопустимый URL изображения"
+            }
+        }
+        if (bio != null && bio.isNotEmpty()) {
+            require(bio.length <= 500) { "Описание не может быть длиннее 500 символов" }
+            require(bio.matches(Regex("^[a-zA-Zа-яА-ЯёЁ0-9\\s.,!?'\"-]+$"))) {
+                "Описание может содержать только буквы, цифры, пробелы и знаки препинания"
+            }
+        }
+        if (goals != null && goals.isNotEmpty()) {
+            require(goals.length <= 300) { "Цели не могут быть длиннее 300 символов" }
+            require(goals.matches(Regex("^[a-zA-Zа-яА-ЯёЁ0-9\\s.,!?'\"-]+$"))) {
+                "Цели могут содержать только буквы, цифры, пробелы и знаки препинания"
+            }
+        }
+
+        val updates = UserProfileUpdate(
+            name = fullName,
+            birthDate = birthDate,
+            profileImageUrl = photoURL,
+            bio = bio,
+            goals = goals
+        )
+        supabaseWrapper.postgrest.from(Table.USERS).update(updates) {
+            filter { eq("id", userId) }
+        }
     }
 
     override suspend fun logout() {

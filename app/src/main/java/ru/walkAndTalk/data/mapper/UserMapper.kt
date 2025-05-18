@@ -8,6 +8,7 @@ import kotlinx.datetime.Instant
 import ru.walkAndTalk.data.model.UserDto
 import ru.walkAndTalk.domain.model.User
 import java.util.UUID
+import kotlin.String
 
 fun List<UserDto>.fromDtoList(): List<User> = map(UserDto::fromDto)
 
@@ -24,7 +25,8 @@ fun UserDto.fromDto(): User = User(
     bio = bio,
     goals = goals,
     createdAt = Instant.parse(createdAt),
-    updatedAt = updatedAt?.let { Instant.parse(it) }
+    updatedAt = updatedAt?.let { Instant.parse(it) },
+    birthdate = birthdate
 )
 fun User.toDto(): UserDto = UserDto(
     id = id,
@@ -39,7 +41,8 @@ fun User.toDto(): UserDto = UserDto(
     bio = bio,
     goals = goals,
     createdAt = createdAt.toString(),
-    updatedAt = updatedAt?.toString()
+    updatedAt = updatedAt?.toString(),
+    birthdate = birthdate
 )
 
 fun VKIDUser.toUser(
@@ -57,7 +60,8 @@ fun VKIDUser.toUser(
     bio = null,
     goals = null,
     createdAt = System.now(),
-    updatedAt = System.now()
+    updatedAt = System.now(),
+    birthdate = null
 )
 
 fun UsersUserFullDto.fromVkUser(): User {
@@ -67,7 +71,8 @@ fun UsersUserFullDto.fromVkUser(): User {
             "lastName=$lastName, " +
             "email=$email, " +
             "phone=$mobilePhone, " +
-            "photo50=$photo50"
+            "photo50=$photo50," +
+            "birthdate=$bdate"
     )
 
     return User(
@@ -83,6 +88,7 @@ fun UsersUserFullDto.fromVkUser(): User {
         bio = null,
         goals = null,
         createdAt = System.now(),
-        updatedAt = System.now()
+        updatedAt = System.now(),
+        birthdate = bdate
     )
 }

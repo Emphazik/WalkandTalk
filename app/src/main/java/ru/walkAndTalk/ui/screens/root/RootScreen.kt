@@ -10,6 +10,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import org.koin.androidx.compose.koinViewModel
 import ru.walkAndTalk.ui.screens.Auth
+import ru.walkAndTalk.ui.screens.EditProfile
 import ru.walkAndTalk.ui.screens.Login
 import ru.walkAndTalk.ui.screens.Main
 import ru.walkAndTalk.ui.screens.Onboarding
@@ -19,6 +20,7 @@ import ru.walkAndTalk.ui.screens.Welcome
 import ru.walkAndTalk.ui.screens.auth.login.LoginScreen
 import ru.walkAndTalk.ui.screens.auth.register.RegisterScreen
 import ru.walkAndTalk.ui.screens.main.MainScreen
+import ru.walkAndTalk.ui.screens.main.profile.edit.EditProfileScreen
 import ru.walkAndTalk.ui.screens.onboarding.OnboardingScreen
 import ru.walkAndTalk.ui.screens.splash.SplashScreen
 import ru.walkAndTalk.ui.screens.welcome.WelcomeScreen

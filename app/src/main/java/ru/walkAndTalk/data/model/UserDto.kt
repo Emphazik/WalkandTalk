@@ -30,5 +30,7 @@ data class UserDto(
     @SerialName("created_at")
     val createdAt: String, // Instant будет сериализоваться как строка
     @SerialName("updated_at")
-    val updatedAt: String? = null
+    val updatedAt: String? = null,
+    @SerialName("birthdate")
+    val birthdate: String? = null
 )

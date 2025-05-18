@@ -23,10 +23,10 @@ data class Main(val userId: String)
 @Serializable object Feed
 @Serializable object Chats
 @Serializable object Search
-
 @Serializable data class EventDetails(val eventId: String){
     companion object {
         const val ROUTE = "eventDetails/{eventId}"
         fun createRoute(eventId: String) = "eventDetails/$eventId"
     }
 }
+@Serializable object EditProfile
