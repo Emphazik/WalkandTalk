@@ -3,6 +3,7 @@ package ru.walkAndTalk.ui.screens.main.profile
 import android.net.Uri
 import android.util.Log
 import org.orbitmvi.orbit.syntax.Syntax
+import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.repository.CityKnowledgeLevelRepository
 import ru.walkAndTalk.domain.repository.InterestsRepository
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
@@ -15,10 +16,10 @@ class ProfileViewModel(
     private val userInterestsRepository: UserInterestsRepository,
     private val interestsRepository: InterestsRepository,
     private val userId: String,
+    private val supabaseWrapper: SupabaseWrapper
 ) : ContainerViewModel<ProfileViewState, ProfileSideEffect>(
     initialState = ProfileViewState()
 ) {
-
     override suspend fun Syntax<ProfileViewState, ProfileSideEffect>.onCreate() {
         refreshData(listOf("Новичёк", "Знаток", "Эксперт"))
     }
@@ -53,8 +54,7 @@ class ProfileViewModel(
             remoteUsersRepository.logout()
             postSideEffect(ProfileSideEffect.OnNavigateExit)
         } catch (e: Exception) {
-            Log.e("ProfileViewModel", "Ошибка при выходе: ${e.message}")
-            postSideEffect(ProfileSideEffect.OnNavigateExit)
+            Log.e("ProfileViewModel", "Ошибка при выходе: ${e.message}", e)
         }
     }
 

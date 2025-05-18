@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +65,9 @@ import coil3.compose.rememberAsyncImagePainter
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import ru.walkAndTalk.R
+import ru.walkAndTalk.ui.screens.Auth
+import ru.walkAndTalk.ui.screens.Login
+import ru.walkAndTalk.ui.screens.Splash
 import ru.walkAndTalk.ui.screens.main.montserratFont
 
 @Composable
@@ -74,6 +78,7 @@ fun ProfileScreen(
 ) {
     val state by viewModel.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
+    val context = LocalContext.current
 
     val launcher =
         rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
@@ -101,82 +106,37 @@ fun ProfileScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(colorScheme.background)
+//            .background(colorScheme.primary.copy(alpha = 0.1f)) // Лёгкий фон на весь экран
     ) {
-        // Основной контент (карточка и секции)
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Верхняя часть с фоном
+            // Аватарка (квадратная)
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp)
-                        .background(colorScheme.background)
+                        .height(220.dp)
                 ) {
-                    // Верхняя панель
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(top = 40.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Кнопка "назад"
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_back),
-                                contentDescription = "Back",
-                                tint = colorScheme.onSurface
-                            )
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        // Иконка трёх точек (меню)
-                        var showEditMenu by remember { mutableStateOf(false) }
-                        IconButton(onClick = { showEditMenu = true }) { // Убираем модификаторы
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_more128),
-                                contentDescription = "Menu",
-                                tint = colorScheme.onSurface
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showEditMenu,
-                            onDismissRequest = { showEditMenu = false },
-                            modifier = Modifier.background(colorScheme.surface)
-                        ) {
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = "Изменить изображение",
-                                        fontFamily = montserratFont,
-                                        fontSize = 16.sp,
-                                        color = colorScheme.onSurface
-                                    )
-                                },
-                                onClick = {
-                                    showEditMenu = false
-                                    val intent =
-                                        Intent(Intent.ACTION_PICK).apply { this.type = "image/*" }
-                                    launcher.launch(intent)
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = "Выйти",
-                                        fontFamily = montserratFont,
-                                        fontSize = 16.sp,
-                                        color = colorScheme.onSurface
-                                    )
-                                },
-                                onClick = {
-                                    showEditMenu = false
-//                                    viewModel.onLogoutClick()
-                                }
-                            )
-                        }
+                        Image(
+                            painter = state.photoURL?.let { rememberAsyncImagePainter(it) }
+                                ?: painterResource(id = R.drawable.ic_profile1),
+                            contentScale = ContentScale.Crop,
+                            contentDescription = "Profile picture",
+                            modifier = Modifier
+                                .size(200.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(colorScheme.surface)
+                                .border(2.dp, colorScheme.onSurface.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                .padding(4.dp)
+                        )
                     }
                 }
             }
@@ -187,7 +147,7 @@ fun ProfileScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
-                        .offset(y = (-60).dp), // Смещаем карточку вверх, чтобы она заходила под аватарку
+                        .padding(top = 16.dp),
                     colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
                     shape = RoundedCornerShape(8.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
@@ -204,10 +164,9 @@ fun ProfileScreen(
                             fontFamily = montserratFont,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = colorScheme.onSurface,
-                            modifier = Modifier.padding(top = 64.dp) // Отступ для выравнивания под аватаркой
+                            color = colorScheme.onSurface
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         // Возраст (заглушка)
                         Text(
                             text = "Дата рождения: 01.01.2000",
@@ -315,23 +274,122 @@ fun ProfileScreen(
             item { Spacer(modifier = Modifier.height(80.dp)) }
         }
 
-        // Верхний слой с аватаркой
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+        // Верхняя панель (остаётся неподвижной)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Spacer(modifier = Modifier.height(60.dp)) // Отступ для верхней панели
-            Image(
-                painter = state.photoURL?.let { rememberAsyncImagePainter(it) }
-                    ?: painterResource(id = R.drawable.ic_profile1),
-                contentScale = ContentScale.Crop,
-                contentDescription = "Profile picture",
+            IconButton(
+                onClick = { navController.popBackStack() },
                 modifier = Modifier
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .background(colorScheme.onSurface.copy(alpha = 0.2f))
-                    .border(2.dp, colorScheme.onSurface.copy(alpha = 0.3f), CircleShape)
-            )
+                    .background(Color.Gray.copy(alpha = 0.2f), shape = RoundedCornerShape(8.dp)) // Серый прозрачный фон
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_back),
+                    contentDescription = "Back",
+                    tint = colorScheme.onSurface
+                )
+            }
+            Box {
+                var showEditMenu by remember { mutableStateOf(false) }
+                IconButton(
+                    onClick = { showEditMenu = true },
+                    modifier = Modifier
+                        .background(Color.Gray.copy(alpha = 0.2f), shape = RoundedCornerShape(8.dp)) // Серый прозрачный фон
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_more128),
+                        contentDescription = "Menu",
+                        tint = colorScheme.onSurface
+                    )
+                }
+                DropdownMenu(
+                    expanded = showEditMenu,
+                    onDismissRequest = { showEditMenu = false },
+                    modifier = Modifier
+                        .background(colorScheme.surface)
+                        .align(Alignment.TopEnd)
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_edit64),
+                                    contentDescription = "Edit Profile",
+                                    tint = colorScheme.onSurface,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Редактировать профиль",
+                                    fontFamily = montserratFont,
+                                    fontSize = 16.sp,
+                                    color = colorScheme.onSurface
+                                )
+                            }
+                        },
+                        onClick = {
+                            showEditMenu = false
+                            viewModel.onEditClick()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_event64),
+                                    contentDescription = "Event Stats",
+                                    tint = colorScheme.onSurface,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Статистика мероприятий",
+                                    fontFamily = montserratFont,
+                                    fontSize = 16.sp,
+                                    color = colorScheme.onSurface
+                                )
+                            }
+                        },
+                        onClick = {
+                            showEditMenu = false
+                            // Заглушка для статистики мероприятий
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_leave64),
+                                    contentDescription = "Logout",
+                                    tint = colorScheme.onSurface,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Выйти из аккаунта",
+                                    fontFamily = montserratFont,
+                                    fontSize = 16.sp,
+                                    color = colorScheme.onSurface
+                                )
+                            }
+                        },
+                        onClick = {
+                            showEditMenu = false
+                            viewModel.onLogout()
+                        }
+                    )
+                }
+            }
         }
 
         // Нижние кнопки
