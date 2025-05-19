@@ -28,6 +28,7 @@ data class ProfileViewState(
     val birthDateError: String? = null,
     val isEditingPersonalInfo: Boolean = false,
     val bioError: String? = null,
-    val goalsError: String? = null
-
-)
+    val goalsError: String? = null,
+    val city: String? = null,
+    val newCity: String = "Не указано",
+    )

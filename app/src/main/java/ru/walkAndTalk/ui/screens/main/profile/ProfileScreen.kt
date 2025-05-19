@@ -70,6 +70,7 @@ fun ProfileScreen(
         when (sideEffect) {
             is ProfileSideEffect.OnNavigateExit -> onNavigateAuth()
             is ProfileSideEffect.LaunchImagePicker -> { /* Ничего не делаем, так как редактирование убрано с этого экрана */ }
+            is ProfileSideEffect.RequestLocationPermission -> { }
         }
     }
 
@@ -104,7 +105,11 @@ fun ProfileScreen(
                                 .size(200.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(colorScheme.surface)
-                                .border(2.dp, colorScheme.onSurface.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                .border(
+                                    2.dp,
+                                    colorScheme.onSurface.copy(alpha = 0.3f),
+                                    RoundedCornerShape(8.dp)
+                                )
                                 .padding(4.dp)
                         )
                     }
@@ -157,7 +162,7 @@ fun ProfileScreen(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Город не указан",
+                                text = "Город: ${state.newCity.takeIf { it != "Не указано" } ?: "Город не указан"}",
                                 fontFamily = montserratFont,
                                 fontSize = 14.sp,
                                 color = colorScheme.onSurface.copy(alpha = 0.6f)
@@ -334,14 +339,7 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxSize(),
             contentAlignment = Alignment.BottomCenter
-        ) {
-            ActionButtons(
-                onStatsClick = { /* Заглушка */ },
-                onEditClick = { /* Убрано */ },
-                onLogoutClick = { /* Убрано */ },
-                colorScheme = colorScheme
-            )
-        }
+        ) {}
     }
 }
 
@@ -488,29 +486,4 @@ fun InterestItem(
             softWrap = false
         )
     }
-}
-
-@Composable
-fun ActionButtons(
-    onStatsClick: () -> Unit,
-    onEditClick: () -> Unit,
-    onLogoutClick: () -> Unit,
-    colorScheme: ColorScheme
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Кнопки убраны, так как редактирование теперь в отдельном экране
-    }
-}
-
-@Composable
-fun Divider(colorScheme: ColorScheme) {
-    Spacer(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(1.dp)
-            .background(colorScheme.outline)
-    )
 }

@@ -26,7 +26,9 @@ fun UserDto.fromDto(): User = User(
     goals = goals,
     createdAt = Instant.parse(createdAt),
     updatedAt = updatedAt?.let { Instant.parse(it) },
-    birthdate = birthdate
+    birthdate = birthdate,
+    city = city
+
 )
 fun User.toDto(): UserDto = UserDto(
     id = id,
@@ -42,7 +44,8 @@ fun User.toDto(): UserDto = UserDto(
     goals = goals,
     createdAt = createdAt.toString(),
     updatedAt = updatedAt?.toString(),
-    birthdate = birthdate
+    birthdate = birthdate,
+    city = city
 )
 
 fun VKIDUser.toUser(
@@ -61,7 +64,8 @@ fun VKIDUser.toUser(
     goals = null,
     createdAt = System.now(),
     updatedAt = System.now(),
-    birthdate = null
+    birthdate = null,
+    city = null,
 )
 
 fun UsersUserFullDto.fromVkUser(): User {
@@ -89,6 +93,7 @@ fun UsersUserFullDto.fromVkUser(): User {
         goals = null,
         createdAt = System.now(),
         updatedAt = System.now(),
-        birthdate = bdate
+        birthdate = bdate,
+        city = city.toString()
     )
 }

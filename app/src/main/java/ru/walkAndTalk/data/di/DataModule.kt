@@ -1,9 +1,12 @@
 package ru.walkAndTalk.data.di
 
+import io.github.jan.supabase.postgrest.Postgrest
 import org.koin.core.module.dsl.bind
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
+import ru.walkAndTalk.data.location.LocationService
 import ru.walkAndTalk.data.network.SupabaseWrapper
+import ru.walkAndTalk.data.repository.AuthRepositoryImpl
 import ru.walkAndTalk.data.repository.ChatsRepositoryImpl
 import ru.walkAndTalk.data.repository.CityKnowledgeLevelRepositoryImpl
 import ru.walkAndTalk.data.repository.EventParticipantsRepositoryImpl
@@ -15,6 +18,7 @@ import ru.walkAndTalk.data.repository.StorageRepositoryImpl
 import ru.walkAndTalk.data.repository.UserEventRepositoryImpl
 import ru.walkAndTalk.data.repository.UserInterestsRepositoryImpl
 import ru.walkAndTalk.data.repository.VKUsersRepositoryImpl
+import ru.walkAndTalk.domain.repository.AuthRepository
 import ru.walkAndTalk.domain.repository.ChatsRepository
 import ru.walkAndTalk.domain.repository.CityKnowledgeLevelRepository
 import ru.walkAndTalk.domain.repository.EventParticipantsRepository
@@ -43,11 +47,16 @@ private val repositoryModule = module {
     singleOf(::UserInterestsRepositoryImpl) {bind<UserInterestsRepository>()}
     singleOf(::UserEventRepositoryImpl) {bind<UserEventRepository>()}
     singleOf(::EventParticipantsRepositoryImpl) {bind<EventParticipantsRepository>()}
+    singleOf(::AuthRepositoryImpl) { bind<AuthRepository>() }
+}
+private val serviceModule = module {
+    single { LocationService(get()) } // Предоставляем Context через androidContext()
 }
 
 internal val dataModule = module {
     includes(
         networkModule,
-        repositoryModule
+        repositoryModule,
+        serviceModule
     )
 }

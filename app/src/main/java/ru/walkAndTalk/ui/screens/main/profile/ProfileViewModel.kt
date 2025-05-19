@@ -2,7 +2,9 @@ package ru.walkAndTalk.ui.screens.main.profile
 
 import android.net.Uri
 import android.util.Log
+import kotlinx.coroutines.flow.collectLatest
 import org.orbitmvi.orbit.syntax.Syntax
+import ru.walkAndTalk.data.location.LocationService
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.repository.CityKnowledgeLevelRepository
 import ru.walkAndTalk.domain.repository.InterestsRepository
@@ -20,7 +22,8 @@ class ProfileViewModel(
     private val userInterestsRepository: UserInterestsRepository,
     private val interestsRepository: InterestsRepository,
     private val userId: String,
-    private val supabaseWrapper: SupabaseWrapper
+    private val supabaseWrapper: SupabaseWrapper,
+    private val locationService: LocationService,
 ) : ContainerViewModel<ProfileViewState, ProfileSideEffect>(
     initialState = ProfileViewState()
 ) {
@@ -30,6 +33,7 @@ class ProfileViewModel(
 
     fun refreshData(cityStatuses: List<String> = emptyList()) = intent {
         val user = remoteUsersRepository.fetchById(userId)
+//        val user = remoteUsersRepository.getUser(userId)
             ?: throw RuntimeException("Ошибка, пользователь не найден")
         val cityStatus = user.cityKnowledgeLevelId?.let { levelId ->
             cityKnowledgeLevelRepository.fetchById(levelId)?.name
@@ -41,6 +45,7 @@ class ProfileViewModel(
             state.copy(
                 name = user.name,
                 birthDate = user.birthdate?.let { convertToDisplayFormat(it) } ?: "",
+                city = user.city ?: "",
                 selectedCityStatus = cityStatus,
                 bio = user.bio ?: "",
                 goals = user.goals,
@@ -52,10 +57,12 @@ class ProfileViewModel(
                 newName = user.name,
                 newBirthDate = user.birthdate?.let { convertToDisplayFormat(it) } ?: "",
                 newBio = user.bio ?: "",
-                newGoals = user.goals ?: ""
+                newGoals = user.goals ?: "",
+                newCity = user.city ?: state.newCity,
             )
         }
     }
+
 
     private fun convertToDisplayFormat(dbDate: String): String {
         return try {
@@ -89,6 +96,28 @@ class ProfileViewModel(
             postSideEffect(ProfileSideEffect.OnNavigateExit)
         } catch (e: Exception) {
             Log.e("ProfileViewModel", "Ошибка при выходе: ${e.message}", e)
+        }
+    }
+
+    fun onUpdateCity() = intent {
+        postSideEffect(ProfileSideEffect.RequestLocationPermission)
+    }
+
+    fun onLocationPermissionGranted() = intent {
+        try {
+            locationService.getCurrentLocation().collectLatest { location ->
+                val city = locationService.getCityFromCoordinates(location.latitude, location.longitude)
+                if (city != null) {
+                    reduce { state.copy(newCity = city) }
+                    remoteUsersRepository.updateUserCity(userId, city)
+                    refreshData(listOf("Новичёк", "Знаток", "Эксперт"))
+                } else {
+                    reduce { state.copy(birthDateError = "Не удалось определить город") }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("ProfileViewModel", "Ошибка получения местоположения: ${e.message}")
+            reduce { state.copy(birthDateError = "Ошибка получения местоположения") }
         }
     }
 
@@ -137,12 +166,14 @@ class ProfileViewModel(
                     userId = userId,
                     fullName = state.newName,
                     birthDate = dbBirthDate,
-                    photoURL = state.photoURL
+                    photoURL = state.photoURL,
+                    city = state.newCity.takeIf { it.isNotEmpty() }
                 )
                 reduce {
                     state.copy(
                         name = state.newName,
                         birthDate = state.newBirthDate,
+                        city = state.newCity,
                         isEditingPersonalInfo = false,
                         nameError = null,
                         birthDateError = null
@@ -173,6 +204,7 @@ class ProfileViewModel(
                 isEditingPersonalInfo = true,
                 newName = state.name,
                 newBirthDate = state.birthDate ?: "",
+                newCity = state.city ?: "",
                 nameError = null,
                 birthDateError = null
             )
@@ -351,20 +383,6 @@ class ProfileViewModel(
         }
     }
 
-//    fun onSaveBio() = intent {
-//        Log.d("ProfileViewModel", "Обновление био для userId: $userId, bio: ${state.newBio}")
-//        remoteUsersRepository.updateBio(userId, state.newBio)
-//        refreshData()
-//        reduce { state.copy(bio = state.newBio, isEditingBio = false) }
-//    }
-//
-//    fun onSaveGoals() = intent {
-//        Log.d("ProfileViewModel", "Обновление целей для userId: $userId, goals: ${state.newGoals}")
-//        remoteUsersRepository.updateGoals(userId, state.newGoals)
-//        refreshData()
-//        reduce { state.copy(goals = state.newGoals, isEditingGoals = false) }
-//    }
-
     fun onAddInterestClick() = intent {
         reduce { state.copy(showInterestSelection = true) }
     }
@@ -405,42 +423,18 @@ class ProfileViewModel(
         reduce { state.copy(tempSelectedInterests = newTempSelectedInterests) }
     }
 
-    fun onInterestRemoved(interestName: String) = intent {
-        val interest = interestsRepository.fetchAll().find { it.name == interestName }
-        interest?.id?.let { interestId ->
-            userInterestsRepository.removeInterest(userId, interestId)
-            val updatedInterests = state.interests - interestName
-            reduce {
-                state.copy(
-                    interests = updatedInterests,
-                    tempSelectedInterests = updatedInterests
-                )
-            }
-        }
-    }
-
-//    fun onEditBio() = intent {
-//        reduce { state.copy(isEditingBio = true, newBio = state.bio ?: "") }
-//    }
-//
-//    fun onBioChanged(bio: String) = intent {
-//        reduce { state.copy(newBio = bio) }
-//    }
-//
-//    fun onCancelBio() = intent {
-//        reduce { state.copy(isEditingBio = false, newBio = state.bio ?: "") }
-//    }
-//
-//    fun onEditGoals() = intent {
-//        reduce { state.copy(isEditingGoals = true, newGoals = state.goals ?: "") }
-//    }
-//
-//    fun onGoalsChanged(goals: String) = intent {
-//        reduce { state.copy(newGoals = goals) }
-//    }
-//
-//    fun onCancelGoals() = intent {
-//        reduce { state.copy(isEditingGoals = false, newGoals = state.goals ?: "") }
+//    fun onInterestRemoved(interestName: String) = intent {
+//        val interest = interestsRepository.fetchAll().find { it.name == interestName }
+//        interest?.id?.let { interestId ->
+//            userInterestsRepository.removeInterest(userId, interestId)
+//            val updatedInterests = state.interests - interestName
+//            reduce {
+//                state.copy(
+//                    interests = updatedInterests,
+//                    tempSelectedInterests = updatedInterests
+//                )
+//            }
+//        }
 //    }
 
     fun onImageSelected(imageUri: Uri) = intent {

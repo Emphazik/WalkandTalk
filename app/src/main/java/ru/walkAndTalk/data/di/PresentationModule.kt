@@ -1,6 +1,7 @@
 package ru.walkAndTalk.data.di
 
 import io.ktor.http.parameters
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.parameter.parametersOf
 import org.koin.dsl.module

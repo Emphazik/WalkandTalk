@@ -1,6 +1,7 @@
 package ru.walkAndTalk.domain.repository
 
 import android.net.Uri
+import io.github.jan.supabase.postgrest.result.PostgrestResult
 import ru.walkAndTalk.domain.model.User
 
 interface RemoteUsersRepository {
@@ -23,8 +24,10 @@ interface RemoteUsersRepository {
         birthDate: String? = null,
         photoURL: String? = null,
         bio: String? = null,
-        goals: String? = null
+        goals: String? = null,
+        city: String? = null
     )
+    suspend fun updateUserCity(userId: String, city: String): PostgrestResult
     suspend fun logout()
 
     //Для SearchViewModel

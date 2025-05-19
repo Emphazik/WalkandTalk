@@ -16,5 +16,6 @@ data class User(
     val goals: String? = null,
     val createdAt: Instant? = null,
     val updatedAt: Instant? = null,
-    val birthdate: String? = null
+    val birthdate: String? = null,
+    val city: String? = null
 )

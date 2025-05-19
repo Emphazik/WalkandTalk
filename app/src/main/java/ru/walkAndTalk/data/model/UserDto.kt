@@ -32,5 +32,7 @@ data class UserDto(
     @SerialName("updated_at")
     val updatedAt: String? = null,
     @SerialName("birthdate")
-    val birthdate: String? = null
+    val birthdate: String? = null,
+    @SerialName("city")
+    val city: String? = null
 )

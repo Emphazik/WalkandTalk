@@ -1,5 +1,6 @@
 package ru.walkAndTalk.ui.screens.main.profile.edit
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.util.Log
@@ -92,6 +93,21 @@ fun EditProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    // Лаунчер для запроса разрешений
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (fineLocationGranted || coarseLocationGranted) {
+            viewModel.onLocationPermissionGranted()
+        } else {
+            scope.launch {
+                snackbarHostState.showSnackbar("Для определения города требуется разрешение на местоположение")
+            }
+        }
+    }
+
     LaunchedEffect(state.nameError, state.birthDateError, state.bioError, state.goalsError) {
         val errorMessage = when {
             state.nameError != null -> state.nameError
@@ -122,9 +138,14 @@ fun EditProfileScreen(
                 val intent = Intent(Intent.ACTION_PICK).apply { this.type = "image/*" }
                 launcher.launch(intent)
             }
-
-            is ProfileSideEffect.OnNavigateExit -> {
-                // Не используется в этом экране
+            is ProfileSideEffect.OnNavigateExit -> {}
+            is ProfileSideEffect.RequestLocationPermission -> {
+                locationPermissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
             }
         }
     }
@@ -254,12 +275,15 @@ fun EditProfileScreen(
                     EditPersonalInfoSection(
                         name = state.name,
                         birthDate = state.birthDate ?: "",
+                        city = state.newCity,
                         isEditing = state.isEditingPersonalInfo,
                         newName = state.newName,
                         newBirthDate = state.newBirthDate,
+                        newCity = state.newCity,
                         onEditClick = viewModel::onEditPersonalInfo,
                         onNameChanged = viewModel::onNameChanged,
                         onBirthDateChanged = viewModel::onBirthDateChanged,
+                        onCityUpdateClick = viewModel::onUpdateCity,
                         onSaveClick = viewModel::onSavePersonalInfo,
                         onCancelClick = viewModel::onCancelPersonalInfo,
                         colorScheme = colorScheme
@@ -378,20 +402,24 @@ fun EditProfileScreen(
 fun EditPersonalInfoSection(
     name: String,
     birthDate: String,
+    city: String,
     isEditing: Boolean,
     newName: String,
     newBirthDate: String,
+    newCity: String,
     onEditClick: () -> Unit,
     onNameChanged: (String) -> Unit,
     onBirthDateChanged: (String) -> Unit,
+    onCityUpdateClick: () -> Unit,
     onSaveClick: () -> Unit,
     onCancelClick: () -> Unit,
     colorScheme: ColorScheme
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState(
-        yearRange = IntRange(1900, 2025) // Ограничение годов
+        yearRange = IntRange(1900, 2025)
     )
+
     var nameError by remember { mutableStateOf<String?>(null) }
 
     fun validateName(input: String): String? {
@@ -471,6 +499,38 @@ fun EditPersonalInfoSection(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    OutlinedTextField(
+                        value = newCity,
+                        onValueChange = { /* Блокируем прямой ввод */ },
+                        modifier = Modifier.weight(1f),
+                        label = { Text("Город") },
+                        textStyle = TextStyle(
+                            fontFamily = montserratFont,
+                            fontSize = 14.sp,
+                            color = colorScheme.onSurface.copy(alpha = 0.8f)
+                        ),
+                        enabled = false
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = onCityUpdateClick,
+                        colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            "Обновить",
+                            fontFamily = montserratFont,
+                            fontSize = 14.sp,
+                            color = colorScheme.onPrimary
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
@@ -513,6 +573,13 @@ fun EditPersonalInfoSection(
                     fontSize = 14.sp,
                     color = colorScheme.onSurface.copy(alpha = 0.8f)
                 )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Город: ${city.ifEmpty { "Не указано" }}",
+                    fontFamily = montserratFont,
+                    fontSize = 14.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.8f)
+                )
             }
         }
     }
@@ -533,8 +600,6 @@ fun EditPersonalInfoSection(
                                 val sdf = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
                                 onBirthDateChanged(sdf.format(date))
                             } else {
-                                // Показать ошибку (например, через Snackbar)
-                                // TODO: Добавить Snackbar
                                 Log.e("EditProfileScreen", "Дата рождения недопустима")
                             }
                         }
@@ -573,6 +638,7 @@ fun EditPersonalInfoSection(
         }
     }
 }
+
 
 // Остальные composables (EditBioSection, EditGoalsSection, etc.) остаются без изменений
 @Composable

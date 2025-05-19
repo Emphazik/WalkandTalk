@@ -119,4 +119,6 @@ dependencies {
     implementation(libs.onetap.compose)
     /** Desugaring for VK **/
     coreLibraryDesugaring(libs.desugar.jdk.libs)
+    /** Google GPS **/
+    implementation(libs.play.services.location)
 }

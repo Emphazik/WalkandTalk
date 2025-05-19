@@ -3,6 +3,7 @@ package ru.walkAndTalk.data.repository
 import android.net.Uri
 import android.util.Log
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.result.PostgrestResult
 import ru.walkAndTalk.data.mapper.fromDto
 import ru.walkAndTalk.data.mapper.fromDtoList
 import ru.walkAndTalk.data.mapper.toDto
@@ -24,6 +25,17 @@ class RemoteUsersRepositoryImpl(
     private val storageRepository: StorageRepository
 ) : RemoteUsersRepository {
 
+    override suspend fun updateUserCity(userId: String, city: String): PostgrestResult {
+        return supabaseWrapper.postgrest[Table.USERS]
+            .update(
+                mapOf("city" to city)
+            ) {
+                filter {
+                    eq("id", userId)
+                }
+            }
+    }
+
     override suspend fun fetchByEmail(email: String): User? {
         return supabaseWrapper.postgrest[Table.USERS]
             .select {
@@ -42,11 +54,25 @@ class RemoteUsersRepositoryImpl(
             .also { Log.d("RemoteUsersRepository", "Fetched all users: ${it.size}") }
     }
 
+//    override suspend fun fetchById(id: String): User? {
+//        Log.d("RemoteUsersRepository", "Fetching user by id: $id")
+//        return supabaseWrapper.postgrest[Table.USERS]
+//            .select { filter { UserDto::id eq id } }
+//            .decodeSingleOrNull<UserDto>()
+//            ?.fromDto()
+//            .also { Log.d("RemoteUsersRepository", "Fetched user by id: $id, result: $it") }
+//    }
+
     override suspend fun fetchById(id: String): User? {
         Log.d("RemoteUsersRepository", "Fetching user by id: $id")
-        return supabaseWrapper.postgrest[Table.USERS]
-            .select { filter { UserDto::id eq id } }
+        val rawResponse = supabaseWrapper.postgrest[Table.USERS]
+            .select {
+                filter { UserDto::id eq id }
+            }
+        Log.d("RemoteUsersRepository", "Raw response: $rawResponse")
+        return rawResponse
             .decodeSingleOrNull<UserDto>()
+            ?.also { Log.d("RemoteUsersRepository", "Decoded UserDto: $it") }
             ?.fromDto()
             .also { Log.d("RemoteUsersRepository", "Fetched user by id: $id, result: $it") }
     }
@@ -166,7 +192,8 @@ class RemoteUsersRepositoryImpl(
         birthDate: String?,
         photoURL: String?,
         bio: String?,
-        goals: String?
+        goals: String?,
+        city: String?
     ) {
         // Валидация
         require(userId.isNotBlank()) { "ID пользователя не может быть пустым" }
@@ -207,13 +234,20 @@ class RemoteUsersRepositoryImpl(
                 "Цели могут содержать только буквы, цифры, пробелы и знаки препинания"
             }
         }
+        if (city != null && city.isNotEmpty()) {
+            require(city.length <= 100) { "Название города не может быть длиннее 100 символов" }
+            require(city.matches(Regex("^[a-zA-Zа-яА-ЯёЁ\\s'-]+$"))) {
+                "Название города может содержать только буквы, пробелы, дефисы или апострофы"
+            }
+        }
 
         val updates = UserProfileUpdate(
             name = fullName,
             birthDate = birthDate,
             profileImageUrl = photoURL,
             bio = bio,
-            goals = goals
+            goals = goals,
+            city = city
         )
         supabaseWrapper.postgrest.from(Table.USERS).update(updates) {
             filter { eq("id", userId) }

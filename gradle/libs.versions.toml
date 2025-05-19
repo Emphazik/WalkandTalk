@@ -1,6 +1,7 @@
 [versions]
 dataStore = "1.1.6"
 agp = "8.10.0"
+google-gps = "21.3.0"
 vk = "4.1.0"
 vk-id-placeholders = "1.1.0"
 desugar_jdk_libs = "2.1.5"
@@ -88,6 +89,8 @@ supabase-postgrest = { module = "io.github.jan-tennert.supabase:postgrest-kt", v
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
 # Lottie
 lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "lottie" }
+#Google-GPS
+play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "google-gps" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

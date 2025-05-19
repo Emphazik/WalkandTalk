@@ -4,4 +4,5 @@ import ru.walkAndTalk.data.model.UserDto
 
 interface AuthRepository {
     suspend fun authenticateUser(vkId: Long, email: String, phone: String, name: String): UserDto
+    suspend fun getCurrentUserId(): String? // Новый метод
 }

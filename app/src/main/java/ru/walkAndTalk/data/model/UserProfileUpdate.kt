@@ -14,5 +14,7 @@ data class UserProfileUpdate(
     @SerialName("bio")
     val bio: String? = null,
     @SerialName("goals")
-    val goals: String? = null
+    val goals: String? = null,
+    @SerialName("city")
+    val city: String? = null
 )
