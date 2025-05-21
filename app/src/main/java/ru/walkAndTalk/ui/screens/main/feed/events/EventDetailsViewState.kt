@@ -5,5 +5,6 @@ import ru.walkAndTalk.domain.model.Event
 data class EventDetailsState(
     val event: Event? = null,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val participantsCount: Int = 0 // Добавляем количество участников
 )

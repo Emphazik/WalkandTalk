@@ -3,6 +3,7 @@ package ru.walkAndTalk.ui.screens.main.feed
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,6 +33,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -259,17 +261,66 @@ fun EventCard(
                     fontFamily = montserratFont,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = colorScheme.onSurface
+                    color = colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis // Добавляем многоточие
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${event.location} • ${event.description}",
-                    fontFamily = montserratFont,
-                    fontSize = 14.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.6f),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_location),
+                        contentDescription = "Location",
+                        tint = colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "${event.location}",
+                        fontFamily = montserratFont,
+                        fontSize = 14.sp,
+                        color = colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (event.tagIds.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically, // Выравнивание по центру
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Tags:",
+                            fontFamily = montserratFont,
+                            fontSize = 14.sp,
+                            color = colorScheme.onSurface.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.weight(1f) // Чипы занимают оставшееся место
+                        ) {
+                            event.tagIds.forEach { tag ->
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = colorScheme.primaryContainer,
+                                    modifier = Modifier.padding(vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = tag,
+                                        fontFamily = montserratFont,
+                                        fontSize = 12.sp,
+                                        color = colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(12.dp))
                 Button(
                     onClick = {
@@ -350,7 +401,7 @@ fun SearchBar(
                 .height(48.dp),
             placeholder = {
                 Text(
-                    text = "Поиск мероприятий...",
+                    text = "Поиск или #тег (например, #Программирование)",
                     fontFamily = montserratFont,
                     fontSize = 14.sp,
                     color = colorScheme.onSurface.copy(alpha = 0.5f)

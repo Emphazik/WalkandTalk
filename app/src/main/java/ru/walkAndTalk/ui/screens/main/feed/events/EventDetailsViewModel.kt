@@ -9,24 +9,35 @@ import org.orbitmvi.orbit.Container
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
 import ru.walkAndTalk.domain.model.Event
+import ru.walkAndTalk.domain.repository.EventParticipantsRepository
 import ru.walkAndTalk.domain.repository.EventsRepository
 import ru.walkAndTalk.domain.repository.UserEventRepository
 
 
 class EventDetailsViewModel(
     private val eventsRepository: EventsRepository,
-    private val usersRepository: UserEventRepository
+    private val usersRepository: UserEventRepository,
+    private val eventParticipantsRepository: EventParticipantsRepository
 ) : ViewModel(), ContainerHost<EventDetailsState, EventDetailsSideEffect> {
 
     override val container: Container<EventDetailsState, EventDetailsSideEffect> = container(EventDetailsState())
 
     fun loadEvent(eventId: String) = intent {
+        println("EventDetailsViewModel: Loading event $eventId")
         reduce { state.copy(isLoading = true, error = null) }
         try {
             val event = eventsRepository.fetchEventById(eventId)
             if (event != null) {
                 val organizerName = usersRepository.getUserName(event.creatorId)
-                reduce { state.copy(event = event.copy(organizerName = organizerName), isLoading = false) }
+                val participantsCount = eventParticipantsRepository.getParticipantsCount(eventId)
+                println("EventDetailsViewModel: Loaded event $eventId, tags=${event.tagIds}, participants=$participantsCount")
+                reduce {
+                    state.copy(
+                        event = event.copy(organizerName = organizerName),
+                        participantsCount = participantsCount,
+                        isLoading = false
+                    )
+                }
             } else {
                 reduce { state.copy(isLoading = false, error = "Мероприятие не найдено") }
             }
@@ -57,6 +68,8 @@ class EventDetailsViewModel(
             12 -> "декабря"
             else -> ""
         }
-        return "${dateTime.dayOfMonth} $month, ${dateTime.hour}:${dateTime.minute.toString().padStart(2, '0')}"
+        return "${dateTime.dayOfMonth} $month ${dateTime.year}, ${dateTime.hour}:${
+            dateTime.minute.toString().padStart(2, '0')
+        }"
     }
 }

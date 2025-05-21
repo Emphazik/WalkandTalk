@@ -6,7 +6,7 @@ import kotlinx.datetime.Instant
 import ru.walkAndTalk.data.model.EventDto
 import ru.walkAndTalk.domain.model.Event
 
-fun EventDto.toDomain(): Event {
+fun EventDto.toDomain(tagNames: List<String> = emptyList()): Event {
     return Event(
         id = id,
         creatorId = creatorId,
@@ -14,7 +14,8 @@ fun EventDto.toDomain(): Event {
         description = description,
         location = location,
         eventDate = eventDate,
-        createdAt = createdAt ?: System.now().toString(),
-        eventImageUrl = eventImageUrl
+        createdAt = createdAt ?: Clock.System.now().toString(),
+        eventImageUrl = eventImageUrl,
+        tagIds = tagNames
     )
 }

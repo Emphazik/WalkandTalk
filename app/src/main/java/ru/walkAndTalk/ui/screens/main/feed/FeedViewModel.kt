@@ -31,7 +31,8 @@ class FeedViewModel(
     private val _participationState = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     val participationState = _participationState.asStateFlow()
 
-    private var allEvents: List<ru.walkAndTalk.domain.model.Event> = emptyList() // Кэшируем все события
+    private var allEvents: List<ru.walkAndTalk.domain.model.Event> =
+        emptyList() // Кэшируем все события
 
     init {
         refreshEvents()
@@ -49,6 +50,7 @@ class FeedViewModel(
             println("FeedViewModel: Loaded ${allEvents.size} events")
             val sortedEvents = applySort(state.sortType, allEvents)
             reduce { state.copy(events = sortedEvents, isLoading = false) }
+            loadParticipationStates() // Перемещаем сюда
         } catch (e: Exception) {
             println("FeedViewModel: LoadEvents error=${e.message}")
             reduce { state.copy(isLoading = false, error = e.message) }
@@ -57,10 +59,12 @@ class FeedViewModel(
 
     private fun loadParticipationStates() {
         viewModelScope.launch {
-            val eventIds = container.stateFlow.value.events.map { it.id }
+//            val eventIds = container.stateFlow.value.events.map { it.id }
+            val eventIds = allEvents.map { it.id } // Используем allEvents
             val states = eventIds.associateWith { eventId ->
                 eventParticipantsRepository.isUserParticipating(eventId, currentUserId)
             }
+            println("FeedViewModel: Loaded participation states for ${states.size} events")
             _participationState.value = states
         }
     }
@@ -69,9 +73,19 @@ class FeedViewModel(
         println("FeedViewModel: SearchQuery=$query")
         reduce { state.copy(searchQuery = query) }
         try {
-            val filteredEvents = allEvents.filter {
-                it.title.contains(query, ignoreCase = true) ||
-                        it.description.contains(query, ignoreCase = true)
+            val filteredEvents = if (query.startsWith("#") && query.length > 1) {
+                val tagQuery = query.drop(1).trim()
+                allEvents.filter { event ->
+                    event.tagIds.any { tag ->
+                        tag.contains(tagQuery, ignoreCase = true)
+                    }
+                }
+            } else {
+                // Обычный поиск по названию и описанию
+                allEvents.filter { event ->
+                    event.title.contains(query, ignoreCase = true) ||
+                            event.description.contains(query, ignoreCase = true)
+                }
             }
             println("FeedViewModel: Filtered ${filteredEvents.size} events for query=$query")
             val sortedEvents = applySort(state.sortType, filteredEvents)
@@ -91,7 +105,8 @@ class FeedViewModel(
 
     fun onSortSelected(sortType: SortType) = intent {
         println("FeedViewModel: SortType=$sortType")
-        val sortedEvents = applySort(sortType, if (state.searchQuery.isEmpty()) allEvents else state.events)
+        val sortedEvents =
+            applySort(sortType, if (state.searchQuery.isEmpty()) allEvents else state.events)
         reduce { state.copy(events = sortedEvents, sortType = sortType) }
     }
 
@@ -100,9 +115,11 @@ class FeedViewModel(
             SortType.DateNewestFirst -> events.sortedByDescending {
                 Instant.parse(it.eventDate).toEpochMilliseconds()
             }
+
             SortType.DateOldestFirst -> events.sortedBy {
                 Instant.parse(it.eventDate).toEpochMilliseconds()
             }
+
             null -> events
         }
     }
@@ -113,7 +130,8 @@ class FeedViewModel(
 
     fun onParticipateClick(eventId: String) = intent {
         try {
-            val isParticipating = eventParticipantsRepository.isUserParticipating(eventId, currentUserId)
+            val isParticipating =
+                eventParticipantsRepository.isUserParticipating(eventId, currentUserId)
             if (isParticipating) {
                 postSideEffect(FeedSideEffect.ShowError("Вы уже участвуете в этом мероприятии"))
                 return@intent
@@ -150,17 +168,25 @@ class FeedViewModel(
                 postSideEffect(FeedSideEffect.LeaveEventSuccess(eventId))
                 refreshEvents()
             }.onFailure { error ->
-                postSideEffect(FeedSideEffect.ShowError(error.message ?: "Ошибка при отмене участия"))
+                postSideEffect(
+                    FeedSideEffect.ShowError(
+                        error.message ?: "Ошибка при отмене участия"
+                    )
+                )
             }
         } catch (e: Exception) {
             postSideEffect(FeedSideEffect.ShowError("Ошибка: ${e.message}"))
         }
     }
 
+//    fun isUserParticipating(eventId: String): Boolean {
+//        return runBlocking {
+//            eventParticipantsRepository.isUserParticipating(eventId, currentUserId)
+//        }
+//    }
+
     fun isUserParticipating(eventId: String): Boolean {
-        return runBlocking {
-            eventParticipantsRepository.isUserParticipating(eventId, currentUserId)
-        }
+        return _participationState.value[eventId] ?: false
     }
 
     fun updateEventImage(eventId: String, imageUrl: String) = intent {
@@ -190,7 +216,7 @@ class FeedViewModel(
             12 -> "декабря"
             else -> ""
         }
-        return "${dateTime.dayOfMonth} $month, ${dateTime.hour}:${
+        return "${dateTime.dayOfMonth} $month ${dateTime.year}, ${dateTime.hour}:${
             dateTime.minute.toString().padStart(2, '0')
         }"
     }

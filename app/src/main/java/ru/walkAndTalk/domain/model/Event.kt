@@ -9,6 +9,7 @@ data class Event(
     val eventDate: String,
     val createdAt: String,
     val eventImageUrl: String?,
-
-    val organizerName: String? = null
+    //OrganizerName v bd nety, local
+    val organizerName: String? = null,
+    val tagIds: List<String> = emptyList()
 )

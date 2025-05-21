@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.remember
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -96,7 +98,7 @@ fun EventDetailsScreen(
         feedViewModel.container.sideEffectFlow.collect { sideEffect ->
             when (sideEffect) {
                 is FeedSideEffect.ParticipateInEvent -> {
-                    if (sideEffect.eventId == eventId) { // Убедимся, что это событие для текущего экрана
+                    if (sideEffect.eventId == eventId) {
                         coroutineScope.launch {
                             snackbarHostState.showSnackbar(
                                 message = "Вы успешно записались на '${state.event?.title ?: "мероприятие"}' ${
@@ -114,7 +116,7 @@ fun EventDetailsScreen(
                 is FeedSideEffect.ShowError -> {
                     coroutineScope.launch {
                         snackbarHostState.showSnackbar(
-                            message = sideEffect.message // Отображаем ошибку (например, "Вы уже участвуете")
+                            message = sideEffect.message
                         )
                     }
                 }
@@ -161,10 +163,12 @@ fun EventDetailsScreen(
         } else if (state.event != null) {
             EventDetailsContent(
                 event = state.event!!,
+                participantsCount = state.participantsCount, // Добавляем количество участников
                 onNavigateBack = onNavigateBack,
-                onParticipateClick = { feedViewModel.onParticipateClick(eventId) }, // Вызов через FeedViewModel
+                onParticipateClick = { feedViewModel.onParticipateClick(eventId) },
                 isParticipating = isParticipating,
                 onLeaveClick = { feedViewModel.onLeaveEventClick(eventId) },
+                onJoinChatClick = { /* Заглушка для чата */ },
                 colorScheme = colorScheme,
                 viewModel = viewModel
             )
@@ -175,10 +179,12 @@ fun EventDetailsScreen(
 @Composable
 fun EventDetailsContent(
     event: Event,
+    participantsCount: Int, // Добавляем параметр
     onNavigateBack: () -> Unit,
     onParticipateClick: () -> Unit,
     isParticipating: Boolean,
     onLeaveClick: () -> Unit,
+    onJoinChatClick: () -> Unit,
     colorScheme: ColorScheme,
     viewModel: EventDetailsViewModel = koinViewModel()
 ) {
@@ -195,15 +201,12 @@ fun EventDetailsContent(
                 .fillMaxWidth()
                 .height(250.dp)
         ) {
-            // Определяем Painter для ошибки заранее
             val errorPainter = painterResource(id = R.drawable.default_event_image)
-
-            // Изображение
             androidx.compose.foundation.Image(
                 painter = event.eventImageUrl?.let {
                     rememberAsyncImagePainter(
                         model = it,
-                        error = errorPainter // Передаем уже созданный Painter
+                        error = errorPainter
                     )
                 } ?: errorPainter,
                 contentDescription = event.title,
@@ -211,8 +214,6 @@ fun EventDetailsContent(
                 modifier = Modifier
                     .fillMaxSize()
             )
-
-            // Градиентное затемнение
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -224,8 +225,6 @@ fun EventDetailsContent(
                         )
                     )
             )
-
-            // Кнопка "Назад"
             IconButton(
                 onClick = onNavigateBack,
                 modifier = Modifier
@@ -238,8 +237,6 @@ fun EventDetailsContent(
                     tint = Color.White
                 )
             }
-
-            // Заголовок и дата
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -315,9 +312,48 @@ fun EventDetailsContent(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Теги
+                if (event.tagIds.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Tags:",
+                            fontFamily = montserratFont,
+                            fontSize = 14.sp,
+                            color = colorScheme.onSurface.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            event.tagIds.forEach { tag ->
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = colorScheme.primaryContainer,
+                                    modifier = Modifier.padding(vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = tag,
+                                        fontFamily = montserratFont,
+                                        fontSize = 12.sp,
+                                        color = colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 // Кол-во участников
                 Text(
-                    text = "Кол-во участников: 50",
+                    text = if (participantsCount > 0) "Кол-во участников: $participantsCount"
+                    else "Кол-во участников: Станьте первым!",
                     fontFamily = montserratFont,
                     fontSize = 14.sp,
                     color = colorScheme.onSurface.copy(alpha = 0.6f)
@@ -345,7 +381,8 @@ fun EventDetailsContent(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp),
+                .height(50.dp)
+                .padding(horizontal = 16.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (isParticipating) colorScheme.secondaryContainer else colorScheme.primaryContainer
             ),
@@ -358,6 +395,27 @@ fun EventDetailsContent(
                 color = if (isParticipating) colorScheme.onSecondaryContainer else colorScheme.onPrimaryContainer
             )
         }
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = { onJoinChatClick() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+                .padding(horizontal = 16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = colorScheme.secondaryContainer
+            ),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text(
+                text = "Присоединиться к чату",
+                fontFamily = montserratFont,
+                fontSize = 16.sp,
+                color = colorScheme.onSecondaryContainer
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp)) // Отступ перед концом
 
         if (showLeaveConfirmation) {
             AlertDialog(

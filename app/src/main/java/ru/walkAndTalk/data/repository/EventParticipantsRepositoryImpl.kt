@@ -6,6 +6,7 @@ import io.ktor.client.plugins.ClientRequestException
 import kotlinx.serialization.Serializable
 import ru.walkAndTalk.data.model.EventParticipantDto
 import ru.walkAndTalk.data.network.SupabaseWrapper
+import ru.walkAndTalk.domain.Table
 import ru.walkAndTalk.domain.model.EventParticipant
 import ru.walkAndTalk.domain.repository.EventParticipantsRepository
 
@@ -16,7 +17,7 @@ class EventParticipantsRepositoryImpl(
     override suspend fun joinEvent(eventId: String, userId: String): Result<Unit> {
         return try {
             val participant = EventParticipantDto(eventId = eventId, userId = userId)
-            supabaseWrapper.postgrest.from("event_participants")
+            supabaseWrapper.postgrest[Table.EVENT_PARTICIPANTS]
                 .insert(listOf(participant)) // Оборачиваем в список
             Result.success(Unit)
         } catch (e: ClientRequestException) {
@@ -32,7 +33,7 @@ class EventParticipantsRepositoryImpl(
 
     override suspend fun isUserParticipating(eventId: String, userId: String): Boolean {
         return try {
-            val result = supabaseWrapper.postgrest.from("event_participants")
+            val result = supabaseWrapper.postgrest[Table.EVENT_PARTICIPANTS]
                 .select(Columns.list("event_id", "user_id", "joined_at")) { // Запрашиваем все поля
                     filter {
                         eq("event_id", eventId)
@@ -49,7 +50,7 @@ class EventParticipantsRepositoryImpl(
 
     override suspend fun leaveEvent(eventId: String, userId: String): Result<Unit> {
         return try {
-            supabaseWrapper.postgrest.from("event_participants")
+            supabaseWrapper.postgrest[Table.EVENT_PARTICIPANTS]
                 .delete {
                     filter {
                         eq("event_id", eventId)
@@ -60,5 +61,14 @@ class EventParticipantsRepositoryImpl(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    override suspend fun getParticipantsCount(eventId: String): Int {
+        return supabaseWrapper.postgrest[Table.EVENT_PARTICIPANTS]
+            .select {
+                filter { eq("event_id", eventId) }
+            }
+            .decodeList<EventParticipantDto>()
+            .size
     }
 }

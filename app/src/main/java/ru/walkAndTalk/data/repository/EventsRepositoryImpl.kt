@@ -5,24 +5,32 @@ import ru.walkAndTalk.data.model.EventDto
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.Table
 import ru.walkAndTalk.domain.model.Event
+import ru.walkAndTalk.domain.repository.EventInterestsRepository
 import ru.walkAndTalk.domain.repository.EventsRepository
 
 class EventsRepositoryImpl(
-    private val supabaseWrapper: SupabaseWrapper
+    private val supabaseWrapper: SupabaseWrapper,
+    private val eventInterestsRepository: EventInterestsRepository
 ) : EventsRepository {
 
     override suspend fun fetchAllEvents(): List<Event> {
-        return supabaseWrapper.postgrest[Table.EVENTS]
+        val events = supabaseWrapper.postgrest[Table.EVENTS]
             .select()
             .decodeList<EventDto>()
-            .map { it.toDomain() }
+        return events.map { eventDto ->
+            val tagNames = eventInterestsRepository.fetchTagsForEvent(eventDto.id)
+                .map { it.name }
+            eventDto.toDomain(tagNames)
+        }
     }
 
     override suspend fun fetchEventById(id: String): Event? {
-        return supabaseWrapper.postgrest[Table.EVENTS]
-            .select { filter { EventDto::id eq id } }
-            .decodeSingleOrNull<EventDto>()
-            ?.toDomain()
+        val eventDto = supabaseWrapper.postgrest[Table.EVENTS]
+            .select { filter { eq("id", id) } }
+            .decodeSingleOrNull<EventDto>() ?: return null
+        val tagNames = eventInterestsRepository.fetchTagsForEvent(eventDto.id)
+            .map { it.name }
+        return eventDto.toDomain(tagNames)
     }
 
     override suspend fun updateEventImage(eventId: String, imageUrl: String) {

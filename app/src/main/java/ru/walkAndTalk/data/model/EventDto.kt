@@ -19,4 +19,5 @@ data class EventDto(
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("route_id") val routeId: String? = null,
     @SerialName("event_image_url") val eventImageUrl: String? = null,
+    @SerialName("tag_ids") val tagIds: List<String> = emptyList()
 )
