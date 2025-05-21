@@ -401,7 +401,7 @@ fun SearchBar(
                 .height(48.dp),
             placeholder = {
                 Text(
-                    text = "Поиск или #тег (например, #Программирование)",
+                    text = "Поиск по имени и по #тегу",
                     fontFamily = montserratFont,
                     fontSize = 14.sp,
                     color = colorScheme.onSurface.copy(alpha = 0.5f)

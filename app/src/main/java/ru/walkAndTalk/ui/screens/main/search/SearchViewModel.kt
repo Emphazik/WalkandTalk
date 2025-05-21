@@ -6,6 +6,7 @@ import kotlinx.coroutines.Job
 import org.orbitmvi.orbit.Container
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
+import ru.walkAndTalk.domain.model.User
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 
 class SearchViewModel(
@@ -14,6 +15,7 @@ class SearchViewModel(
 
     override val container: Container<SearchViewState, SearchSideEffect> = container(SearchViewState())
     private var searchJob: Job? = null
+    private var allUsers: List<User> = emptyList()
 
     init {
         loadUsers()
@@ -22,41 +24,84 @@ class SearchViewModel(
     private fun loadUsers() = intent {
         reduce { state.copy(isLoading = true, error = null) }
         try {
-            val users = usersRepository.fetchAll()
-            reduce { state.copy(users = users, isLoading = false) }
+            allUsers = usersRepository.fetchAll()
+            println("SearchViewModel: Loaded ${allUsers.size} users")
+            // Собираем все interestIds
+            val allInterestIds = allUsers.flatMap { it.interestIds }.distinct()
+            val interestNames = usersRepository.fetchInterestNames(allInterestIds)
+                .zip(allInterestIds) { name, id -> id to name }
+                .toMap()
+            val sortedUsers = applySort(allUsers, state.searchQuery)
+            reduce {
+                state.copy(
+                    users = sortedUsers,
+                    isLoading = false,
+                    interestNames = interestNames
+                )
+            }
         } catch (e: Exception) {
+            println("SearchViewModel: LoadUsers error=${e.message}")
             reduce { state.copy(isLoading = false, error = e.message) }
+            postSideEffect(SearchSideEffect.ShowError(e.message ?: "Ошибка загрузки пользователей"))
         }
     }
 
+    fun refreshUsers() = intent {
+        loadUsers()
+    }
+
     fun onSortSelected(sortType: UserSortType) = intent {
+        println("SearchViewModel: SortType=$sortType")
         val sortedUsers = when (sortType) {
-            UserSortType.NameAscending -> state.users.sortedBy { it.name }
-            UserSortType.NameDescending -> state.users.sortedByDescending { it.name }
+            UserSortType.NameAscending -> state.users.sortedBy { it.name.lowercase() }
+            UserSortType.NameDescending -> state.users.sortedByDescending { it.name.lowercase() }
         }
         reduce { state.copy(users = sortedUsers) }
     }
 
     fun onSearchQueryChange(query: String) = intent {
+        println("SearchViewModel: SearchQuery=$query")
         reduce { state.copy(isLoading = true, error = null, searchQuery = query) }
         try {
             val users = if (query.isNotEmpty()) {
-                usersRepository.searchUsers(query) // Предполагаем метод поиска
+                if (query.startsWith("#") && query.length > 1) {
+                    val tagQuery = query.drop(1).trim()
+                    usersRepository.searchUsers("#$tagQuery")
+                } else {
+                    usersRepository.searchUsers(query)
+                }
             } else {
-                emptyList()
+                allUsers
             }
-            reduce { state.copy(users = users, isLoading = false) }
+            val sortedUsers = applySort(users, query)
+            println("SearchViewModel: Filtered ${users.size} users for query=$query")
+            reduce { state.copy(users = sortedUsers, isLoading = false) }
         } catch (e: Exception) {
+            println("SearchViewModel: Search error=${e.message}")
             reduce { state.copy(isLoading = false, error = e.message) }
+            postSideEffect(SearchSideEffect.ShowError(e.message ?: "Ошибка поиска"))
         }
     }
 
     fun onClearQuery() = intent {
+        println("SearchViewModel: ClearQuery")
         reduce { state.copy(searchQuery = "") }
-        loadUsers() // Сбрасываем поиск, загружая всех пользователей
+        loadUsers()
     }
 
     fun onUserClick(userId: String) = intent {
         postSideEffect(SearchSideEffect.NavigateToProfile(userId))
+    }
+
+    fun onMessageClick(userId: String) = intent {
+        postSideEffect(SearchSideEffect.NavigateToMessage(userId))
+    }
+
+    private fun applySort(users: List<User>, query: String): List<User> {
+        return if (query.isEmpty()) {
+            users.sortedBy { it.name.lowercase() }
+        } else {
+            users
+        }
     }
 }

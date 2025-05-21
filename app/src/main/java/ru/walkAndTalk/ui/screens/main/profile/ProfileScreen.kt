@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ColorScheme
@@ -28,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -61,6 +63,7 @@ fun ProfileScreen(
     val state by viewModel.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
     val navBackStackEntry by navController.currentBackStackEntryAsState()
+    var showLogoutDialog by remember { mutableStateOf(false) } // Состояние для диалога
 
     LaunchedEffect(navBackStackEntry?.destination?.route) {
         viewModel.refreshData() // Добавьте этот метод в ProfileViewModel
@@ -327,14 +330,64 @@ fun ProfileScreen(
                         },
                         onClick = {
                             showEditMenu = false
-                            viewModel.onLogout()
+                            showLogoutDialog = true
                         }
                     )
                 }
             }
         }
+        if (showLogoutDialog) {
+            AlertDialog(
+                onDismissRequest = { showLogoutDialog = false },
+                title = {
+                    Text(
+                        text = "Подтверждение выхода",
+                        fontFamily = montserratFont,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.onSurface
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Вы уверены, что хотите выйти из аккаунта?",
+                        fontFamily = montserratFont,
+                        fontSize = 16.sp,
+                        color = colorScheme.onSurface.copy(alpha = 0.8f)
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showLogoutDialog = false
+                            viewModel.onLogout()
+                        }
+                    ) {
+                        Text(
+                            text = "Да",
+                            fontFamily = montserratFont,
+                            fontSize = 16.sp,
+                            color = colorScheme.primary
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showLogoutDialog = false }
+                    ) {
+                        Text(
+                            text = "Нет",
+                            fontFamily = montserratFont,
+                            fontSize = 16.sp,
+                            color = colorScheme.onSurface
+                        )
+                    }
+                },
+                containerColor = colorScheme.surface,
+                shape = RoundedCornerShape(16.dp)
+            )
+        }
 
-        // Нижние кнопки (оставляем пустыми, так как редактирование убрано)
         Box(
             modifier = Modifier
                 .fillMaxSize(),

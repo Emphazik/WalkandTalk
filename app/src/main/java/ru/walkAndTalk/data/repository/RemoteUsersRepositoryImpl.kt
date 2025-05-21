@@ -3,10 +3,12 @@ package ru.walkAndTalk.data.repository
 import android.net.Uri
 import android.util.Log
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns.Companion.raw
 import io.github.jan.supabase.postgrest.result.PostgrestResult
 import ru.walkAndTalk.data.mapper.fromDto
 import ru.walkAndTalk.data.mapper.fromDtoList
 import ru.walkAndTalk.data.mapper.toDto
+import ru.walkAndTalk.data.model.InterestDto
 import ru.walkAndTalk.data.model.UserDto
 import ru.walkAndTalk.data.model.UserProfileUpdate
 import ru.walkAndTalk.data.network.SupabaseWrapper
@@ -118,21 +120,62 @@ class RemoteUsersRepositoryImpl(
     }
 
     override suspend fun searchUsers(query: String): List<User> {
-//        return supabaseWrapper[Table.USERS]
-//            .select {
-//                filter {
-//                    or(
-//                        listOf(
-//                            ilike("name", "%$query%"),
-//                            ilike("bio", "%$query%")
-//                        )
-//                    )
-//                }
-//            }
-//            .decodeList<UserDto>()
-//            .map { it.toDomain() }
-//    }
-        return TODO("Provide the return value")
+        Log.d("RemoteUsersRepository", "Searching users with query: $query")
+        try {
+            val users = if (query.startsWith("#") && query.length > 1) {
+                val tagQuery = query.drop(1).trim()
+                // Находим ID интереса по имени
+                val interest = supabaseWrapper.postgrest[Table.INTERESTS]
+                    .select {
+                        filter { ilike("name", "%$tagQuery%") }
+                    }
+                    .decodeSingleOrNull<InterestDto>()
+                if (interest != null) {
+                    supabaseWrapper.postgrest[Table.USERS]
+                        .select {
+                            filter {
+                                UserDto::interestIds contains listOf(interest.id)
+                            }
+                        }
+                        .decodeList<UserDto>()
+                        .fromDtoList()
+                } else {
+                    emptyList()
+                }
+            } else {
+                supabaseWrapper.postgrest[Table.USERS]
+                    .select {
+                        filter {
+                            ilike("name", "%$query%")
+                        }
+                    }
+                    .decodeList<UserDto>()
+                    .fromDtoList()
+            }
+            Log.d("RemoteUsersRepository", "Found ${users.size} users for query: $query")
+            return users
+        } catch (e: Exception) {
+            Log.e("RemoteUsersRepository", "Search error: ${e.message}", e)
+            throw e
+        }
+    }
+
+    override suspend fun fetchInterestNames(interestIds: List<String>): List<String> {
+        Log.d("RemoteUsersRepository", "Fetching interest names for IDs: $interestIds")
+        return interestIds.mapNotNull { interestId ->
+            try {
+                supabaseWrapper.postgrest[Table.INTERESTS]
+                    .select { filter { eq("id", interestId) } }
+                    .decodeSingleOrNull<InterestDto>()
+                    ?.name
+                    .also { name ->
+                        Log.d("RemoteUsersRepository", "Fetched name for interestId=$interestId: $name")
+                    }
+            } catch (e: Exception) {
+                Log.e("RemoteUsersRepository", "Error fetching name for interestId=$interestId: ${e.message}", e)
+                null
+            }
+        }
     }
 
     override suspend fun updateCityKnowledgeLevel(userId: String, levelId: String) {
