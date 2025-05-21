@@ -43,11 +43,13 @@ fun SearchScreen(viewModel: SearchViewModel = koinViewModel()) {
     val state by viewModel.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
 
-    // Обработка побочных эффектов (например, переход к профилю пользователя)
     viewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
             is SearchSideEffect.NavigateToProfile -> {
                 // Здесь можно добавить навигацию к профилю пользователя
+            }
+            else -> {
+                // Делегируем остальные случаи MainScreen
             }
         }
     }
@@ -56,12 +58,13 @@ fun SearchScreen(viewModel: SearchViewModel = koinViewModel()) {
         modifier = Modifier
             .fillMaxSize()
             .background(colorScheme.background)
-            .padding(horizontal = 16.dp) // Внутренние отступы вместо padding из Scaffold
+            .padding(horizontal = 16.dp)
     ) {
         SearchBar(
             query = state.searchQuery,
             onQueryChange = { viewModel.onSearchQueryChange(it) },
-            onFilterClick = { /* Заглушка для фильтра */ },
+            onClearQuery = { viewModel.onClearQuery() },
+            onSortSelected = { viewModel.onSortSelected(it as UserSortType) },
             colorScheme = colorScheme
         )
 
@@ -119,7 +122,6 @@ fun UserCard(user: User, viewModel: SearchViewModel) {
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Изображение профиля
             Image(
                 painter = user.profileImageUrl?.let { rememberAsyncImagePainter(it) }
                     ?: painterResource(id = R.drawable.preview_profile),
@@ -130,10 +132,7 @@ fun UserCard(user: User, viewModel: SearchViewModel) {
                     .height(150.dp)
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
             )
-
             Spacer(modifier = Modifier.height(8.dp))
-
-            // Имя
             Text(
                 text = user.name,
                 fontFamily = montserratFont,
@@ -141,10 +140,7 @@ fun UserCard(user: User, viewModel: SearchViewModel) {
                 fontWeight = FontWeight.Bold,
                 color = colorScheme.onSurface
             )
-
             Spacer(modifier = Modifier.height(4.dp))
-
-            // Биография (если есть)
             user.bio?.let { bio ->
                 Text(
                     text = bio,
@@ -155,10 +151,7 @@ fun UserCard(user: User, viewModel: SearchViewModel) {
                     overflow = TextOverflow.Ellipsis
                 )
             }
-
             Spacer(modifier = Modifier.height(12.dp))
-
-            // Кнопка "Перейти к профилю"
             Button(
                 onClick = { viewModel.onUserClick(user.id) },
                 modifier = Modifier
@@ -178,4 +171,8 @@ fun UserCard(user: User, viewModel: SearchViewModel) {
             }
         }
     }
+}
+enum class UserSortType {
+    NameAscending,
+    NameDescending
 }

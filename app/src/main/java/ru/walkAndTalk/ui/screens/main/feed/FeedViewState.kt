@@ -10,5 +10,6 @@ data class FeedViewState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val photoURL: String? = null, // URL аватара
-    val userId: String = "" // ID пользователя
+    val userId: String = "", // ID пользователя
+    val sortType: SortType? = null
 )

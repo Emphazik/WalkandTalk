@@ -3,18 +3,28 @@ package ru.walkAndTalk.ui.screens.main
 import SearchScreen
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -29,9 +39,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -65,11 +78,12 @@ sealed class BottomNavBarItem(
     val route: Any,
     val label: String,
     @DrawableRes val iconId: Int,
+    val tabId: String
 ) {
-    data object FeedItem : BottomNavBarItem(Feed, "Главная", R.drawable.ic_home1)
-    data object SearchItem : BottomNavBarItem(Search, "Поиск", R.drawable.ic_people64)
-    data object ChatsItem : BottomNavBarItem(Chats, "Чаты", R.drawable.ic_chat64)
-    data class ProfileItem(val id: String) : BottomNavBarItem(Profile(id), "Профиль", R.drawable.ic_profile1)
+    data object FeedItem : BottomNavBarItem(Feed, "Главная", R.drawable.ic_home1, "feed")
+    data object SearchItem : BottomNavBarItem(Search, "Поиск", R.drawable.ic_people64, "search")
+    data object ChatsItem : BottomNavBarItem(Chats, "Чаты", R.drawable.ic_chat64, "chats")
+    data class ProfileItem(val id: String) : BottomNavBarItem(Profile(id), "Профиль", R.drawable.ic_profile1, "profile")
 }
 
 @Composable
@@ -90,10 +104,10 @@ fun MainScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val feedViewModel: FeedViewModel = koinViewModel(
-        parameters = { parametersOf(userId) } // Передаем userId в FeedViewModel
+        parameters = { parametersOf(userId) }
     )
     val profileViewModel: ProfileViewModel = koinViewModel(
-        parameters = { parametersOf(userId) } // Передайте userId, например, из состояния или аргументов
+        parameters = { parametersOf(userId) }
     )
     var isSnackbarVisible by remember { mutableStateOf(false) }
 
@@ -101,32 +115,48 @@ fun MainScreen(
         isSnackbarVisible = snackbarHostState.currentSnackbarData != null
     }
 
+    // Логирование для отладки
+    LaunchedEffect(currentRoute) {
+        println("MainScreen: CurrentRoute=$currentRoute")
+        tabs.forEach { tab ->
+            val selected = when (tab.tabId) {
+                "feed" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Feed") == true ||
+                        currentRoute?.startsWith("ru.walkAndTalk.ui.screens.EventDetails") == true
+                "search" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Search") == true
+                "chats" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Chats") == true
+                "profile" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Profile") == true ||
+                        currentRoute?.startsWith("ru.walkAndTalk.ui.screens.EditProfile") == true
+                else -> false
+            }
+            println("MainScreen: Tab=${tab.label}, Route=${tab.route}, TabId=${tab.tabId}, Selected=$selected")
+        }
+    }
+
     Scaffold(
         snackbarHost = {
-            AnimatedVisibility(
-                visible = isSnackbarVisible,
-                enter = fadeIn(animationSpec = tween(durationMillis = 300)) + slideInVertically(
-                    animationSpec = tween(durationMillis = 300),
-                    initialOffsetY = { it }
-                ),
-                exit = fadeOut(animationSpec = tween(durationMillis = 300)) + slideOutVertically(
-                    animationSpec = tween(durationMillis = 300),
-                    targetOffsetY = { it }
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    contentColor = colorScheme.onSurface,
+                    containerColor = colorScheme.surfaceVariant
                 )
-            ) {
-                SnackbarHost(hostState = snackbarHostState) { data ->
-                    Snackbar(
-                        snackbarData = data,
-                        contentColor = colorScheme.onSurface,
-                        containerColor = colorScheme.surfaceVariant
-                    )
-                }
             }
         },
         bottomBar = {
-            NavigationBar {
+            NavigationBar(
+                containerColor = colorScheme.surface,
+                contentColor = colorScheme.onSurface
+            ) {
                 tabs.forEach { item ->
-                    val selected = currentRoute == item.route.toString()
+                    val selected = when (item.tabId) {
+                        "feed" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Feed") == true ||
+                                currentRoute?.startsWith("ru.walkAndTalk.ui.screens.EventDetails") == true
+                        "search" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Search") == true
+                        "chats" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Chats") == true
+                        "profile" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Profile") == true ||
+                                currentRoute?.startsWith("ru.walkAndTalk.ui.screens.EditProfile") == true
+                        else -> false
+                    }
                     NavigationBarItem(
                         selected = selected,
                         onClick = {
@@ -139,16 +169,42 @@ fun MainScreen(
                                 launchSingleTop = true
                             }
                         },
-                        label = { Text(item.label) },
-                        icon = {
-                            Icon(
-                                painter = painterResource(item.iconId),
-                                contentDescription = item.label,
-                                tint = if (selected) colorScheme.primary else colorScheme.onBackground.copy(
-                                    alpha = 0.5f
-                                )
+                        label = {
+                            Text(
+                                text = item.label,
+                                fontFamily = montserratFont,
+                                color = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.6f)
                             )
-                        }
+                        },
+                        icon = {
+                            Box(
+                                modifier = Modifier.padding(bottom = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(item.iconId),
+                                    contentDescription = if (selected) "${item.label} (выбрано)" else item.label,
+                                    tint = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                if (selected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .height(3.dp)
+                                            .width(24.dp)
+                                            .background(colorScheme.primary)
+                                    )
+                                }
+                            }
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = colorScheme.primary,
+                            unselectedIconColor = colorScheme.onSurface.copy(alpha = 0.6f),
+                            selectedTextColor = colorScheme.primary,
+                            unselectedTextColor = colorScheme.onSurface.copy(alpha = 0.6f),
+                            indicatorColor = Color.Transparent
+                        )
                     )
                 }
             }

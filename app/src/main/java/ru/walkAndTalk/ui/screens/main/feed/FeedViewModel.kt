@@ -2,6 +2,8 @@ package ru.walkAndTalk.ui.screens.main.feed
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -12,6 +14,7 @@ import kotlinx.datetime.toLocalDateTime
 import org.orbitmvi.orbit.Container
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
+import ru.walkAndTalk.domain.model.Event
 import ru.walkAndTalk.domain.repository.EventParticipantsRepository
 import ru.walkAndTalk.domain.repository.EventsRepository
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
@@ -28,17 +31,26 @@ class FeedViewModel(
     private val _participationState = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     val participationState = _participationState.asStateFlow()
 
+    private var allEvents: List<ru.walkAndTalk.domain.model.Event> = emptyList() // Кэшируем все события
+
     init {
-        loadEvents()
+        refreshEvents()
         loadParticipationStates()
+    }
+
+    fun refreshEvents() = intent {
+        loadEvents()
     }
 
     private fun loadEvents() = intent {
         reduce { state.copy(isLoading = true, error = null) }
         try {
-            val events = eventsRepository.fetchAllEvents()
-            reduce { state.copy(events = events, isLoading = false) }
+            allEvents = eventsRepository.fetchAllEvents()
+            println("FeedViewModel: Loaded ${allEvents.size} events")
+            val sortedEvents = applySort(state.sortType, allEvents)
+            reduce { state.copy(events = sortedEvents, isLoading = false) }
         } catch (e: Exception) {
+            println("FeedViewModel: LoadEvents error=${e.message}")
             reduce { state.copy(isLoading = false, error = e.message) }
         }
     }
@@ -54,14 +66,45 @@ class FeedViewModel(
     }
 
     fun onSearchQueryChange(query: String) = intent {
+        println("FeedViewModel: SearchQuery=$query")
         reduce { state.copy(searchQuery = query) }
-        val filteredEvents = eventsRepository.fetchAllEvents().filter {
-            it.title.contains(query, ignoreCase = true) || it.description.contains(
-                query,
-                ignoreCase = true
-            )
+        try {
+            val filteredEvents = allEvents.filter {
+                it.title.contains(query, ignoreCase = true) ||
+                        it.description.contains(query, ignoreCase = true)
+            }
+            println("FeedViewModel: Filtered ${filteredEvents.size} events for query=$query")
+            val sortedEvents = applySort(state.sortType, filteredEvents)
+            reduce { state.copy(events = sortedEvents) }
+        } catch (e: Exception) {
+            println("FeedViewModel: Search error=${e.message}")
+            reduce { state.copy(error = e.message) }
         }
-        reduce { state.copy(events = filteredEvents) }
+    }
+
+    fun onClearQuery() = intent {
+        println("FeedViewModel: ClearQuery")
+        reduce { state.copy(searchQuery = "") }
+        val sortedEvents = applySort(state.sortType, allEvents)
+        reduce { state.copy(events = sortedEvents, error = null) }
+    }
+
+    fun onSortSelected(sortType: SortType) = intent {
+        println("FeedViewModel: SortType=$sortType")
+        val sortedEvents = applySort(sortType, if (state.searchQuery.isEmpty()) allEvents else state.events)
+        reduce { state.copy(events = sortedEvents, sortType = sortType) }
+    }
+
+    private fun applySort(sortType: SortType?, events: List<Event>): List<Event> {
+        return when (sortType) {
+            SortType.DateNewestFirst -> events.sortedByDescending {
+                Instant.parse(it.eventDate).toEpochMilliseconds()
+            }
+            SortType.DateOldestFirst -> events.sortedBy {
+                Instant.parse(it.eventDate).toEpochMilliseconds()
+            }
+            null -> events
+        }
     }
 
     fun onEventClick(eventId: String) = intent {
@@ -85,6 +128,7 @@ class FeedViewModel(
                     _participationState.value = updatedStates
                 }
                 postSideEffect(FeedSideEffect.ParticipateInEvent(eventId))
+                refreshEvents()
             }.onFailure { error ->
                 postSideEffect(FeedSideEffect.ShowError(error.message ?: "Ошибка при регистрации"))
             }
@@ -104,6 +148,7 @@ class FeedViewModel(
                     _participationState.value = updatedStates
                 }
                 postSideEffect(FeedSideEffect.LeaveEventSuccess(eventId))
+                refreshEvents()
             }.onFailure { error ->
                 postSideEffect(FeedSideEffect.ShowError(error.message ?: "Ошибка при отмене участия"))
             }
@@ -121,12 +166,11 @@ class FeedViewModel(
     fun updateEventImage(eventId: String, imageUrl: String) = intent {
         try {
             eventsRepository.updateEventImage(eventId, imageUrl)
-            loadEvents() // Перезагружаем события после обновления
+            refreshEvents()
         } catch (e: Exception) {
             reduce { state.copy(error = "Ошибка при обновлении изображения: ${e.message}") }
         }
     }
-
 
     fun formatEventDate(isoDate: String): String {
         val instant = Instant.parse(isoDate)
