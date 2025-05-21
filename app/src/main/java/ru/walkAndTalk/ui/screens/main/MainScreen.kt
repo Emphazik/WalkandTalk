@@ -155,7 +155,8 @@ fun MainScreen(
                         "search" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Search") == true
                         "chats" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Chats") == true
                         "profile" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Profile") == true ||
-                                currentRoute?.startsWith("ru.walkAndTalk.ui.screens.EditProfile") == true
+                                currentRoute?.startsWith("ru.walkAndTalk.ui.screens.EditProfile") == true ||
+                                currentRoute?.startsWith("profile/") == true
                         else -> false
                     }
                     NavigationBarItem(
@@ -267,20 +268,32 @@ fun MainScreen(
                     }
                 }
             }
-            composable<Search> { SearchScreen() }
-            composable<Chats> { ChatsScreen() }
+            composable<Search> {
+                SearchScreen(navController = navController)
+            }
+            composable<Chats> {
+                ChatsScreen()
+            }
             composable<Profile> {
                 ProfileScreen(
-                    viewModel = koinViewModel(
-                        parameters = {
-                            parametersOf(it.toRoute<Profile>().userId)
-                        }
-                    ),
+                    viewModel = koinViewModel(parameters = { parametersOf(it.toRoute<Profile>().userId) }),
                     onNavigateAuth = onNavigateAuth,
                     navController = navController,
-                    onNavigateEditProfile = {
-                        navController.navigate(EditProfile) // Локальная навигация
-                    }
+                    onNavigateEditProfile = { navController.navigate(EditProfile) },
+                    isOwnProfile = true
+                )
+            }
+            composable(
+                route = "profile/{userId}",
+                arguments = listOf(navArgument("userId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val profileUserId = backStackEntry.arguments?.getString("userId") ?: return@composable
+                ProfileScreen(
+                    viewModel = koinViewModel(parameters = { parametersOf(profileUserId) }),
+                    onNavigateAuth = onNavigateAuth,
+                    navController = navController,
+                    onNavigateEditProfile = { navController.navigate(EditProfile) },
+                    isOwnProfile = profileUserId == userId
                 )
             }
             composable(

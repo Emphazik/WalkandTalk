@@ -59,14 +59,15 @@ fun ProfileScreen(
     viewModel: ProfileViewModel,
     onNavigateAuth: () -> Unit,
     onNavigateEditProfile: () -> Unit,
+    isOwnProfile: Boolean = true
 ) {
     val state by viewModel.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    var showLogoutDialog by remember { mutableStateOf(false) } // Состояние для диалога
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(navBackStackEntry?.destination?.route) {
-        viewModel.refreshData() // Добавьте этот метод в ProfileViewModel
+        viewModel.refreshData()
     }
 
     viewModel.collectSideEffect { sideEffect ->
@@ -238,105 +239,109 @@ fun ProfileScreen(
                     tint = colorScheme.onSurface
                 )
             }
-            Box {
-                var showEditMenu by remember { mutableStateOf(false) }
-                IconButton(
-                    onClick = { showEditMenu = true },
-                    modifier = Modifier
-                        .background(Color.Gray.copy(alpha = 0.2f), shape = RoundedCornerShape(8.dp))
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_more128),
-                        contentDescription = "Menu",
-                        tint = colorScheme.onSurface
-                    )
-                }
-                DropdownMenu(
-                    expanded = showEditMenu,
-                    onDismissRequest = { showEditMenu = false },
-                    modifier = Modifier
-                        .background(colorScheme.surface)
-                        .align(Alignment.TopEnd)
-                ) {
-                    DropdownMenuItem(
-                        text = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_edit64),
-                                    contentDescription = "Edit Profile",
-                                    tint = colorScheme.onSurface,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Редактировать профиль",
-                                    fontFamily = montserratFont,
-                                    fontSize = 16.sp,
-                                    color = colorScheme.onSurface
-                                )
+            if (isOwnProfile) {
+                Box {
+                    var showEditMenu by remember { mutableStateOf(false) }
+                    IconButton(
+                        onClick = { showEditMenu = true },
+                        modifier = Modifier
+                            .background(Color.Gray.copy(alpha = 0.2f), shape = RoundedCornerShape(8.dp))
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_more128),
+                            contentDescription = "Menu",
+                            tint = colorScheme.onSurface
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showEditMenu,
+                        onDismissRequest = { showEditMenu = false },
+                        modifier = Modifier
+                            .background(colorScheme.surface)
+                            .align(Alignment.TopEnd)
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_edit64),
+                                        contentDescription = "Edit Profile",
+                                        tint = colorScheme.onSurface,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Редактировать профиль",
+                                        fontFamily = montserratFont,
+                                        fontSize = 16.sp,
+                                        color = colorScheme.onSurface
+                                    )
+                                }
+                            },
+                            onClick = {
+                                showEditMenu = false
+                                onNavigateEditProfile()
                             }
-                        },
-                        onClick = {
-                            showEditMenu = false
-                            onNavigateEditProfile()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_event64),
-                                    contentDescription = "Event Stats",
-                                    tint = colorScheme.onSurface,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Статистика мероприятий",
-                                    fontFamily = montserratFont,
-                                    fontSize = 16.sp,
-                                    color = colorScheme.onSurface
-                                )
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_event64),
+                                        contentDescription = "Event Stats",
+                                        tint = colorScheme.onSurface,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Статистика мероприятий",
+                                        fontFamily = montserratFont,
+                                        fontSize = 16.sp,
+                                        color = colorScheme.onSurface
+                                    )
+                                }
+                            },
+                            onClick = {
+                                showEditMenu = false
+                                // Заглушка для статистики
                             }
-                        },
-                        onClick = {
-                            showEditMenu = false
-                            // Заглушка для статистики мероприятий
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_leave64),
-                                    contentDescription = "Logout",
-                                    tint = colorScheme.onSurface,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Выйти из аккаунта",
-                                    fontFamily = montserratFont,
-                                    fontSize = 16.sp,
-                                    color = colorScheme.onSurface
-                                )
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_leave64),
+                                        contentDescription = "Logout",
+                                        tint = colorScheme.onSurface,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Выйти из аккаунта",
+                                        fontFamily = montserratFont,
+                                        fontSize = 16.sp,
+                                        color = colorScheme.onSurface
+                                    )
+                                }
+                            },
+                            onClick = {
+                                showEditMenu = false
+                                showLogoutDialog = true
                             }
-                        },
-                        onClick = {
-                            showEditMenu = false
-                            showLogoutDialog = true
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
-        if (showLogoutDialog) {
+
+        // Диалог подтверждения выхода
+        if (showLogoutDialog && isOwnProfile) {
             AlertDialog(
                 onDismissRequest = { showLogoutDialog = false },
                 title = {

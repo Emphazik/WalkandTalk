@@ -16,6 +16,7 @@ class SearchViewModel(
     override val container: Container<SearchViewState, SearchSideEffect> = container(SearchViewState())
     private var searchJob: Job? = null
     private var allUsers: List<User> = emptyList()
+    private val userCache = mutableMapOf<String, User>()
 
     init {
         loadUsers()
@@ -25,7 +26,11 @@ class SearchViewModel(
         reduce { state.copy(isLoading = true, error = null) }
         try {
             allUsers = usersRepository.fetchAll()
-            println("SearchViewModel: Loaded ${allUsers.size} users")
+            // Заполняем кэш
+            allUsers.forEach { user ->
+                userCache[user.id] = user
+            }
+            println("SearchViewModel: Loaded ${allUsers.size} users, cached ${userCache.size} users")
             // Собираем все interestIds
             val allInterestIds = allUsers.flatMap { it.interestIds }.distinct()
             val interestNames = usersRepository.fetchInterestNames(allInterestIds)
@@ -47,6 +52,8 @@ class SearchViewModel(
     }
 
     fun refreshUsers() = intent {
+        userCache.clear() // Очищаем кэш при обновлении
+        println("SearchViewModel: Cleared cache, refreshing users")
         loadUsers()
     }
 
@@ -73,8 +80,12 @@ class SearchViewModel(
             } else {
                 allUsers
             }
+            // Обновляем кэш для новых пользователей
+            users.forEach { user ->
+                userCache[user.id] = user
+            }
+            println("SearchViewModel: Filtered ${users.size} users for query=$query, cached ${userCache.size} users")
             val sortedUsers = applySort(users, query)
-            println("SearchViewModel: Filtered ${users.size} users for query=$query")
             reduce { state.copy(users = sortedUsers, isLoading = false) }
         } catch (e: Exception) {
             println("SearchViewModel: Search error=${e.message}")
@@ -90,7 +101,26 @@ class SearchViewModel(
     }
 
     fun onUserClick(userId: String) = intent {
-        postSideEffect(SearchSideEffect.NavigateToProfile(userId))
+        val cachedUser = userCache[userId]
+        if (cachedUser != null) {
+            println("SearchViewModel: Using cached user for userId=$userId")
+            postSideEffect(SearchSideEffect.NavigateToProfile(userId))
+        } else {
+            try {
+                val user = usersRepository.fetchById(userId)
+                if (user != null) {
+                    userCache[userId] = user
+                    println("SearchViewModel: Fetched and cached user for userId=$userId")
+                    postSideEffect(SearchSideEffect.NavigateToProfile(userId))
+                } else {
+                    println("SearchViewModel: User not found for userId=$userId")
+                    postSideEffect(SearchSideEffect.ShowError("Пользователь не найден"))
+                }
+            } catch (e: Exception) {
+                println("SearchViewModel: Error fetching userId=$userId, error=${e.message}")
+                postSideEffect(SearchSideEffect.ShowError(e.message ?: "Ошибка загрузки профиля"))
+            }
+        }
     }
 
     fun onMessageClick(userId: String) = intent {

@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import coil3.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -64,7 +65,10 @@ import ru.walkAndTalk.ui.screens.main.search.SearchViewModel
 import ru.walkAndTalk.ui.theme.montserratFont
 
 @Composable
-fun SearchScreen(viewModel: SearchViewModel = koinViewModel()) {
+fun SearchScreen(
+    viewModel: SearchViewModel = koinViewModel(),
+    navController: NavController
+) {
     val state by viewModel.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
     val snackbarHostState = remember { SnackbarHostState() }
@@ -171,8 +175,7 @@ fun SearchScreen(viewModel: SearchViewModel = koinViewModel()) {
     viewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
             is SearchSideEffect.NavigateToProfile -> {
-                // Навигация к профилю
-            }
+                navController.navigate("profile/${sideEffect.userId}")            }
 
             is SearchSideEffect.NavigateToMessage -> {
                 // Навигация к чату
