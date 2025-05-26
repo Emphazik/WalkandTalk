@@ -84,7 +84,14 @@ fun ChatScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = {
+                        navController.previousBackStackEntry?.savedStateHandle?.set(
+                            "refreshChats",
+                            true
+                        )
+                        navController.popBackStack()
+                        println("ChatScreen: Returning to ChatsScreen, set refreshChats=true")
+                    }) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Назад",
@@ -162,7 +169,9 @@ fun ChatScreen(
                         Icon(
                             imageVector = Icons.Default.Send,
                             contentDescription = "Отправить",
-                            tint = if (state.inputText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            tint = if (state.inputText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
+                                alpha = 0.5f
+                            )
                         )
                     }
                 }

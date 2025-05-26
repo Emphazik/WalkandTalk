@@ -19,16 +19,14 @@ class ChatsViewModel(
     private val chatCache = LruCache<String, Chat>(100)
 
     init {
-        loadChats(
-            userId = userId
-        )
+        loadChats(userId)
     }
 
     fun loadChats(userId: String) = intent {
         reduce { state.copy(isLoading = true, error = null) }
         try {
             val chats = chatsRepository.fetchUserChats(userId)
-            println("ChatsViewModel: Fetched ${chats.size} chats: $chats")
+            println("ChatsViewModel: Fetched ${chats.size} chats")
             reduce { state.copy(chats = chats, isLoading = false) }
         } catch (e: Exception) {
             println("ChatsViewModel: LoadChats error=${e.message}, stackTrace=${e.stackTraceToString()}")
@@ -40,40 +38,14 @@ class ChatsViewModel(
     fun refreshChats() = intent {
         chatCache.evictAll()
         println("ChatsViewModel: Cleared cache, refreshing chats")
-        loadChats(userId = userId)
+        loadChats(userId)
     }
 
     fun onChatClick(chatId: String) = intent {
-        val cachedChat = chatCache.get(chatId)
-        if (cachedChat != null) {
-            println("ChatsViewModel: Using cached chat id=$chatId")
-            postSideEffect(ChatsSideEffect.NavigateToChat(chatId))
-            // Асинхронное обновление кэша
-            try {
-                val updatedChat = chatsRepository.fetchChatById(chatId)
-                if (updatedChat != null) {
-                    chatCache.put(chatId, updatedChat)
-                    println("ChatsViewModel: Asynchronously updated cache for chat id=$chatId")
-                    reduce { state.copy(chats = state.chats.map { if (it.id == chatId) updatedChat else it }) }
-                }
-            } catch (e: Exception) {
-                println("ChatsViewModel: Async update error for chat id=$chatId, error=${e.message}")
-            }
-        } else {
-            try {
-                val chat = chatsRepository.fetchChatById(chatId)
-                if (chat != null) {
-                    chatCache.put(chatId, chat)
-                    println("ChatsViewModel: Fetched and cached chat id=$chatId")
-                    postSideEffect(ChatsSideEffect.NavigateToChat(chatId))
-                } else {
-                    postSideEffect(ChatsSideEffect.ShowError("Ошибка загрузки чата"))
-                }
-            } catch (e: Exception) {
-                println("ChatsViewModel: FetchChat error=${e.message}")
-                postSideEffect(ChatsSideEffect.ShowError(e.message ?: "Ошибка загрузки чата"))
-            }
-        }
+        postSideEffect(ChatsSideEffect.NavigateToChat(chatId))
+        // Очищаем кэш для этого чата, чтобы при возвращении данные обновились
+        chatCache.remove(chatId)
+        println("ChatsViewModel: Cleared cache for chat id=$chatId before navigation")
     }
 
     fun startPrivateChat(otherUserId: String) = intent {
@@ -82,7 +54,7 @@ class ChatsViewModel(
             chatCache.put(chat.id, chat)
             println("ChatsViewModel: Created private chat id=${chat.id} with userId=$otherUserId")
             postSideEffect(ChatsSideEffect.NavigateToChat(chat.id))
-            loadChats(userId = userId)
+            loadChats(userId)
         } catch (e: Exception) {
             println("ChatsViewModel: CreatePrivateChat error=${e.message}")
             postSideEffect(ChatsSideEffect.ShowError(e.message ?: "Ошибка создания чата"))
@@ -95,10 +67,63 @@ class ChatsViewModel(
             chatCache.put(chat.id, chat)
             println("ChatsViewModel: Created group chat id=${chat.id} for eventId=$eventId")
             postSideEffect(ChatsSideEffect.NavigateToChat(chat.id))
-            loadChats(userId = userId)
+            loadChats(userId)
         } catch (e: Exception) {
             println("ChatsViewModel: CreateGroupChat error=${e.message}")
             postSideEffect(ChatsSideEffect.ShowError(e.message ?: "Ошибка создания чата"))
         }
+    }
+
+
+    // Новые методы для контекстного меню
+
+    fun toggleMuteChat(chatId: String, mute: Boolean) = intent {
+        chatsRepository.toggleMuteChat(chatId, mute)
+        // Обновляем состояние только для измененного чата
+        val updatedChats = state.chats.map {
+            if (it.id == chatId) it.copy(isMuted = mute) else it
+        }
+        reduce { state.copy(chats = updatedChats) }
+    }
+
+    fun markChatAsRead(chatId: String) = intent {
+        chatsRepository.markChatAsRead(chatId, userId)
+        val updatedChats = state.chats.map {
+            if (it.id == chatId) it.copy(unreadCount = 0) else it
+        }
+        reduce { state.copy(chats = updatedChats) }
+    }
+
+    fun deleteChat(chatId: String) = intent {
+        try {
+            chatsRepository.deleteChat(chatId)
+            val updatedChats = state.chats.filter { it.id != chatId }
+            reduce { state.copy(chats = updatedChats) }
+            chatCache.remove(chatId)
+            println("ChatsViewModel: Deleted chat id=$chatId")
+        } catch (e: Exception) {
+            println("ChatsViewModel: DeleteChat error=${e.message}")
+            postSideEffect(ChatsSideEffect.ShowError(e.message ?: "Ошибка удаления чата"))
+        }
+    }
+
+    fun clearChatHistory(chatId: String) = intent {
+        try {
+            chatsRepository.clearChatHistory(chatId)
+            val updatedChats = state.chats.map {
+                if (it.id == chatId) {
+                    it.copy(lastMessage = null, lastMessageTime = null, unreadCount = getUnreadCount(chatId, userId))
+                } else it
+            }
+            reduce { state.copy(chats = updatedChats) }
+            println("ChatsViewModel: Cleared history for chat id=$chatId")
+        } catch (e: Exception) {
+            println("ChatsViewModel: ClearChatHistory error=${e.message}")
+            postSideEffect(ChatsSideEffect.ShowError(e.message ?: "Ошибка очистки истории"))
+        }
+    }
+
+    private suspend fun getUnreadCount(chatId: String, userId: String): Int? {
+        return chatsRepository.getUnreadCount(chatId, userId)
     }
 }

@@ -8,5 +8,6 @@ fun ChatParticipantDto.toDomain(): ChatParticipant {
         chatId = chatId,
         userId = userId,
         lastReadAt = lastReadAt
+
     )
 }

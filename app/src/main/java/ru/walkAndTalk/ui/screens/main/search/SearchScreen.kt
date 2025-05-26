@@ -209,8 +209,7 @@ fun UserCard(user: User, viewModel: SearchViewModel, interestNames: Map<String, 
         ) {
             // 1-я колонка: Аватарка
             Image(
-                painter = user.profileImageUrl.let { rememberAsyncImagePainter(it) }
-                    ?: painterResource(id = R.drawable.preview_profile),
+                painter = user.profileImageUrl.let { rememberAsyncImagePainter(it)},
                 contentDescription = user.name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
