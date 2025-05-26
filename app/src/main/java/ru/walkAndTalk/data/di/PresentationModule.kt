@@ -10,6 +10,7 @@ import ru.walkAndTalk.ui.screens.auth.register.RegisterViewModel
 import ru.walkAndTalk.ui.screens.main.chats.ChatsViewModel
 import ru.walkAndTalk.ui.screens.main.feed.FeedViewModel
 import ru.walkAndTalk.ui.screens.main.MainViewModel
+import ru.walkAndTalk.ui.screens.main.chats.detailchat.ChatViewModel
 import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsViewModel
 import ru.walkAndTalk.ui.screens.onboarding.OnboardingViewModel
 import ru.walkAndTalk.ui.screens.main.profile.ProfileViewModel
@@ -32,6 +33,7 @@ private val viewModelModule = module {
     viewModelOf(::ChatsViewModel)
     viewModelOf(::SearchViewModel)
     viewModelOf(::EventDetailsViewModel)
+    viewModelOf(::ChatViewModel)
 
 }
 

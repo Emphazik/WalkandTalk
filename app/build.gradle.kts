@@ -57,6 +57,7 @@ android {
 
 dependencies {
     /** Core **/
+    implementation(libs.androidx.foundation)
     implementation(libs.kotlinx.datetime)
     implementation(libs.androidx.datastore)
     implementation(libs.androidx.core.ktx)

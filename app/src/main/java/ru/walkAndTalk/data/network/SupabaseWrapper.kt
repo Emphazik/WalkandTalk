@@ -36,32 +36,3 @@ class SupabaseWrapper {
     val postgrest = client.postgrest
 }
 
-//suspend fun authenticateWithSupabase(vkToken: String) {
-//    try {
-//        val response = SupabaseWrapper.postgrest["users"].insert(
-//            mapOf(
-//                "vk_token" to vkToken,
-//                "created_at" to "now()"
-//            )
-//        )
-//        Log.d("SUPABASE", "Пользователь добавлен: $response")
-//    } catch (e: Exception) {
-//        Log.e("SUPABASE", "Ошибка: ${e.message}")
-//    }
-//}
-//
-//@Serializable
-//data class TestModel(
-//    val id: Int,
-//    val name: String
-//)
-//
-//suspend fun checkConnection() {
-//    try {
-//        val response = SupabaseWrapper.postgrest.from("test_table").select().decodeList<TestModel>()
-//        Log.d("Supabase", "Connection successful: $response")
-//    } catch (e: Exception) {
-//        Log.e("Supabase", "Connection failed: ${e.message}")
-//    }
-//}
-

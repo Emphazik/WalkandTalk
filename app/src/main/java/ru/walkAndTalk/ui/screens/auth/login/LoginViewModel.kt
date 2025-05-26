@@ -11,6 +11,7 @@ import org.orbitmvi.orbit.annotation.OrbitExperimental
 import ru.walkAndTalk.data.mapper.toUser
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.Regex
+import ru.walkAndTalk.domain.Table
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 import ru.walkAndTalk.domain.repository.VKUsersRepository
 import ru.walkAndTalk.ui.orbit.ContainerViewModel
@@ -38,7 +39,8 @@ class LoginViewModel(
             validateInputs()
             var email = state.email
             if (state.email.matches(Regex.PHONE)) {
-                val userData = supabaseWrapper.postgrest.from("users").select {
+
+                val userData = supabaseWrapper.postgrest.from(Table.USERS).select {
                     filter { eq("phone", state.email) }
                 }.decodeSingleOrNull<UserInfo>()
                 email = userData?.email ?: throw Exception("Телефон не зарегистрирован")

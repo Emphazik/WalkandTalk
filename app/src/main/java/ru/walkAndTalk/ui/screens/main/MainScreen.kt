@@ -63,7 +63,8 @@ import ru.walkAndTalk.ui.screens.EventDetails
 import ru.walkAndTalk.ui.screens.Feed
 import ru.walkAndTalk.ui.screens.Profile
 import ru.walkAndTalk.ui.screens.Search
-import ru.walkAndTalk.ui.screens.chat.ChatsScreen
+import ru.walkAndTalk.ui.screens.main.chats.ChatsScreen
+import ru.walkAndTalk.ui.screens.main.chats.detailchat.ChatScreen
 import ru.walkAndTalk.ui.screens.main.feed.FeedScreen
 import ru.walkAndTalk.ui.screens.main.feed.FeedSideEffect
 import ru.walkAndTalk.ui.screens.main.feed.FeedViewModel
@@ -122,10 +123,12 @@ fun MainScreen(
             val selected = when (tab.tabId) {
                 "feed" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Feed") == true ||
                         currentRoute?.startsWith("ru.walkAndTalk.ui.screens.EventDetails") == true
+
                 "search" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Search") == true
                 "chats" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Chats") == true
                 "profile" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Profile") == true ||
                         currentRoute?.startsWith("ru.walkAndTalk.ui.screens.EditProfile") == true
+
                 else -> false
             }
             println("MainScreen: Tab=${tab.label}, Route=${tab.route}, TabId=${tab.tabId}, Selected=$selected")
@@ -152,11 +155,13 @@ fun MainScreen(
                     val selected = when (item.tabId) {
                         "feed" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Feed") == true ||
                                 currentRoute?.startsWith("ru.walkAndTalk.ui.screens.EventDetails") == true
+
                         "search" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Search") == true
                         "chats" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Chats") == true
                         "profile" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Profile") == true ||
                                 currentRoute?.startsWith("ru.walkAndTalk.ui.screens.EditProfile") == true ||
                                 currentRoute?.startsWith("profile/") == true
+
                         else -> false
                     }
                     NavigationBarItem(
@@ -175,7 +180,9 @@ fun MainScreen(
                             Text(
                                 text = item.label,
                                 fontFamily = montserratFont,
-                                color = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.6f)
+                                color = if (selected) colorScheme.primary else colorScheme.onSurface.copy(
+                                    alpha = 0.6f
+                                )
                             )
                         },
                         icon = {
@@ -186,7 +193,9 @@ fun MainScreen(
                                 Icon(
                                     painter = painterResource(item.iconId),
                                     contentDescription = if (selected) "${item.label} (выбрано)" else item.label,
-                                    tint = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.6f),
+                                    tint = if (selected) colorScheme.primary else colorScheme.onSurface.copy(
+                                        alpha = 0.6f
+                                    ),
                                     modifier = Modifier.size(24.dp)
                                 )
                                 if (selected) {
@@ -272,7 +281,11 @@ fun MainScreen(
                 SearchScreen(navController = navController)
             }
             composable<Chats> {
-                ChatsScreen()
+                ChatsScreen(
+                    userId = userId,
+                    navController = navController,
+                    viewModel = koinViewModel(parameters = { parametersOf(userId) })
+                )
             }
             composable<Profile> {
                 ProfileScreen(
@@ -287,7 +300,8 @@ fun MainScreen(
                 route = "profile/{userId}",
                 arguments = listOf(navArgument("userId") { type = NavType.StringType })
             ) { backStackEntry ->
-                val profileUserId = backStackEntry.arguments?.getString("userId") ?: return@composable
+                val profileUserId =
+                    backStackEntry.arguments?.getString("userId") ?: return@composable
                 ProfileScreen(
                     viewModel = koinViewModel(parameters = { parametersOf(profileUserId) }),
                     onNavigateAuth = onNavigateAuth,
@@ -326,6 +340,27 @@ fun MainScreen(
                         }
                     )
                 )
+            }
+            composable(
+                route = "chat/{chatId}",
+                arguments = listOf(navArgument("chatId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val chatId = backStackEntry.arguments?.getString("chatId")
+                if (chatId != null) {
+                    ChatScreen(
+                        chatId = chatId,
+                        userId = userId,
+                        navController = navController,
+                        viewModel = koinViewModel(parameters = { parametersOf(chatId, userId) })
+                    )
+                } else {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Text(
+                            text = "Ошибка: ID чата не найден",
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                }
             }
         }
     }

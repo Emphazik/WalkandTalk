@@ -1,9 +1,5 @@
 package ru.walkAndTalk.ui.screens.main.profile
 
-import androidx.compose.runtime.Immutable
-import ru.walkAndTalk.domain.model.Interest
-
-@Immutable
 data class ProfileViewState(
     val name: String = "",
     val newName: String = "",

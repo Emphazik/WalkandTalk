@@ -239,6 +239,7 @@ fun ProfileScreen(
                     tint = colorScheme.onSurface
                 )
             }
+//            Spacer(modifier = Modifier.size(48.dp))
             if (isOwnProfile) {
                 Box {
                     var showEditMenu by remember { mutableStateOf(false) }

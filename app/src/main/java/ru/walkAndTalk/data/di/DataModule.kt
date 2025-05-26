@@ -14,11 +14,13 @@ import ru.walkAndTalk.data.repository.EventParticipantsRepositoryImpl
 import ru.walkAndTalk.data.repository.EventsRepositoryImpl
 import ru.walkAndTalk.data.repository.InterestsRepositoryImpl
 import ru.walkAndTalk.data.repository.LocalDataStoreRepositoryImpl
+import ru.walkAndTalk.data.repository.MessagesRepositoryImpl
 import ru.walkAndTalk.data.repository.RemoteUsersRepositoryImpl
 import ru.walkAndTalk.data.repository.StorageRepositoryImpl
 import ru.walkAndTalk.data.repository.UserEventRepositoryImpl
 import ru.walkAndTalk.data.repository.UserInterestsRepositoryImpl
 import ru.walkAndTalk.data.repository.VKUsersRepositoryImpl
+import ru.walkAndTalk.domain.model.Message
 import ru.walkAndTalk.domain.repository.AuthRepository
 import ru.walkAndTalk.domain.repository.ChatsRepository
 import ru.walkAndTalk.domain.repository.CityKnowledgeLevelRepository
@@ -27,6 +29,7 @@ import ru.walkAndTalk.domain.repository.EventParticipantsRepository
 import ru.walkAndTalk.domain.repository.EventsRepository
 import ru.walkAndTalk.domain.repository.InterestsRepository
 import ru.walkAndTalk.domain.repository.LocalDataStoreRepository
+import ru.walkAndTalk.domain.repository.MessagesRepository
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 import ru.walkAndTalk.domain.repository.StorageRepository
 import ru.walkAndTalk.domain.repository.UserEventRepository
@@ -52,6 +55,7 @@ private val repositoryModule = module {
     singleOf(::EventParticipantsRepositoryImpl) {bind<EventParticipantsRepository>()}
     singleOf(::AuthRepositoryImpl) { bind<AuthRepository>() }
     singleOf(::EventInterestsRepositoryImpl) {bind<EventInterestsRepository>()}
+    singleOf(::MessagesRepositoryImpl) {bind<MessagesRepository>()}
 }
 private val serviceModule = module {
     single { LocationService(get()) } // Предоставляем Context через androidContext()

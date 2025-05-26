@@ -1,7 +1,11 @@
 package ru.walkAndTalk.ui.screens.main.search
 
-sealed class SearchSideEffect {
-    data class NavigateToProfile(val userId: String) : SearchSideEffect()
-    data class NavigateToMessage(val userId: String) : SearchSideEffect()
-    data class ShowError(val message: String) : SearchSideEffect()
-}
+import ru.walkAndTalk.domain.model.User
+
+data class SearchViewState(
+    val users: List<User> = emptyList(),
+    val searchQuery: String = "",
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val interestNames: Map<String, String> = emptyMap() // ID интереса -> Название
+)
