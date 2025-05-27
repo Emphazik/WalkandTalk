@@ -33,4 +33,12 @@ class MessagesRepositoryImpl(
         supabaseWrapper.postgrest.from(Table.MESSAGES).insert(messageDto)
         println("MessagesRepository: Sent message to chatId=$chatId: $messageDto")
     }
+
+    override suspend fun markMessageAsRead(messageId: String) {
+        supabaseWrapper.postgrest.from(Table.MESSAGES)
+            .update(mapOf("is_read" to true)) {
+                filter { eq("id", messageId) } // Правильный синтаксис для фильтрации
+            }
+        println("MessagesRepository: Marked message as read: $messageId")
+    }
 }

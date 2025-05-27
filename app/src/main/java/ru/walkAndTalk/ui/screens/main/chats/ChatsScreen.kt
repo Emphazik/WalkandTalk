@@ -99,7 +99,6 @@ fun ChatsScreen(
             }
         }
     }
-
     // Подход 2: Через currentBackStackEntryFlow
     LaunchedEffect(navController) {
         navController.currentBackStackEntryFlow.collect { backStackEntry ->
