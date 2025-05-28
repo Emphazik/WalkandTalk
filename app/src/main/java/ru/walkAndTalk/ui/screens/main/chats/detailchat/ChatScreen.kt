@@ -1,7 +1,12 @@
 package ru.walkAndTalk.ui.screens.main.chats.detailchat
 
 import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,6 +57,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -87,7 +93,11 @@ fun ChatScreen(
     var showBottomSheet by remember { mutableStateOf(false) }
     val lazyListState = rememberLazyListState()
 
-    // Определяем, виден ли последний элемент
+    var editingMessageId by remember { mutableStateOf<String?>(null) }
+    var editingText by remember { mutableStateOf("") }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     val isScrolledUp by remember {
         derivedStateOf {
             val lastVisibleItemIndex = lazyListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
@@ -95,7 +105,6 @@ fun ChatScreen(
         }
     }
 
-    // Прокручиваем к последнему сообщению при первой загрузке
     LaunchedEffect(state.messages, state.isLoading) {
         if (!state.isLoading && state.messages.isNotEmpty()) {
             lazyListState.scrollToItem(state.messages.size - 1)
@@ -103,7 +112,6 @@ fun ChatScreen(
         }
     }
 
-    // Прокручиваем к последнему сообщению при получении нового сообщения
     LaunchedEffect(state.messages.size) {
         if (state.messages.isNotEmpty()) {
             lazyListState.animateScrollToItem(state.messages.size - 1)
@@ -116,6 +124,13 @@ fun ChatScreen(
             is ChatSideEffect.ShowError -> {
                 coroutineScope.launch {
                     snackbarHostState.showSnackbar(sideEffect.message)
+                    println("ChatScreen: Showing error snackbar: ${sideEffect.message}")
+                }
+            }
+            is ChatSideEffect.ShowCopySuccess -> {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(sideEffect.message)
+                    println("ChatScreen: Showing copy success snackbar: ${sideEffect.message}")
                 }
             }
         }
@@ -127,19 +142,33 @@ fun ChatScreen(
             TopAppBar(
                 expandedHeight = 32.dp,
                 title = {
-                    Text(
-                        text = state.chat?.participantName ?: state.chat?.eventName ?: "Чат",
-                        fontFamily = montserratFont,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    if (state.selectedMessageIds.isEmpty()) {
+                        Text(
+                            text = state.chat?.participantName ?: state.chat?.eventName ?: "Чат",
+                            fontFamily = montserratFont,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    } else {
+                        Text(
+                            text = "Выбрано: ${state.selectedMessageIds.size}",
+                            fontFamily = montserratFont,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = {
-                        navController.previousBackStackEntry?.savedStateHandle?.set("refreshChats", true)
-                        navController.popBackStack()
-                        println("ChatScreen: Returning to ChatsScreen, set refreshChats=true")
+                        if (state.selectedMessageIds.isNotEmpty()) {
+                            viewModel.onIntent(ChatIntent.ClearSelection())
+                        } else {
+                            navController.previousBackStackEntry?.savedStateHandle?.set("refreshChats", true)
+                            navController.popBackStack()
+                            println("ChatScreen: Returning to ChatsScreen, set refreshChats=true")
+                        }
                     }) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
@@ -149,25 +178,53 @@ fun ChatScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar("Поиск пока не реализован")
+                    if (state.selectedMessageIds.isEmpty()) {
+                        IconButton(onClick = {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Поиск пока не реализован")
+                            }
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Поиск",
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
                         }
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Поиск",
-                            tint = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                    IconButton(onClick = {
-                        showBottomSheet = true
-                    }) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_more128),
-                            contentDescription = "Меню",
-                            tint = MaterialTheme.colorScheme.onBackground
-                        )
+                        IconButton(onClick = {
+                            showBottomSheet = true
+                        }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_more128),
+                                contentDescription = "Меню",
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                    } else {
+                        if (state.selectedMessageIds.size == 1) {
+                            val selectedMessage = state.messages.first { it.id in state.selectedMessageIds }
+                            if (selectedMessage.senderId == userId) { // Ограничение для редактирования
+                                IconButton(onClick = {
+                                    editingMessageId = selectedMessage.id
+                                    editingText = selectedMessage.content
+                                    showEditDialog = true
+                                }) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_edit64),
+                                        contentDescription = "Редактировать",
+                                        tint = MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
+                            }
+                        }
+                        IconButton(onClick = {
+                            showDeleteDialog = true
+                        }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_delete64),
+                                contentDescription = "Удалить",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -254,7 +311,12 @@ fun ChatScreen(
                             items(messages) { message ->
                                 MessageItem(
                                     message = message,
-                                    currentUserId = userId
+                                    currentUserId = userId,
+                                    isSelected = message.id in state.selectedMessageIds,
+                                    onLongClick = {
+                                        viewModel.onIntent(ChatIntent.ToggleMessageSelection(message.id))
+                                    },
+                                    onCopy = { viewModel.onIntent(ChatIntent.ShowCopySuccess()) } // Только триггер
                                 )
                             }
                         }
@@ -283,7 +345,6 @@ fun ChatScreen(
                 )
             }
 
-            // Кнопка прокрутки вниз
             if (isScrolledUp) {
                 IconButton(
                     onClick = {
@@ -308,7 +369,6 @@ fun ChatScreen(
                 }
             }
 
-            // Контекстное меню (без изменений)
             if (showBottomSheet && state.chat != null) {
                 ModalBottomSheet(
                     onDismissRequest = {
@@ -454,7 +514,7 @@ fun ChatScreen(
                                 onDismissRequest = { showDeleteDialog = false },
                                 title = {
                                     Text(
-                                        text = "Удалить чат?",
+                                        text = "Удалить ${state.selectedMessageIds.size} сообщений?",
                                         fontFamily = montserratFont,
                                         fontSize = 18.sp,
                                         color = MaterialTheme.colorScheme.onSurface
@@ -462,7 +522,7 @@ fun ChatScreen(
                                 },
                                 text = {
                                     Text(
-                                        text = "Вы уверены, что хотите удалить этот чат? Это действие нельзя отменить.",
+                                        text = "Вы уверены, что хотите удалить выбранные сообщения локально? Это действие нельзя отменить.",
                                         fontFamily = montserratFont,
                                         fontSize = 14.sp,
                                         color = MaterialTheme.colorScheme.onSurface
@@ -471,12 +531,8 @@ fun ChatScreen(
                                 confirmButton = {
                                     TextButton(
                                         onClick = {
-                                            coroutineScope.launch {
-                                                viewModel.deleteChat(chatId)
-                                                showDeleteDialog = false
-                                                showBottomSheet = false
-                                                navController.popBackStack()
-                                            }
+                                            viewModel.onIntent(ChatIntent.DeleteMessages(state.selectedMessageIds.toList(), isLocal = true))
+                                            showDeleteDialog = false
                                         }
                                     ) {
                                         Text(
@@ -548,6 +604,112 @@ fun ChatScreen(
                     }
                 }
             }
+
+            if (showDeleteDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDeleteDialog = false },
+                    title = {
+                        Text(
+                            text = "Удалить ${state.selectedMessageIds.size} сообщений?",
+                            fontFamily = montserratFont,
+                            fontSize = 18.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "Вы уверены, что хотите удалить выбранные сообщения? Это действие нельзя отменить.",
+                            fontFamily = montserratFont,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                viewModel.onIntent(ChatIntent.DeleteMessages(state.selectedMessageIds.toList()))
+                                showDeleteDialog = false
+                            }
+                        ) {
+                            Text(
+                                text = "Удалить",
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showDeleteDialog = false }
+                        ) {
+                            Text(
+                                text = "Отмена",
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                )
+            }
+
+            if (showEditDialog && editingMessageId != null) {
+                AlertDialog(
+                    onDismissRequest = {
+                        showEditDialog = false
+                        editingMessageId = null
+                        editingText = ""
+                    },
+                    title = {
+                        Text(
+                            text = "Редактировать сообщение",
+                            fontFamily = montserratFont,
+                            fontSize = 18.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    text = {
+                        OutlinedTextField(
+                            value = editingText,
+                            onValueChange = { editingText = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Введите новый текст...") }
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                if (editingText.trim().isNotEmpty()) {
+                                    viewModel.onIntent(ChatIntent.EditMessage(editingMessageId!!, editingText.trim()))
+                                    showEditDialog = false
+                                    editingMessageId = null
+                                    editingText = ""
+                                } else {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Сообщение не может быть пустым")
+                                    }
+                                }
+                            }
+                        ) {
+                            Text(
+                                text = "Сохранить",
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = {
+                                showEditDialog = false
+                                editingMessageId = null
+                                editingText = ""
+                            }
+                        ) {
+                            Text(
+                                text = "Отмена",
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                )
+            }
         }
     }
 }
@@ -555,13 +717,30 @@ fun ChatScreen(
 @Composable
 fun MessageItem(
     message: Message,
-    currentUserId: String
+    currentUserId: String,
+    isSelected: Boolean = false,
+    onLongClick: () -> Unit,
+    onCopy: () -> Unit
 ) {
     val isOwnMessage = message.senderId == currentUserId
+    val context = LocalContext.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 8.dp)
+            .background(
+                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                else MaterialTheme.colorScheme.background
+            )
+            .combinedClickable(
+                onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clip = ClipData.newPlainText("Message", message.content)
+                    clipboard.setPrimaryClip(clip)
+                    onCopy() // Триггер для интента
+                },
+                onLongClick = onLongClick
+            ),
         horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically
     ) {

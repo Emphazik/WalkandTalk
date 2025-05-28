@@ -10,5 +10,7 @@ data class ChatViewState(
     val inputText: String = "",
     val currentUserId: String = "",
     val isLoading: Boolean = true,
-    val error: String? = null
+    val error: String? = null,
+    val isParticipantActive: Boolean = false, // Новое поле для активности собеседника
+    val selectedMessageIds: Set<String> = emptySet() // Добавили поле для выбранных сообщений
 )
