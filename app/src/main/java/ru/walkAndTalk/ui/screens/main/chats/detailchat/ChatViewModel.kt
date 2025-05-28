@@ -60,9 +60,7 @@ class ChatViewModel(
     }
 
     private fun sendMessage(chatId: String) = intent {
-        println("MessagesRepository: Sending message with content='$content'")
         try {
-
             // Обрезаем пробелы и переносы строк
             val trimmedContent = state.inputText.trim()
 
@@ -73,27 +71,30 @@ class ChatViewModel(
                 return@intent
             }
 
-            // Создаем сообщение локально
-            val message = Message(
+            // Создаем временное сообщение с локальным ID
+            val tempMessage = Message(
                 id = UUID.randomUUID().toString(),
                 chatId = chatId,
                 senderId = userId,
                 content = trimmedContent,
                 createdAt = OffsetDateTime.now().toString(),
-                isRead = false
+                isRead = true // Отправленные сообщения сразу помечаем как прочитанные
             )
 
-            // Добавляем сообщение в локальный список
-            reduce { state.copy(messages = state.messages + message, inputText = "") }
-            println("ChatViewModel: Locally added message: $message")
+            // Добавляем временное сообщение в локальный список
+            reduce { state.copy(messages = state.messages + tempMessage, inputText = "") }
+            println("ChatViewModel: Locally added temp message: $tempMessage")
 
-            // Отправляем сообщение на сервер
-            messagesRepository.sendMessage(
-                chatId = chatId,
-                senderId = userId,
-                content = trimmedContent // Используем обрезанный текст
-            )
-            println("ChatViewModel: Sent message to chatId=$chatId, content=$trimmedContent")
+            // Отправляем сообщение на сервер и получаем ответ
+            val serverMessage = messagesRepository.sendMessage(chatId, userId, trimmedContent)
+            println("ChatViewModel: Sent message to chatId=$chatId, server response: $serverMessage")
+
+            // Обновляем локальный список с серверным ID
+            val updatedMessages = state.messages.map {
+                if (it.id == tempMessage.id) it.copy(id = serverMessage.id, isRead = true) else it
+            }
+            reduce { state.copy(messages = updatedMessages) }
+            println("ChatViewModel: Updated message ID with server response: ${serverMessage.id}")
         } catch (e: Exception) {
             // Если отправка не удалась, откатываем локальное добавление
             reduce { state.copy(messages = state.messages.dropLast(1), inputText = state.inputText) }
@@ -176,15 +177,16 @@ class ChatViewModel(
                         return@collect
                     }
 
-                    // Проверяем, не добавлено ли сообщение локально
-                    if (state.messages.none { it.id == message.id }) {
-                        reduce { state.copy(messages = state.messages + message) }
-                        println("ChatViewModel: Received new message for chatId=$chatId, message=$message")
-                        if (message.senderId != userId) {
-                            markMessageAsRead(message)
-                        }
-                    } else {
-                        println("ChatViewModel: Message already exists locally, id=${message.id}")
+                    // Проверяем, не является ли это отправленным нами сообщением
+                    if (state.messages.any { it.content == message.content && it.senderId == message.senderId }) {
+                        println("ChatViewModel: Ignoring duplicate message from Realtime, id=${message.id}")
+                        return@collect
+                    }
+
+                    reduce { state.copy(messages = state.messages + message) }
+                    println("ChatViewModel: Received new message for chatId=$chatId, message=$message")
+                    if (message.senderId != userId) {
+                        markMessageAsRead(message)
                     }
                 }
             }

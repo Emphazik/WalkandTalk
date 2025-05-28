@@ -21,17 +21,22 @@ class MessagesRepositoryImpl(
             .also { println("MessagesRepository: Fetched ${it.size} messages for chatId=$chatId") }
     }
 
-    override suspend fun sendMessage(chatId: String, senderId: String, content: String) {
+    override suspend fun sendMessage(chatId: String, senderId: String, content: String): Message {
         val messageDto = MessageDto(
-            id = UUID.randomUUID().toString(),
+            id = UUID.randomUUID().toString(), // Локальный ID как запасной вариант
             chatId = chatId,
             senderId = senderId,
             content = content,
             createdAt = OffsetDateTime.now().toString(),
             isRead = false
         )
-        supabaseWrapper.postgrest.from(Table.MESSAGES).insert(messageDto)
-        println("MessagesRepository: Sent message to chatId=$chatId: $messageDto")
+        val response = supabaseWrapper.postgrest.from(Table.MESSAGES)
+            .insert(messageDto)
+        val lastMessage = supabaseWrapper.postgrest.from(Table.MESSAGES)
+            .select { filter { eq("chat_id", chatId) }; order("created_at", Order.DESCENDING); limit(1) }
+            .decodeSingle<MessageDto>()
+        return lastMessage.toDomain()
+        println("MessagesRepository: Sent message to chatId=$chatId: $response")
     }
 
     override suspend fun markMessageAsRead(messageId: String) {
