@@ -44,56 +44,22 @@ class ChatViewModel(
     private lateinit var messagesChannel: RealtimeChannel
     private lateinit var participantsChannel: RealtimeChannel
 
-    fun onIntent(intent: ChatIntent) = intent {
-        when (intent) {
-            is ChatIntent.UpdateInputText -> reduce { state.copy(inputText = intent.text) }
-            is ChatIntent.SendMessage -> sendMessage(intent.chatId)
-            is ChatIntent.DeleteMessages -> {
-                val messagesToDelete = state.messages.filter { it.id in intent.messageIds && it.senderId == userId }
-                if (messagesToDelete.isNotEmpty()) {
-                    if (intent.isLocal) {
-                        val updatedMessages = state.messages.filterNot { it.id in intent.messageIds }
-                        reduce { state.copy(messages = updatedMessages, selectedMessageIds = emptySet()) }
-                        println("ChatViewModel: Locally deleted messages: ${intent.messageIds}")
-                    } else {
-                        try {
-                            messagesRepository.deleteMessages(intent.messageIds)
-                            val updatedMessages = state.messages.filterNot { it.id in intent.messageIds }
-                            reduce { state.copy(messages = updatedMessages, selectedMessageIds = emptySet()) }
-                            println("ChatViewModel: Deleted messages on server: ${intent.messageIds}")
-                        } catch (e: Exception) {
-                            postSideEffect(ChatSideEffect.ShowError("Не удалось удалить сообщения: ${e.message}"))
-                            println("ChatViewModel: Error deleting messages: ${e.message}")
-                        }
-                    }
-                } else {
-                    postSideEffect(ChatSideEffect.ShowError("Вы не можете удалить сообщения собеседника"))
-                    println("ChatViewModel: No permission to delete messages: ${intent.messageIds}")
-                }
-            }
-            is ChatIntent.EditMessage -> {
-                val messageToEdit = state.messages.find { it.id == intent.messageId && it.senderId == userId }
-                if (messageToEdit != null) {
-                    try {
-                        val updatedMessage = messagesRepository.editMessage(intent.messageId, intent.newContent)
-                        val updatedMessages = state.messages.map { if (it.id == intent.messageId) updatedMessage else it }
-                        reduce { state.copy(messages = updatedMessages, selectedMessageIds = emptySet()) }
-                        println("ChatViewModel: Edited message id=${intent.messageId}, newContent=${intent.newContent}")
-                    } catch (e: Exception) {
-                        postSideEffect(ChatSideEffect.ShowError("Не удалось отредактировать сообщение: ${e.message}"))
-                        println("ChatViewModel: Error editing message: ${e.message}")
-                    }
-                } else {
-                    postSideEffect(ChatSideEffect.ShowError("Вы не можете редактировать это сообщение"))
-                    println("ChatViewModel: No permission to edit message: ${intent.messageId}")
-                }
-            }
-            is ChatIntent.ToggleMessageSelection -> toggleMessageSelection(intent.messageId)
-            is ChatIntent.ClearSelection -> reduce { state.copy(selectedMessageIds = emptySet()) }
-            is ChatIntent.ShowCopySuccess -> postSideEffect(ChatSideEffect.ShowCopySuccess(intent.message))
-        }
+    fun onInputTextChange(value: String) = intent {
+        reduce { state.copy(inputText = value) }
     }
-    private fun loadChat() = intent {
+
+    fun clearSelection() = intent {
+        reduce { state.copy(selectedMessageIds = emptySet()) }
+    }
+
+    fun showCopySuccess(message: String? = null) = intent {
+        val sideEffect = message?.let {
+            ChatSideEffect.ShowCopySuccess(it)
+        } ?: ChatSideEffect.ShowCopySuccess()
+        postSideEffect(sideEffect)
+    }
+
+    fun loadChat() = intent {
         try {
             val chat = chatsRepository.fetchChatById(chatId)
             val messages = messagesRepository.fetchMessages(chatId)
@@ -104,6 +70,34 @@ class ChatViewModel(
             reduce { state.copy(isLoading = false, error = e.message) }
             postSideEffect(ChatSideEffect.ShowError(e.message ?: "Ошибка загрузки чата"))
             println("ChatViewModel: Error loading chat: ${e.message}")
+        }
+    }
+
+    fun onDeleteMessagesClick(
+        messageIds: List<String>,
+        isLocal: Boolean = false
+    ) = intent {
+        val messagesToDelete = state.messages.filter { it.id in messageIds && it.senderId == userId }
+        if (messagesToDelete.isNotEmpty()) {
+            if (isLocal) {
+                val updatedMessages = state.messages.filterNot { it.id in messageIds }
+                reduce { state.copy(messages = updatedMessages, selectedMessageIds = emptySet()) }
+                println("ChatViewModel: Locally deleted messages: $messageIds")
+            } else {
+                try {
+                    messagesRepository.deleteMessages(messageIds)
+                    val updatedMessages = state.messages.filterNot { it.id in messageIds }
+                    reduce { state.copy(messages = updatedMessages, selectedMessageIds = emptySet()) }
+                    println("ChatViewModel: Deleted messages on server: $messageIds")
+                } catch (e: Exception) {
+                    postSideEffect(ChatSideEffect.ShowError("Не удалось удалить сообщения: ${e.message}"))
+                    println("ChatViewModel: Error deleting messages: ${e.message}")
+                }
+            }
+            toggleShowDeleteDialog()
+        } else {
+            postSideEffect(ChatSideEffect.ShowError("Вы не можете удалить сообщения собеседника"))
+            println("ChatViewModel: No permission to delete messages: $messageIds")
         }
     }
 
@@ -119,21 +113,44 @@ class ChatViewModel(
         }
     }
 
-    private fun editMessage(messageId: String, newContent: String) = intent {
-        try {
-            val updatedMessage = messagesRepository.editMessage(messageId, newContent)
-            val updatedMessages = state.messages.map {
-                if (it.id == messageId) updatedMessage else it
-            }
-            reduce { state.copy(messages = updatedMessages, selectedMessageIds = emptySet()) }
-            println("ChatViewModel: Edited message id=$messageId, newContent=$newContent")
-        } catch (e: Exception) {
-            postSideEffect(ChatSideEffect.ShowError(e.message ?: "Ошибка редактирования сообщения"))
-            println("ChatViewModel: Error editing message: ${e.message}")
+    fun onEditClick(message: Message) = intent {
+        reduce {
+            state.copy(
+                editingMessageId = message.id,
+                inputText = message.content,
+                showEditDialog = true,
+            )
         }
     }
 
-    private fun toggleMessageSelection(messageId: String) = intent {
+    fun editMessage(messageId: String, value: String) = intent {
+        val messageToEdit = state.messages.find { it.id == messageId && it.senderId == userId }
+        if (messageToEdit != null) {
+            try {
+                val updatedMessage = messagesRepository.editMessage(messageId, value)
+                val updatedMessages = state.messages.map { if (it.id == messageId) updatedMessage else it }
+                reduce { state.copy(messages = updatedMessages, selectedMessageIds = emptySet(), editingMessageId = null) }
+                println("ChatViewModel: Edited message id=$messageId, newContent=$value")
+                toggleShowEditDialog()
+            } catch (e: Exception) {
+                postSideEffect(ChatSideEffect.ShowError("Не удалось отредактировать сообщение: ${e.message}"))
+                println("ChatViewModel: Error editing message: ${e.message}")
+            }
+        } else {
+            postSideEffect(ChatSideEffect.ShowError("Вы не можете редактировать это сообщение"))
+            println("ChatViewModel: No permission to edit message: $messageId")
+        }
+    }
+
+    fun toggleShowDeleteDialog() = intent {
+        reduce { state.copy(showDeleteDialog = !state.showDeleteDialog) }
+    }
+
+    fun toggleShowEditDialog() = intent {
+        reduce { state.copy(showEditDialog = !state.showEditDialog) }
+    }
+
+    fun toggleMessageSelection(messageId: String) = intent {
         val currentSelection = state.selectedMessageIds
         val newSelection = if (messageId in currentSelection) {
             currentSelection - messageId
@@ -144,7 +161,7 @@ class ChatViewModel(
         println("ChatViewModel: Toggled selection, selectedMessageIds=$newSelection")
     }
 
-    private fun sendMessage(chatId: String) = intent {
+    fun onSendMessageClick(chatId: String) = intent {
         try {
             val trimmedContent = state.inputText.trim()
             if (trimmedContent.isEmpty()) {

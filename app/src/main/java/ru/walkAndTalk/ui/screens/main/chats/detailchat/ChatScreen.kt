@@ -5,7 +5,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,10 +24,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -70,7 +69,6 @@ import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import ru.walkAndTalk.R
 import ru.walkAndTalk.domain.model.Message
-import ru.walkAndTalk.ui.screens.main.chats.formatMessageTime
 import ru.walkAndTalk.ui.theme.montserratFont
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
@@ -92,11 +90,6 @@ fun ChatScreen(
     val sheetState = rememberModalBottomSheetState()
     var showBottomSheet by remember { mutableStateOf(false) }
     val lazyListState = rememberLazyListState()
-
-    var editingMessageId by remember { mutableStateOf<String?>(null) }
-    var editingText by remember { mutableStateOf("") }
-    var showEditDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
 
     val isScrolledUp by remember {
         derivedStateOf {
@@ -163,7 +156,7 @@ fun ChatScreen(
                 navigationIcon = {
                     IconButton(onClick = {
                         if (state.selectedMessageIds.isNotEmpty()) {
-                            viewModel.onIntent(ChatIntent.ClearSelection())
+                            viewModel.clearSelection()
                         } else {
                             navController.previousBackStackEntry?.savedStateHandle?.set("refreshChats", true)
                             navController.popBackStack()
@@ -171,7 +164,7 @@ fun ChatScreen(
                         }
                     }) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Назад",
                             tint = MaterialTheme.colorScheme.onBackground
                         )
@@ -203,11 +196,9 @@ fun ChatScreen(
                         if (state.selectedMessageIds.size == 1) {
                             val selectedMessage = state.messages.first { it.id in state.selectedMessageIds }
                             if (selectedMessage.senderId == userId) { // Ограничение для редактирования
-                                IconButton(onClick = {
-                                    editingMessageId = selectedMessage.id
-                                    editingText = selectedMessage.content
-                                    showEditDialog = true
-                                }) {
+                                IconButton(
+                                    onClick = { viewModel.onEditClick(selectedMessage) }
+                                ) {
                                     Icon(
                                         painter = painterResource(id = R.drawable.ic_edit64),
                                         contentDescription = "Редактировать",
@@ -216,9 +207,9 @@ fun ChatScreen(
                                 }
                             }
                         }
-                        IconButton(onClick = {
-                            showDeleteDialog = true
-                        }) {
+                        IconButton(
+                            onClick = { viewModel.toggleShowDeleteDialog() }
+                        ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_delete64),
                                 contentDescription = "Удалить",
@@ -314,9 +305,9 @@ fun ChatScreen(
                                     currentUserId = userId,
                                     isSelected = message.id in state.selectedMessageIds,
                                     onLongClick = {
-                                        viewModel.onIntent(ChatIntent.ToggleMessageSelection(message.id))
+                                        viewModel.toggleMessageSelection(message.id)
                                     },
-                                    onCopy = { viewModel.onIntent(ChatIntent.ShowCopySuccess()) } // Только триггер
+                                    onCopy = { viewModel.showCopySuccess() } // Только триггер
                                 )
                             }
                         }
@@ -325,18 +316,18 @@ fun ChatScreen(
 
                 OutlinedTextField(
                     value = state.inputText,
-                    onValueChange = { viewModel.onIntent(ChatIntent.UpdateInputText(it)) },
+                    onValueChange = { viewModel.onInputTextChange(it) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.background),
                     placeholder = { Text("Введите сообщение...") },
                     trailingIcon = {
                         IconButton(
-                            onClick = { viewModel.onIntent(ChatIntent.SendMessage(chatId)) },
+                            onClick = { viewModel.onSendMessageClick(chatId) },
                             enabled = state.inputText.isNotBlank()
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Send,
+                                imageVector = Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Отправить",
                                 tint = if (state.inputText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )
@@ -377,7 +368,6 @@ fun ChatScreen(
                     sheetState = sheetState,
                     containerColor = MaterialTheme.colorScheme.surface
                 ) {
-                    var showDeleteDialog by remember { mutableStateOf(false) }
                     var showClearHistoryDialog by remember { mutableStateOf(false) }
 
                     Column(
@@ -486,7 +476,7 @@ fun ChatScreen(
                             }
                         }
                         TextButton(
-                            onClick = { showDeleteDialog = true },
+                            onClick = { viewModel.toggleShowDeleteDialog() },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -509,9 +499,9 @@ fun ChatScreen(
                         }
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        if (showDeleteDialog) {
+                        if (state.showDeleteDialog) {
                             AlertDialog(
-                                onDismissRequest = { showDeleteDialog = false },
+                                onDismissRequest = { viewModel.toggleShowDeleteDialog() },
                                 title = {
                                     Text(
                                         text = "Удалить ${state.selectedMessageIds.size} сообщений?",
@@ -531,8 +521,7 @@ fun ChatScreen(
                                 confirmButton = {
                                     TextButton(
                                         onClick = {
-                                            viewModel.onIntent(ChatIntent.DeleteMessages(state.selectedMessageIds.toList(), isLocal = true))
-                                            showDeleteDialog = false
+                                            viewModel.onDeleteMessagesClick(state.selectedMessageIds.toList(), isLocal = true)
                                         }
                                     ) {
                                         Text(
@@ -543,7 +532,7 @@ fun ChatScreen(
                                 },
                                 dismissButton = {
                                     TextButton(
-                                        onClick = { showDeleteDialog = false }
+                                        onClick = { viewModel.toggleShowDeleteDialog() }
                                     ) {
                                         Text(
                                             text = "Отмена",
@@ -605,9 +594,9 @@ fun ChatScreen(
                 }
             }
 
-            if (showDeleteDialog) {
+            if (state.showDeleteDialog) {
                 AlertDialog(
-                    onDismissRequest = { showDeleteDialog = false },
+                    onDismissRequest = { viewModel.toggleShowDeleteDialog() },
                     title = {
                         Text(
                             text = "Удалить ${state.selectedMessageIds.size} сообщений?",
@@ -627,8 +616,7 @@ fun ChatScreen(
                     confirmButton = {
                         TextButton(
                             onClick = {
-                                viewModel.onIntent(ChatIntent.DeleteMessages(state.selectedMessageIds.toList()))
-                                showDeleteDialog = false
+                                viewModel.onDeleteMessagesClick(state.selectedMessageIds.toList())
                             }
                         ) {
                             Text(
@@ -639,7 +627,7 @@ fun ChatScreen(
                     },
                     dismissButton = {
                         TextButton(
-                            onClick = { showDeleteDialog = false }
+                            onClick = { viewModel.toggleShowDeleteDialog() }
                         ) {
                             Text(
                                 text = "Отмена",
@@ -650,13 +638,9 @@ fun ChatScreen(
                 )
             }
 
-            if (showEditDialog && editingMessageId != null) {
+            if (state.showEditDialog && state.editingMessageId != null) {
                 AlertDialog(
-                    onDismissRequest = {
-                        showEditDialog = false
-                        editingMessageId = null
-                        editingText = ""
-                    },
+                    onDismissRequest = { viewModel.toggleShowEditDialog() },
                     title = {
                         Text(
                             text = "Редактировать сообщение",
@@ -667,8 +651,8 @@ fun ChatScreen(
                     },
                     text = {
                         OutlinedTextField(
-                            value = editingText,
-                            onValueChange = { editingText = it },
+                            value = state.inputText,
+                            onValueChange = { viewModel.onInputTextChange(it) },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text("Введите новый текст...") }
                         )
@@ -676,11 +660,8 @@ fun ChatScreen(
                     confirmButton = {
                         TextButton(
                             onClick = {
-                                if (editingText.trim().isNotEmpty()) {
-                                    viewModel.onIntent(ChatIntent.EditMessage(editingMessageId!!, editingText.trim()))
-                                    showEditDialog = false
-                                    editingMessageId = null
-                                    editingText = ""
+                                if (state.inputText.trim().isNotEmpty()) {
+                                    viewModel.editMessage(state.editingMessageId!!, state.inputText.trim())
                                 } else {
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar("Сообщение не может быть пустым")
@@ -697,9 +678,7 @@ fun ChatScreen(
                     dismissButton = {
                         TextButton(
                             onClick = {
-                                showEditDialog = false
-                                editingMessageId = null
-                                editingText = ""
+                                viewModel.toggleShowEditDialog()
                             }
                         ) {
                             Text(
