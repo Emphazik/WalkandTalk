@@ -7,5 +7,6 @@ data class Message(
     val content: String,
     val createdAt: String,
     val isRead: Boolean,
-    val tempId: String? = null // Временный ID для локальных сообщений
+    val tempId: String? = null, // Временный ID для локальных сообщений
+    val deletedBy: List<String>? = null
 )

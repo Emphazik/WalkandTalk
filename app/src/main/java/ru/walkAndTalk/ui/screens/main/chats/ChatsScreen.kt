@@ -94,7 +94,6 @@ fun ChatsScreen(
             if (shouldRefresh) {
                 viewModel.loadChats(userId)
                 println("ChatsScreen: Refreshed chats after returning from ChatScreen (via savedStateHandle)")
-                // Сбрасываем флаг, чтобы избежать повторного срабатывания
                 navController.currentBackStackEntry?.savedStateHandle?.set("refreshChats", false)
             }
         }

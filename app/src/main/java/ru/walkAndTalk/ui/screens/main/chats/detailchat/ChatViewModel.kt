@@ -19,9 +19,11 @@ import io.github.jan.supabase.realtime.channel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull.content
 import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -42,12 +44,13 @@ class ChatViewModel(
         subscribeToMessages()
         subscribeToParticipantActivity()
         subscribeToMessageReadUpdates()
-        startPollingMessages() // Запускаем опрос
+        startPollingMessages()
     }
 
     private lateinit var messagesChannel: RealtimeChannel
     private lateinit var participantsChannel: RealtimeChannel
-    private var pollingJob: Job? = null // Для управления опросом
+    private var pollingJob: Job? = null
+    private var isSubscribed = false // Флаг для предотвращения повторной подписки
 
     // Функция для запуска опроса
     private fun startPollingMessages() = intent {
@@ -95,10 +98,12 @@ class ChatViewModel(
             markAllMessagesAsRead(messages)
         } catch (e: Exception) {
             reduce { state.copy(isLoading = false, error = e.message) }
-            postSideEffect(ChatSideEffect.ShowError(e.message ?: "Ошибка загрузки чата"))
+            postSideEffect(ChatSideEffect.ShowError("Не удалось загрузить чат. Проверьте соединение или попробуйте позже."))
             println("ChatViewModel: Error loading chat: ${e.message}")
         }
     }
+
+
 
     fun onEditClick(message: Message) = intent {
         reduce {
@@ -220,6 +225,10 @@ class ChatViewModel(
     }
 
     private fun subscribeToMessages() = intent {
+        if (isSubscribed) {
+            println("ChatViewModel: Already subscribed to messages for chatId=$chatId")
+            return@intent
+        }
         try {
             messagesChannel = supabaseWrapper.realtime.channel("messages-channel-$chatId")
             println("ChatViewModel: Subscribing to channel: messages-channel-$chatId")
@@ -248,6 +257,14 @@ class ChatViewModel(
                     val content = record["content"]?.jsonPrimitive?.content ?: ""
                     val createdAt = record["created_at"]?.jsonPrimitive?.content ?: ""
                     val isRead = record["is_read"]?.jsonPrimitive?.boolean ?: false
+                    // Обрабатываем deleted_by как JsonArray
+                    val deletedBy = record["deleted_by"]?.let { element ->
+                        if (element is JsonArray) {
+                            element.mapNotNull { it.jsonPrimitive.contentOrNull }
+                        } else {
+                            emptyList()
+                        }
+                    } ?: emptyList()
 
                     if (messageId.isEmpty() || content.isEmpty()) {
                         println("ChatViewModel: Received invalid message from Realtime, id=$messageId")
@@ -260,7 +277,9 @@ class ChatViewModel(
                         senderId = senderId,
                         content = content,
                         createdAt = createdAt,
-                        isRead = isRead
+                        isRead = isRead,
+                        tempId = null, // Поле отсутствует в базе, устанавливаем null
+                        deletedBy = deletedBy
                     )
 
                     if (state.messages.any { it.id == messageId || (it.tempId != null && it.senderId == senderId && it.content == content) }) {
@@ -268,7 +287,12 @@ class ChatViewModel(
                         return@collect
                     }
 
-                    reduce { state.copy(messages = state.messages + message) }
+                    reduce {
+                        val updatedMessages = (state.messages + message).sortedBy {
+                            OffsetDateTime.parse(it.createdAt).toInstant().toEpochMilli()
+                        }
+                        state.copy(messages = updatedMessages)
+                    }
                     println("ChatViewModel: Received new message for chatId=$chatId, message=$message")
                     if (message.senderId != userId) {
                         markMessageAsRead(message)
@@ -302,14 +326,18 @@ class ChatViewModel(
 
             println("ChatViewModel: Attempting to subscribe to messages channel for chatId=$chatId")
             messagesChannel.subscribe()
+            isSubscribed = true
             println("ChatViewModel: Successfully subscribed to messages for chatId=$chatId")
         } catch (e: Exception) {
             println("ChatViewModel: Error subscribing to messages: ${e.message}")
-            postSideEffect(ChatSideEffect.ShowError("Ошибка подписки на сообщения: ${e.message}"))
-        }
+            postSideEffect(ChatSideEffect.ShowError("Не удалось подключиться к обновлениям сообщений. Пожалуйста, перезайдите в чат или проверьте интернет-соединение."))        }
     }
 
     private fun subscribeToMessageReadUpdates() = intent {
+        if (!isSubscribed) {
+            println("ChatViewModel: Cannot subscribe to message read updates, not subscribed to messages channel")
+            return@intent
+        }
         try {
             val updateFlow = messagesChannel.postgresChangeFlow<PostgresAction.Update>(
                 schema = "public"
@@ -335,21 +363,6 @@ class ChatViewModel(
         }
     }
 
-    private fun updateParticipantLastSeen() = intent {
-        try {
-            supabaseWrapper.postgrest.from("chat_participants")
-                .update(
-                    mapOf("last_seen" to OffsetDateTime.now().toString())
-                ) {
-                    filter { eq("chat_id", chatId) }
-                    filter { eq("user_id", userId) }
-                }
-            println("ChatViewModel: Updated lastSeen for userId=$userId in chatId=$chatId")
-        } catch (e: Exception) {
-            println("ChatViewModel: Error updating lastSeen: ${e.message}")
-        }
-    }
-
     private fun subscribeToParticipantActivity() = intent {
         try {
             participantsChannel = supabaseWrapper.realtime.channel("participants-channel-$chatId")
@@ -358,7 +371,7 @@ class ChatViewModel(
                 schema = "public"
             ) {
                 filter("chat_id", FilterOperator.EQ, chatId)
-                filter("user_id", FilterOperator.NEQ, userId) // Исправили NOT_EQ на NEQ
+                filter("user_id", FilterOperator.NEQ, userId)
             }
 
             viewModelScope.launch {
@@ -384,6 +397,39 @@ class ChatViewModel(
             println("ChatViewModel: Successfully subscribed to participant activity for chatId=$chatId")
         } catch (e: Exception) {
             println("ChatViewModel: Error subscribing to participant activity: ${e.message}")
+            postSideEffect(ChatSideEffect.ShowError("Не удалось обновить статус участников. Попробуйте перезайти в чат позже."))        }
+    }
+
+    override fun onCleared() {
+        viewModelScope.launch {
+            pollingJob?.cancel()
+            println("ChatViewModel: Stopped polling messages for chatId=$chatId")
+            if (::messagesChannel.isInitialized) {
+                messagesChannel.unsubscribe()
+                supabaseWrapper.realtime.removeChannel(messagesChannel)
+            }
+            if (::participantsChannel.isInitialized) {
+                participantsChannel.unsubscribe()
+                supabaseWrapper.realtime.removeChannel(participantsChannel)
+            }
+            isSubscribed = false // Сбрасываем флаг
+            println("ChatViewModel: Unsubscribed from channels for chatId=$chatId")
+        }
+        super.onCleared()
+    }
+
+    private fun updateParticipantLastSeen() = intent {
+        try {
+            supabaseWrapper.postgrest.from("chat_participants")
+                .update(
+                    mapOf("last_seen" to OffsetDateTime.now().toString())
+                ) {
+                    filter { eq("chat_id", chatId) }
+                    filter { eq("user_id", userId) }
+                }
+            println("ChatViewModel: Updated lastSeen for userId=$userId in chatId=$chatId")
+        } catch (e: Exception) {
+            println("ChatViewModel: Error updating lastSeen: ${e.message}")
         }
     }
 
@@ -461,26 +507,15 @@ class ChatViewModel(
 
     fun clearChatHistory(chatId: String) = intent {
         try {
-            chatsRepository.clearChatHistory(chatId)
+            chatsRepository.clearChatHistory(chatId, userId)
             val updatedChat = state.chat?.copy(lastMessage = null, lastMessageTime = null, unreadCount = 0)
             reduce { state.copy(chat = updatedChat, messages = emptyList()) }
-            println("ChatViewModel: Cleared history for chatId=$chatId")
+            println("ChatViewModel: Cleared history for chatId=$chatId for userId=$userId")
         } catch (e: Exception) {
-            postSideEffect(ChatSideEffect.ShowError(e.message ?: "Ошибка очистки истории"))
+            postSideEffect(ChatSideEffect.ShowError("Не удалось очистить историю чата. Пожалуйста, попробуйте еще раз или обратитесь в поддержку."))
             println("ChatViewModel: Error clearing history: ${e.message}")
         }
     }
 
-    override fun onCleared() {
-        viewModelScope.launch {
-            pollingJob?.cancel()
-            println("ChatViewModel: Stopped polling messages for chatId=$chatId")
-            messagesChannel.unsubscribe()
-            participantsChannel.unsubscribe()
-            supabaseWrapper.realtime.removeChannel(messagesChannel)
-            supabaseWrapper.realtime.removeChannel(participantsChannel)
-            println("ChatViewModel: Unsubscribed from channels for chatId=$chatId")
-        }
-        super.onCleared()
-    }
+
 }

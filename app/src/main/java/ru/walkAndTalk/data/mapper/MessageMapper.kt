@@ -10,6 +10,8 @@ fun MessageDto.toDomain(): Message {
         senderId = senderId,
         content = content,
         createdAt = createdAt,
-        isRead = isRead
+        isRead = isRead,
+        tempId = null, // Поле отсутствует в базе
+        deletedBy = deletedBy
     )
 }

@@ -286,14 +286,6 @@ class ChatsRepositoryImpl(
     }
 
     // Новые методы для контекстного меню
-//
-//    override suspend fun toggleMuteChat(chatId: String, mute: Boolean) {
-//        supabaseWrapper.postgrest.from(Table.CHATS)
-//            .update(mapOf("is_muted" to mute)) {
-//                filter { eq("id", chatId) }
-//            }
-//        println("ChatsRepository: Chat id=$chatId mute set to $mute")
-//    }
 
     override suspend fun markChatAsRead(chatId: String, userId: String) {
         val currentTime = OffsetDateTime.now().toString()
@@ -309,28 +301,52 @@ class ChatsRepositoryImpl(
     }
 
     override suspend fun deleteChat(chatId: String) {
-        supabaseWrapper.postgrest.from(Table.CHAT_PARTICIPANTS)
-            .delete { filter { eq("chat_id", chatId) } }
-        supabaseWrapper.postgrest.from(Table.MESSAGES)
-            .delete { filter { eq("chat_id", chatId) } }
-        supabaseWrapper.postgrest.from(Table.CHATS)
-            .delete { filter { eq("id", chatId) } }
-        println("ChatsRepository: Deleted chat id=$chatId")
-    }
-
-    override suspend fun clearChatHistory(chatId: String) {
-        val currentUserId = supabaseWrapper.auth.currentUserOrNull()?.id
-        if (currentUserId != null) {
+        try {
             // Удаляем сообщения
             supabaseWrapper.postgrest.from(Table.MESSAGES)
-                .delete { filter { eq("chat_id", chatId) } }
-            // Сбрасываем last_read_at для пересчета unreadCount
-            supabaseWrapper.postgrest.from(Table.CHAT_PARTICIPANTS)
-                .update(mapOf("last_read_at" to null)) {
-                    filter { eq("chat_id", chatId); eq("user_id", currentUserId) }
+                .delete {
+                    filter { eq("chat_id", chatId) }
                 }
+            // Удаляем участников чата
+            supabaseWrapper.postgrest.from(Table.CHAT_PARTICIPANTS)
+                .delete {
+                    filter { eq("chat_id", chatId) }
+                }
+            // Удаляем сам чат
+            supabaseWrapper.postgrest.from(Table.CHATS)
+                .delete {
+                    filter { eq("id", chatId) }
+                }
+            println("ChatsRepository: Deleted chatId=$chatId")
+        } catch (e: Exception) {
+            println("ChatsRepository: Error deleting chat: ${e.message}, stacktrace: ${e.stackTraceToString()}")
+            throw e
         }
-        println("ChatsRepository: Cleared history for chat id=$chatId and reset last_read_at")
+    }
+
+    override suspend fun clearChatHistory(chatId: String, userId: String) {
+        try {
+            val messages = supabaseWrapper.postgrest.from(Table.MESSAGES)
+                .select {
+                    filter { eq("chat_id", chatId) }
+                }.decodeList<MessageDto>()
+
+            messages.forEach { message ->
+                val updatedDeletedBy = (message.deletedBy ?: emptyList()).toMutableList().apply {
+                    if (!contains(userId)) add(userId)
+                }
+                supabaseWrapper.postgrest.from(Table.MESSAGES)
+                    .update(
+                        mapOf("deleted_by" to updatedDeletedBy)
+                    ) {
+                        filter { eq("id", message.id) }
+                    }
+            }
+            println("ChatsRepository: Cleared history for chatId=$chatId for userId=$userId")
+        } catch (e: Exception) {
+            println("ChatsRepository: Error clearing history: ${e.message}, stacktrace: ${e.stackTraceToString()}")
+            throw e
+        }
     }
 
     override suspend fun fetchUsersForChats(chatIds: List<String>): List<User> {

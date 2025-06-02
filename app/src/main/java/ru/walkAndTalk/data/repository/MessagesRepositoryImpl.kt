@@ -14,12 +14,22 @@ import java.util.UUID
 class MessagesRepositoryImpl(
     private val supabaseWrapper: SupabaseWrapper
 ) : MessagesRepository {
+
     override suspend fun fetchMessages(chatId: String): List<Message> {
-        return supabaseWrapper.postgrest.from(Table.MESSAGES)
-            .select { filter { eq("chat_id", chatId) }; order("created_at", Order.ASCENDING) }
-            .decodeList<MessageDto>()
-            .map { it.toDomain() }
-            .also { println("MessagesRepository: Fetched ${it.size} messages for chatId=$chatId") }
+        return try {
+            val response = supabaseWrapper.postgrest.from(Table.MESSAGES)
+                .select {
+                    filter { eq("chat_id", chatId) }
+                    order("created_at", Order.ASCENDING)
+                }.decodeList<MessageDto>()
+            val currentUserId = supabaseWrapper.auth.currentUserOrNull()?.id
+            response.map { it.toDomain() }.filterNot { message ->
+                message.deletedBy?.contains(currentUserId) == true
+            }
+        } catch (e: Exception) {
+            println("MessagesRepository: Error fetching messages: ${e.message}, stacktrace: ${e.stackTraceToString()}")
+            throw e
+        }
     }
 
     override suspend fun sendMessage(chatId: String, senderId: String, content: String): Message {

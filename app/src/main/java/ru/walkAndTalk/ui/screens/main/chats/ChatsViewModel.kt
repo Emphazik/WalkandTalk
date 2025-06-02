@@ -109,7 +109,7 @@ class ChatsViewModel(
 
     fun clearChatHistory(chatId: String) = intent {
         try {
-            chatsRepository.clearChatHistory(chatId)
+            chatsRepository.clearChatHistory(chatId, userId)
             val updatedChats = state.chats.map {
                 if (it.id == chatId) {
                     it.copy(lastMessage = null, lastMessageTime = null, unreadCount = getUnreadCount(chatId, userId))
@@ -119,8 +119,7 @@ class ChatsViewModel(
             println("ChatsViewModel: Cleared history for chat id=$chatId")
         } catch (e: Exception) {
             println("ChatsViewModel: ClearChatHistory error=${e.message}")
-            postSideEffect(ChatsSideEffect.ShowError(e.message ?: "Ошибка очистки истории"))
-        }
+            postSideEffect(ChatsSideEffect.ShowError("Не удалось очистить историю чата. Пожалуйста, попробуйте еще раз или обратитесь в поддержку, если проблема сохраняется."))        }
     }
 
     private suspend fun getUnreadCount(chatId: String, userId: String): Int? {

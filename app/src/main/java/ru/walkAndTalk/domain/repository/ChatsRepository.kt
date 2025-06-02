@@ -12,5 +12,5 @@ interface ChatsRepository {
     suspend fun toggleMuteChat(chatId: String, mute: Boolean) // Новое
     suspend fun markChatAsRead(chatId: String, userId: String) // Новое
     suspend fun deleteChat(chatId: String) // Новое
-    suspend fun clearChatHistory(chatId: String) // Новое
+    suspend fun clearChatHistory(chatId: String, userId: String)
 }
