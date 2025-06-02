@@ -43,7 +43,7 @@ class MessagesRepositoryImpl(
     override suspend fun markMessageAsRead(messageId: String) {
         supabaseWrapper.postgrest.from(Table.MESSAGES)
             .update(mapOf("is_read" to true)) {
-                filter { eq("id", messageId) } // Правильный синтаксис для фильтрации
+                filter { eq("id", messageId) }
             }
         println("MessagesRepository: Marked message as read: $messageId")
     }
@@ -55,17 +55,14 @@ class MessagesRepositoryImpl(
                 return
             }
 
-            val query = supabaseWrapper.postgrest.from("messages")
-                .delete {
-                    filter {
-                        eq("id", messageIds.first()) // Для отладки попробуем удалить одно сообщение
-                        if (messageIds.size > 1) {
-                            "id" in messageIds.drop(1) // Добавляем остальные ID через IN
-                        }
+            messageIds.forEach { messageId ->
+                supabaseWrapper.postgrest.from(Table.MESSAGES)
+                    .delete {
+                        filter { eq("id", messageId) }
+                        filter { eq("sender_id", supabaseWrapper.auth.currentUserOrNull()?.id ?: "") } // Проверка RLS
                     }
-                }
-            println("MessagesRepository: Delete query: $query, messageIds: $messageIds")
-            println("MessagesRepository: Deleted messages: $messageIds")
+                println("MessagesRepository: Successfully deleted message: $messageId")
+            }
         } catch (e: Exception) {
             println("MessagesRepository: Error deleting messages: ${e.message}, stacktrace: ${e.stackTraceToString()}")
             throw e

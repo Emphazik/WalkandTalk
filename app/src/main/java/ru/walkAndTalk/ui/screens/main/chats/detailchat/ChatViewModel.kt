@@ -16,6 +16,9 @@ import io.github.jan.supabase.realtime.postgresChangeFlow
 import kotlinx.coroutines.launch
 import io.github.jan.supabase.realtime.RealtimeChannelBuilder
 import io.github.jan.supabase.realtime.channel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull.content
 import kotlinx.serialization.json.boolean
@@ -39,10 +42,34 @@ class ChatViewModel(
         subscribeToMessages()
         subscribeToParticipantActivity()
         subscribeToMessageReadUpdates()
+        startPollingMessages() // Запускаем опрос
     }
 
     private lateinit var messagesChannel: RealtimeChannel
     private lateinit var participantsChannel: RealtimeChannel
+    private var pollingJob: Job? = null // Для управления опросом
+
+    // Функция для запуска опроса
+    private fun startPollingMessages() = intent {
+        pollingJob?.cancel() // Отменяем предыдущий опрос, если он был
+        pollingJob = viewModelScope.launch {
+            while (isActive) {
+                try {
+                    val updatedMessages = messagesRepository.fetchMessages(chatId)
+                    if (updatedMessages != state.messages) {
+                        reduce { state.copy(messages = updatedMessages) }
+                        println("ChatViewModel: Polling updated messages for chatId=$chatId, count=${updatedMessages.size}")
+                    } else {
+                        println("ChatViewModel: Polling - no new messages for chatId=$chatId")
+                    }
+                } catch (e: Exception) {
+                    println("ChatViewModel: Polling error for chatId=$chatId: ${e.message}")
+                }
+                delay(5000) // 5 секунд
+            }
+        }
+        println("ChatViewModel: Started polling messages for chatId=$chatId")
+    }
 
     fun onInputTextChange(value: String) = intent {
         reduce { state.copy(inputText = value) }
@@ -73,10 +100,44 @@ class ChatViewModel(
         }
     }
 
-    fun onDeleteMessagesClick(
-        messageIds: List<String>,
-        isLocal: Boolean = false
-    ) = intent {
+    fun onEditClick(message: Message) = intent {
+        reduce {
+            state.copy(
+                editingMessageId = message.id,
+                inputText = message.content,
+                showEditDialog = true,
+            )
+        }
+    }
+
+    fun editMessage(messageId: String, value: String) = intent {
+        val messageToEdit = state.messages.find { it.id == messageId && it.senderId == userId }
+        if (messageToEdit != null) {
+            try {
+                val updatedMessage = messagesRepository.editMessage(messageId, value)
+                val updatedMessages = state.messages.map { if (it.id == messageId) updatedMessage else it }
+                reduce {
+                    state.copy(
+                        messages = updatedMessages,
+                        selectedMessageIds = emptySet(),
+                        editingMessageId = null,
+                        inputText = "", // Очищаем текстовое поле
+                        showEditDialog = false // Закрываем диалог
+                    )
+                }
+
+                println("ChatViewModel: Edited message id=$messageId, newContent=$value, inputText cleared")
+            } catch (e: Exception) {
+                postSideEffect(ChatSideEffect.ShowError("Не удалось отредактировать сообщение: ${e.message}"))
+                println("ChatViewModel: Error editing message: ${e.message}")
+            }
+        } else {
+            postSideEffect(ChatSideEffect.ShowError("Вы не можете редактировать это сообщение"))
+            println("ChatViewModel: No permission to edit message: $messageId")
+        }
+    }
+
+    fun onDeleteMessagesClick(messageIds: List<String>, isLocal: Boolean = false) = intent {
         val messagesToDelete = state.messages.filter { it.id in messageIds && it.senderId == userId }
         if (messagesToDelete.isNotEmpty()) {
             if (isLocal) {
@@ -94,51 +155,11 @@ class ChatViewModel(
                     println("ChatViewModel: Error deleting messages: ${e.message}")
                 }
             }
-            toggleShowDeleteDialog()
+            toggleShowDeleteDialog() // Закрываем диалог после действия
         } else {
             postSideEffect(ChatSideEffect.ShowError("Вы не можете удалить сообщения собеседника"))
             println("ChatViewModel: No permission to delete messages: $messageIds")
-        }
-    }
-
-    private fun deleteMessages(messageIds: List<String>) = intent {
-        try {
-            messagesRepository.deleteMessages(messageIds)
-            val updatedMessages = state.messages.filter { it.id !in messageIds }
-            reduce { state.copy(messages = updatedMessages, selectedMessageIds = emptySet()) }
-            println("ChatViewModel: Deleted messages: $messageIds")
-        } catch (e: Exception) {
-            postSideEffect(ChatSideEffect.ShowError(e.message ?: "Ошибка удаления сообщений"))
-            println("ChatViewModel: Error deleting messages: ${e.message}")
-        }
-    }
-
-    fun onEditClick(message: Message) = intent {
-        reduce {
-            state.copy(
-                editingMessageId = message.id,
-                inputText = message.content,
-                showEditDialog = true,
-            )
-        }
-    }
-
-    fun editMessage(messageId: String, value: String) = intent {
-        val messageToEdit = state.messages.find { it.id == messageId && it.senderId == userId }
-        if (messageToEdit != null) {
-            try {
-                val updatedMessage = messagesRepository.editMessage(messageId, value)
-                val updatedMessages = state.messages.map { if (it.id == messageId) updatedMessage else it }
-                reduce { state.copy(messages = updatedMessages, selectedMessageIds = emptySet(), editingMessageId = null) }
-                println("ChatViewModel: Edited message id=$messageId, newContent=$value")
-                toggleShowEditDialog()
-            } catch (e: Exception) {
-                postSideEffect(ChatSideEffect.ShowError("Не удалось отредактировать сообщение: ${e.message}"))
-                println("ChatViewModel: Error editing message: ${e.message}")
-            }
-        } else {
-            postSideEffect(ChatSideEffect.ShowError("Вы не можете редактировать это сообщение"))
-            println("ChatViewModel: No permission to edit message: $messageId")
+            toggleShowDeleteDialog() // Закрываем диалог при ошибке
         }
     }
 
@@ -201,21 +222,25 @@ class ChatViewModel(
     private fun subscribeToMessages() = intent {
         try {
             messagesChannel = supabaseWrapper.realtime.channel("messages-channel-$chatId")
+            println("ChatViewModel: Subscribing to channel: messages-channel-$chatId")
 
             val insertFlow = messagesChannel.postgresChangeFlow<PostgresAction.Insert>(
                 schema = "public"
             ) {
                 filter("chat_id", FilterOperator.EQ, chatId)
+                println("ChatViewModel: Insert filter set for chatId=$chatId")
             }
 
             val updateFlow = messagesChannel.postgresChangeFlow<PostgresAction.Update>(
                 schema = "public"
             ) {
                 filter("chat_id", FilterOperator.EQ, chatId)
+                println("ChatViewModel: Update filter set for chatId=$chatId")
             }
 
             viewModelScope.launch {
                 insertFlow.collect { payload ->
+                    println("ChatViewModel: Received insert payload: $payload")
                     val record = payload.record as Map<String, JsonElement>
                     val messageId = record["id"]?.jsonPrimitive?.content ?: ""
                     val messageChatId = record["chat_id"]?.jsonPrimitive?.content ?: ""
@@ -238,7 +263,6 @@ class ChatViewModel(
                         isRead = isRead
                     )
 
-                    // Проверяем, не является ли это сообщение уже добавленным через локальную отправку
                     if (state.messages.any { it.id == messageId || (it.tempId != null && it.senderId == senderId && it.content == content) }) {
                         println("ChatViewModel: Ignoring duplicate message from Realtime, id=$messageId")
                         return@collect
@@ -252,6 +276,7 @@ class ChatViewModel(
                 }
 
                 updateFlow.collect { payload ->
+                    println("ChatViewModel: Received update payload: $payload")
                     val record = payload.record as Map<String, JsonElement>
                     val messageId = record["id"]?.jsonPrimitive?.content ?: ""
                     val content = record["content"]?.jsonPrimitive?.content ?: ""
@@ -264,13 +289,14 @@ class ChatViewModel(
 
                     val updatedMessages = state.messages.map { msg ->
                         if (msg.id == messageId) {
+                            println("ChatViewModel: Updating message id=$messageId with content=$content, isRead=$isRead")
                             msg.copy(content = content, isRead = isRead)
                         } else {
                             msg
                         }
                     }
                     reduce { state.copy(messages = updatedMessages) }
-                    println("ChatViewModel: Updated message for id=$messageId, new content=$content, isRead=$isRead")
+                    println("ChatViewModel: Updated messages state: $updatedMessages")
                 }
             }
 
@@ -279,6 +305,7 @@ class ChatViewModel(
             println("ChatViewModel: Successfully subscribed to messages for chatId=$chatId")
         } catch (e: Exception) {
             println("ChatViewModel: Error subscribing to messages: ${e.message}")
+            postSideEffect(ChatSideEffect.ShowError("Ошибка подписки на сообщения: ${e.message}"))
         }
     }
 
@@ -372,16 +399,15 @@ class ChatViewModel(
             chatsRepository.markChatAsRead(chatId, userId)
             val updatedChat = state.chat?.copy(unreadCount = 0)
             reduce { state.copy(chat = updatedChat) }
-            // Обновляем lastReadAt для текущего пользователя
+            // Обновляем lastReadAt
             supabaseWrapper.postgrest.from("chat_participants")
-                .update(
-                    mapOf("last_read_at" to OffsetDateTime.now().toString())
-                ) {
+                .update(mapOf("last_read_at" to OffsetDateTime.now().toString())) {
                     filter { eq("chat_id", chatId) }
                     filter { eq("user_id", userId) }
                 }
         } catch (e: Exception) {
             println("ChatViewModel: Error marking messages as read: ${e.message}")
+            postSideEffect(ChatSideEffect.ShowError("Ошибка отметки сообщений как прочитанных: ${e.message}"))
         }
     }
 
@@ -392,9 +418,10 @@ class ChatViewModel(
                 if (it.id == message.id) it.copy(isRead = true) else it
             }
             reduce { state.copy(messages = updatedMessages) }
-            println("ChatViewModel: Marked new message as read: ${message.id}")
+            println("ChatViewModel: Marked message as read: ${message.id}, state.messages=${state.messages}")
         } catch (e: Exception) {
-            println("ChatViewModel: Error marking message as read: ${e.message}")
+            println("ChatViewModel: Error marking message as read: ${e.message}, stacktrace: ${e.stackTraceToString()}")
+            postSideEffect(ChatSideEffect.ShowError("Ошибка отметки сообщения как прочитанного: ${e.message}"))
         }
     }
 
@@ -446,6 +473,8 @@ class ChatViewModel(
 
     override fun onCleared() {
         viewModelScope.launch {
+            pollingJob?.cancel()
+            println("ChatViewModel: Stopped polling messages for chatId=$chatId")
             messagesChannel.unsubscribe()
             participantsChannel.unsubscribe()
             supabaseWrapper.realtime.removeChannel(messagesChannel)

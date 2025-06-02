@@ -120,6 +120,7 @@ fun ChatScreen(
                     println("ChatScreen: Showing error snackbar: ${sideEffect.message}")
                 }
             }
+
             is ChatSideEffect.ShowCopySuccess -> {
                 coroutineScope.launch {
                     snackbarHostState.showSnackbar(sideEffect.message)
@@ -158,7 +159,10 @@ fun ChatScreen(
                         if (state.selectedMessageIds.isNotEmpty()) {
                             viewModel.clearSelection()
                         } else {
-                            navController.previousBackStackEntry?.savedStateHandle?.set("refreshChats", true)
+                            navController.previousBackStackEntry?.savedStateHandle?.set(
+                                "refreshChats",
+                                true
+                            )
                             navController.popBackStack()
                             println("ChatScreen: Returning to ChatsScreen, set refreshChats=true")
                         }
@@ -194,7 +198,8 @@ fun ChatScreen(
                         }
                     } else {
                         if (state.selectedMessageIds.size == 1) {
-                            val selectedMessage = state.messages.first { it.id in state.selectedMessageIds }
+                            val selectedMessage =
+                                state.messages.first { it.id in state.selectedMessageIds }
                             if (selectedMessage.senderId == userId) { // Ограничение для редактирования
                                 IconButton(
                                     onClick = { viewModel.onEditClick(selectedMessage) }
@@ -269,7 +274,6 @@ fun ChatScreen(
                         val groupedMessages = state.messages.groupBy { message ->
                             OffsetDateTime.parse(message.createdAt).toLocalDate()
                         }
-
                         groupedMessages.entries.forEachIndexed { index, (date, messages) ->
                             item {
                                 Row(
@@ -282,7 +286,11 @@ fun ChatScreen(
                                         modifier = Modifier
                                             .weight(1f)
                                             .height(1.dp)
-                                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
+                                            .background(
+                                                MaterialTheme.colorScheme.onSurface.copy(
+                                                    alpha = 0.2f
+                                                )
+                                            )
                                     )
                                     Text(
                                         text = formatDateForSeparator(messages.first().createdAt),
@@ -295,7 +303,11 @@ fun ChatScreen(
                                         modifier = Modifier
                                             .weight(1f)
                                             .height(1.dp)
-                                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
+                                            .background(
+                                                MaterialTheme.colorScheme.onSurface.copy(
+                                                    alpha = 0.2f
+                                                )
+                                            )
                                     )
                                 }
                             }
@@ -307,7 +319,7 @@ fun ChatScreen(
                                     onLongClick = {
                                         viewModel.toggleMessageSelection(message.id)
                                     },
-                                    onCopy = { viewModel.showCopySuccess() } // Только триггер
+                                    onCopy = { viewModel.showCopySuccess() }
                                 )
                             }
                         }
@@ -319,6 +331,7 @@ fun ChatScreen(
                     onValueChange = { viewModel.onInputTextChange(it) },
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(5.dp)
                         .background(MaterialTheme.colorScheme.background),
                     placeholder = { Text("Введите сообщение...") },
                     trailingIcon = {
@@ -329,7 +342,9 @@ fun ChatScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Отправить",
-                                tint = if (state.inputText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                tint = if (state.inputText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = 0.5f
+                                )
                             )
                         }
                     }
@@ -380,7 +395,8 @@ fun ChatScreen(
                             modifier = Modifier.padding(bottom = 16.dp)
                         ) {
                             Text(
-                                text = state.chat?.participantName ?: state.chat?.eventName ?: "Чат",
+                                text = state.chat?.participantName ?: state.chat?.eventName
+                                ?: "Чат",
                                 fontFamily = montserratFont,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
@@ -398,7 +414,10 @@ fun ChatScreen(
                         TextButton(
                             onClick = {
                                 coroutineScope.launch {
-                                    viewModel.toggleMuteChat(chatId, !(state.chat?.isMuted ?: false))
+                                    viewModel.toggleMuteChat(
+                                        chatId,
+                                        !(state.chat?.isMuted ?: false)
+                                    )
                                     showBottomSheet = false
                                 }
                             },
@@ -502,42 +521,23 @@ fun ChatScreen(
                         if (state.showDeleteDialog) {
                             AlertDialog(
                                 onDismissRequest = { viewModel.toggleShowDeleteDialog() },
-                                title = {
-                                    Text(
-                                        text = "Удалить ${state.selectedMessageIds.size} сообщений?",
-                                        fontFamily = montserratFont,
-                                        fontSize = 18.sp,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                },
-                                text = {
-                                    Text(
-                                        text = "Вы уверены, что хотите удалить выбранные сообщения локально? Это действие нельзя отменить.",
-                                        fontFamily = montserratFont,
-                                        fontSize = 14.sp,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                },
+                                title = { Text("Удаление сообщений") },
+                                text = { Text("Вы уверены, что хотите удалить ${state.selectedMessageIds.size} выбранных сообщений?") },
                                 confirmButton = {
                                     TextButton(
                                         onClick = {
-                                            viewModel.onDeleteMessagesClick(state.selectedMessageIds.toList(), isLocal = true)
+                                            viewModel.onDeleteMessagesClick(
+                                                state.selectedMessageIds.toList(),
+                                                isLocal = false
+                                            )
                                         }
                                     ) {
-                                        Text(
-                                            text = "Удалить",
-                                            color = MaterialTheme.colorScheme.error
-                                        )
+                                        Text("Удалить")
                                     }
                                 },
                                 dismissButton = {
-                                    TextButton(
-                                        onClick = { viewModel.toggleShowDeleteDialog() }
-                                    ) {
-                                        Text(
-                                            text = "Отмена",
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
+                                    TextButton(onClick = { viewModel.toggleShowDeleteDialog() }) {
+                                        Text("Отмена")
                                     }
                                 }
                             )
@@ -661,7 +661,10 @@ fun ChatScreen(
                         TextButton(
                             onClick = {
                                 if (state.inputText.trim().isNotEmpty()) {
-                                    viewModel.editMessage(state.editingMessageId!!, state.inputText.trim())
+                                    viewModel.editMessage(
+                                        state.editingMessageId!!,
+                                        state.inputText.trim()
+                                    )
                                 } else {
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar("Сообщение не может быть пустым")
@@ -713,7 +716,8 @@ fun MessageItem(
             )
             .combinedClickable(
                 onClick = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clipboard =
+                        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     val clip = ClipData.newPlainText("Message", message.content)
                     clipboard.setPrimaryClip(clip)
                     onCopy() // Триггер для интента
@@ -790,8 +794,14 @@ fun formatDateForSeparator(time: String): String {
         when {
             date == now.toLocalDate() -> "Сегодня"
             date == yesterday -> "Вчера"
-            date.year == now.year -> SimpleDateFormat("dd MMMM", Locale.getDefault()).format(offsetDateTime.toInstant().toEpochMilli())
-            else -> SimpleDateFormat("dd MMMM yyyy", Locale.getDefault()).format(offsetDateTime.toInstant().toEpochMilli())
+            date.year == now.year -> SimpleDateFormat("dd MMMM", Locale.getDefault()).format(
+                offsetDateTime.toInstant().toEpochMilli()
+            )
+
+            else -> SimpleDateFormat(
+                "dd MMMM yyyy",
+                Locale.getDefault()
+            ).format(offsetDateTime.toInstant().toEpochMilli())
         }
     } catch (e: Exception) {
         println("ChatScreen: Error parsing date for separator: $e")
