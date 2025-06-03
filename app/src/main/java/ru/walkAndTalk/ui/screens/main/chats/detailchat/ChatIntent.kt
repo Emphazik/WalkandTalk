@@ -7,5 +7,5 @@ sealed class ChatIntent {
     data class EditMessage(val messageId: String, val newContent: String) : ChatIntent()
     data class ToggleMessageSelection(val messageId: String) : ChatIntent()
     class ClearSelection : ChatIntent()
-    data class ShowCopySuccess(val message: String = "Текст скопирован") : ChatIntent()
+    data class ShowCopySuccess(val message: String = "Текст успешно скопирован") : ChatIntent()
 }

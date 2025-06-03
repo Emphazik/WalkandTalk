@@ -21,6 +21,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -36,6 +38,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -54,6 +58,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -88,7 +93,6 @@ fun ChatsScreen(
     var selectedChat by remember { mutableStateOf<Chat?>(null) }
     var showBottomSheet by remember { mutableStateOf(false) }
 
-    // Подход 1: Через savedStateHandle
     LaunchedEffect(Unit) {
         navController.currentBackStackEntry?.savedStateHandle?.getLiveData<Boolean>("refreshChats")?.observeForever { shouldRefresh ->
             if (shouldRefresh) {
@@ -98,7 +102,7 @@ fun ChatsScreen(
             }
         }
     }
-    // Подход 2: Через currentBackStackEntryFlow
+
     LaunchedEffect(navController) {
         navController.currentBackStackEntryFlow.collect { backStackEntry ->
             println("ChatsScreen: Current route=${backStackEntry.destination.route}")
@@ -115,7 +119,6 @@ fun ChatsScreen(
                 navController.navigate("chat/${sideEffect.chatId}")
                 println("ChatsScreen: Navigate to chat id=${sideEffect.chatId}")
             }
-
             is ChatsSideEffect.ShowError -> {
                 coroutineScope.launch {
                     snackbarHostState.showSnackbar(sideEffect.message)
@@ -124,49 +127,123 @@ fun ChatsScreen(
         }
     }
 
-    // UI
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                expandedHeight = 32.dp,
-                title = {
-                    Text(
-                        text = "Чаты",
-                        fontFamily = montserratFont,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                },
-                actions = {
-                    IconButton(onClick = {
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar("Поиск пока не реализован")
+            if (state.isSearchActive) {
+                // Режим поиска
+                TopAppBar(
+                    title = {
+                        TextField(
+                            value = state.searchQuery,
+                            onValueChange = { viewModel.updateSearchQuery(it) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .padding(horizontal = 8.dp)
+                                .background(Color.White, shape = RoundedCornerShape(8.dp)), // Явный фон с закруглением
+                            placeholder = {
+                                Text(
+                                    text = "Поиск чатов...",
+                                    fontSize = 16.sp,
+                                    fontFamily = montserratFont,
+                                    color = Color.Gray // Серый для плейсхолдера
+                                )
+                            },
+                            textStyle = TextStyle(
+                                fontSize = 16.sp,
+                                fontFamily = montserratFont,
+                                color = Color.Black // Текст ввода черный
+                            ),
+                            singleLine = true,
+                            colors = TextFieldDefaults.colors(
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                cursorColor = Color.Black, // Явный цвет курсора
+                                focusedTextColor = Color.Black, // Цвет текста при фокусе
+                                unfocusedTextColor = Color.Black // Цвет текста без фокуса
+                            ),
+                            trailingIcon = {
+                                if (state.searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Очистить поиск",
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { viewModel.toggleSearch() }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Отменить поиск",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Поиск",
-                            tint = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                    IconButton(onClick = {
-                        viewModel.loadChats(userId)
-                        println("ChatsScreen: Refresh chats triggered")
-                    }) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_refresh64),
-                            contentDescription = "Обновить",
-                            tint = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                    },
+                    actions = {
+                        IconButton(onClick = { /* Дополнительные действия поиска, если нужны */ }) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Поиск",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        titleContentColor = MaterialTheme.colorScheme.onBackground
+                    )
                 )
-            )
+            } else {
+                // Обычный режим
+                TopAppBar(
+                    expandedHeight = 32.dp,
+                    title = {
+                        Text(
+                            text = "Чаты",
+                            fontFamily = montserratFont,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    },
+                    actions = {
+                        IconButton(onClick = { viewModel.toggleSearch() }) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Поиск",
+                                tint = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        IconButton(onClick = {
+                            viewModel.loadChats(userId)
+                            println("ChatsScreen: Refresh chats triggered")
+                        }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_refresh64),
+                                contentDescription = "Обновить",
+                                tint = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        titleContentColor = MaterialTheme.colorScheme.onBackground
+                    )
+                )
+            }
         }
     ) { innerPadding ->
         Box(
@@ -183,7 +260,6 @@ fun ChatsScreen(
                         CircularProgressIndicator()
                     }
                 }
-
                 state.error != null -> {
                     Text(
                         text = "Ошибка: ${state.error}",
@@ -191,7 +267,6 @@ fun ChatsScreen(
                         modifier = Modifier.padding(16.dp)
                     )
                 }
-
                 state.chats.isEmpty() -> {
                     Text(
                         text = "Чатов пока нет",
@@ -201,17 +276,28 @@ fun ChatsScreen(
                         modifier = Modifier.padding(16.dp)
                     )
                 }
-
                 else -> {
+                    val filteredChats = if (state.searchQuery.isNotEmpty()) {
+                        state.chats.filter {
+                            when (it.type) {
+                                "private" -> it.participantName?.contains(state.searchQuery, ignoreCase = true) == true
+                                "group" -> it.eventName?.contains(state.searchQuery, ignoreCase = true) == true
+                                else -> false
+                            }
+                        }
+                    } else {
+                        state.chats
+                    }
+
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp)
                     ) {
-                        items(state.chats) { chat ->
+                        items(filteredChats) { chat ->
                             ChatItem(
                                 chat = chat,
-                                userId = userId, // Передаем userId
+                                userId = userId,
                                 onClick = {
                                     navController.navigate("chat/${chat.id}")
                                 },
@@ -237,7 +323,6 @@ fun ChatsScreen(
                 var showDeleteDialog by remember { mutableStateOf(false) }
                 var showClearHistoryDialog by remember { mutableStateOf(false) }
 
-                // Синхронизируем selectedChat с state.chats при каждом рендере
                 val syncedSelectedChat = state.chats.find { it.id == selectedChat!!.id } ?: selectedChat!!
 
                 Column(
@@ -269,12 +354,11 @@ fun ChatsScreen(
                             )
                         }
                     }
-                    // Отключить/включить уведомления
                     TextButton(
                         onClick = {
                             coroutineScope.launch {
                                 viewModel.toggleMuteChat(syncedSelectedChat.id, !syncedSelectedChat.isMuted)
-                                showBottomSheet = false // Закрываем меню после действия
+                                showBottomSheet = false
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -297,7 +381,6 @@ fun ChatsScreen(
                             )
                         }
                     }
-                    // Отметить прочитанным
                     syncedSelectedChat.unreadCount?.let {
                         if (it > 0) {
                             TextButton(
@@ -329,7 +412,6 @@ fun ChatsScreen(
                             }
                         }
                     }
-                    // Очистить историю
                     TextButton(
                         onClick = { showClearHistoryDialog = true },
                         modifier = Modifier.fillMaxWidth()
@@ -352,7 +434,6 @@ fun ChatsScreen(
                             )
                         }
                     }
-                    // Удалить чат
                     TextButton(
                         onClick = { showDeleteDialog = true },
                         modifier = Modifier.fillMaxWidth()
@@ -481,7 +562,7 @@ fun ChatsScreen(
 @Composable
 fun ChatItem(
     chat: Chat,
-    userId: String, // Добавляем userId для проверки отправителя
+    userId: String,
     onClick: () -> Unit,
     onLongPress: () -> Unit
 ) {
@@ -506,7 +587,7 @@ fun ChatItem(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 1-я колонка: Аватар
+            // Аватар
             if (chat.participantUser?.profileImageUrl != null) {
                 Image(
                     painter = rememberAsyncImagePainter(chat.participantUser.profileImageUrl),
@@ -534,7 +615,7 @@ fun ChatItem(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // 2-я колонка: Название и последнее сообщение
+            // Название и последнее сообщение
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -569,7 +650,7 @@ fun ChatItem(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val lastMessage = chat.lastMessage ?: "Нет сообщений"
-                    val displayMessage = if (chat.participantIds.contains(userId)) "Вы: $lastMessage" else lastMessage
+                    val displayMessage = if (chat.lastMessageSenderId == userId) "Вы: $lastMessage" else lastMessage
                     Text(
                         text = displayMessage,
                         fontFamily = montserratFont,
@@ -590,7 +671,7 @@ fun ChatItem(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // 4-я колонка: Статус (unreadCount или иконки)
+            // Статус
             when {
                 chat.unreadCount != null && chat.unreadCount > 0 -> {
                     Box(
@@ -608,7 +689,6 @@ fun ChatItem(
                     }
                 }
                 chat.lastMessage != null -> {
-                    // Если есть последнее сообщение, определяем статус
                     val isReadByOthers = chat.isMessageRead == true
                     Icon(
                         painter = painterResource(

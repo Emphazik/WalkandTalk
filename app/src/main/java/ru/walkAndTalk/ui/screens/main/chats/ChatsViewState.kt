@@ -9,5 +9,7 @@ data class ChatsViewState(
     val chats: List<Chat> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val users: List<User> = emptyList() // Добавляем список пользователей
+    val users: List<User> = emptyList(),
+    val isSearchActive: Boolean = false,
+    val searchQuery: String = ""
 )

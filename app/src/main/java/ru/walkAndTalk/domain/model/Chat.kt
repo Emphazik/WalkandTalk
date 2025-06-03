@@ -10,6 +10,7 @@ data class Chat(
     val participantUser: User?, // Добавляем объект User для собеседника
     val lastMessage: String?,
     val lastMessageTime: String?,
+    val lastMessageSenderId: String?,
     val unreadCount: Int?,
     val isMessageRead: Boolean?,// Добавляем поле для статуса прочтения
     val isMuted: Boolean = false // Будет зависеть от текущего пользователя

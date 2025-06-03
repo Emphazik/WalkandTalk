@@ -82,6 +82,15 @@ class ChatViewModel(
         reduce { state.copy(selectedMessageIds = emptySet()) }
     }
 
+    // Poisk
+    fun toggleSearch() = intent {
+        reduce { state.copy(isSearchActive = !state.isSearchActive, searchQuery = if (state.isSearchActive) "" else state.searchQuery) }
+    }
+
+    fun updateSearchQuery(query: String) = intent {
+        reduce { state.copy(searchQuery = query) }
+    }
+    //
     fun showCopySuccess(message: String? = null) = intent {
         val sideEffect = message?.let {
             ChatSideEffect.ShowCopySuccess(it)

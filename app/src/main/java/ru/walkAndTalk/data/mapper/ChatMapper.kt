@@ -12,6 +12,7 @@ fun ChatDto.toDomain(
     participantUser: User? = null, // Добавляем параметр пользователя
     lastMessage: String? = null,
     lastMessageTime: String? = null,
+    lastMessageSenderId: String? = null,
     unreadCount: Int? = null,
     isMessageRead: Boolean? = null,
     isMuted: Boolean = false // Уведы с сообщений
@@ -26,6 +27,7 @@ fun ChatDto.toDomain(
         participantUser = participantUser,
         lastMessage = lastMessage,
         lastMessageTime = lastMessageTime,
+        lastMessageSenderId = lastMessageSenderId,
         unreadCount = unreadCount,
         isMessageRead = isMessageRead,
         isMuted = isMuted

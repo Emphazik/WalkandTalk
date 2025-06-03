@@ -65,19 +65,21 @@ class ChatsRepositoryImpl(
                 val participantId = participantIds.firstOrNull { it != userId }
                 val participantUser = participantId?.let { usersRepository.fetchById(it) }
 
-                val lastMessage = supabaseWrapper.postgrest[Table.MESSAGES]
+                val lastMessageQuery = supabaseWrapper.postgrest[Table.MESSAGES]
                     .select { filter { eq("chat_id", chatDto.id) }; order("created_at", Order.DESCENDING); limit(1) }
                     .decodeSingleOrNull<MessageDto>()
+                val lastMessageSenderId = lastMessageQuery?.senderId // Получаем senderId последнего сообщения
 
                 chatDto.toDomain(
                     event = event,
                     participantName = participantUser?.name,
                     participantUser = participantUser,
                     participantIds = participantIds,
-                    lastMessage = lastMessage?.content,
-                    lastMessageTime = lastMessage?.createdAt,
+                    lastMessage = lastMessageQuery?.content,
+                    lastMessageTime = lastMessageQuery?.createdAt,
+                    lastMessageSenderId = lastMessageSenderId, // Передаем senderId
                     unreadCount = getUnreadCount(chatDto.id, userId),
-                    isMessageRead = lastMessage?.isRead,
+                    isMessageRead = lastMessageQuery?.isRead,
                     isMuted = isMuted
                 )
             }.also {

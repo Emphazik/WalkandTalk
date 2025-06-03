@@ -16,4 +16,6 @@ data class ChatViewState(
     val editingMessageId: String? = null,
     val showEditDialog: Boolean = false,
     val showDeleteDialog: Boolean = false,
+    val isSearchActive: Boolean = false, // Флаг активности поиска
+    val searchQuery: String = "", // Текущий запрос поиска
 )
