@@ -103,12 +103,12 @@ fun FeedScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 24.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp),
+                    .padding(top = 24.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(

@@ -9,6 +9,7 @@ interface ChatsRepository {
     suspend fun createPrivateChat(userId1: String, userId2: String): Chat
     suspend fun getUnreadCount(chatId: String, userId: String): Int?
     suspend fun fetchUsersForChats(chatIds: List<String>): List<User> // Новый метод
+    suspend fun findOrCreatePrivateChat(userId1: String, userId2: String): Chat // Новый метод
     suspend fun toggleMuteChat(chatId: String, mute: Boolean) // Новое
     suspend fun markChatAsRead(chatId: String, userId: String) // Новое
     suspend fun deleteChat(chatId: String) // Новое

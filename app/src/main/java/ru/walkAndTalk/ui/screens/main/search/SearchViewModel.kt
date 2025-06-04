@@ -1,22 +1,28 @@
 package ru.walkAndTalk.ui.screens.main.search
 
+
 import UserSortType
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.Job
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import org.orbitmvi.orbit.Container
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
 import ru.walkAndTalk.domain.model.User
+import ru.walkAndTalk.domain.repository.ChatsRepository
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 
 class SearchViewModel(
-    private val usersRepository: RemoteUsersRepository
-) : ViewModel(), ContainerHost<SearchViewState, SearchSideEffect> {
+    private val usersRepository: RemoteUsersRepository,
+    private val currentUserId: String // Добавляем currentUserId как параметр
+) : ViewModel(), ContainerHost<SearchViewState, SearchSideEffect>, KoinComponent {
 
     override val container: Container<SearchViewState, SearchSideEffect> = container(SearchViewState())
     private var searchJob: Job? = null
     private var allUsers: List<User> = emptyList()
     private val userCache = mutableMapOf<String, User>()
+    private val chatsRepository: ChatsRepository by inject()
 
     init {
         loadUsers()
@@ -26,12 +32,10 @@ class SearchViewModel(
         reduce { state.copy(isLoading = true, error = null) }
         try {
             allUsers = usersRepository.fetchAll()
-            // Заполняем кэш
             allUsers.forEach { user ->
                 userCache[user.id] = user
             }
             println("SearchViewModel: Loaded ${allUsers.size} users, cached ${userCache.size} users")
-            // Собираем все interestIds
             val allInterestIds = allUsers.flatMap { it.interestIds }.distinct()
             val interestNames = usersRepository.fetchInterestNames(allInterestIds)
                 .zip(allInterestIds) { name, id -> id to name }
@@ -52,7 +56,7 @@ class SearchViewModel(
     }
 
     fun refreshUsers() = intent {
-        userCache.clear() // Очищаем кэш при обновлении
+        userCache.clear()
         println("SearchViewModel: Cleared cache, refreshing users")
         loadUsers()
     }
@@ -68,7 +72,7 @@ class SearchViewModel(
 
     fun onSearchQueryChange(query: String) = intent {
         println("SearchViewModel: SearchQuery=$query")
-        reduce { state.copy(isLoading = true, error = null, searchQuery = query) }
+        reduce { state.copy(isLoading = true, error = null, searchQuery = query, isSearchActive = query.isNotEmpty()) }
         try {
             val users = if (query.isNotEmpty()) {
                 if (query.startsWith("#") && query.length > 1) {
@@ -80,7 +84,6 @@ class SearchViewModel(
             } else {
                 allUsers
             }
-            // Обновляем кэш для новых пользователей
             users.forEach { user ->
                 userCache[user.id] = user
             }
@@ -96,7 +99,7 @@ class SearchViewModel(
 
     fun onClearQuery() = intent {
         println("SearchViewModel: ClearQuery")
-        reduce { state.copy(searchQuery = "") }
+        reduce { state.copy(searchQuery = "", isSearchActive = false) }
         loadUsers()
     }
 
@@ -124,7 +127,18 @@ class SearchViewModel(
     }
 
     fun onMessageClick(userId: String) = intent {
-        postSideEffect(SearchSideEffect.NavigateToMessage(userId))
+        try {
+            val chat = chatsRepository.findOrCreatePrivateChat(currentUserId, userId)
+            println("SearchViewModel: Chat created or found for userId=$userId, chatId=${chat.id}")
+            postSideEffect(SearchSideEffect.NavigateToMessage(chat.id))
+        } catch (e: Exception) {
+            println("SearchViewModel: Error creating/finding chat for userId=$userId, error=${e.message}")
+            postSideEffect(SearchSideEffect.ShowError(e.message ?: "Ошибка создания чата"))
+        }
+    }
+
+    fun toggleSearch() = intent {
+        reduce { state.copy(isSearchActive = !state.isSearchActive, searchQuery = if (!state.isSearchActive) "" else state.searchQuery) }
     }
 
     private fun applySort(users: List<User>, query: String): List<User> {

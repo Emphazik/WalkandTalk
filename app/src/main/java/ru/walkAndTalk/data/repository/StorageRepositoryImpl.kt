@@ -6,6 +6,8 @@ import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.Bucket
 import ru.walkAndTalk.domain.repository.StorageRepository
 import java.io.InputStream
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 class StorageRepositoryImpl(
@@ -31,6 +33,6 @@ class StorageRepositoryImpl(
     }
 
     override suspend fun createSignedUrl(bucket: String, path: String): String {
-        return supabaseWrapper.storage[bucket].createSignedUrl(path, expiresIn = (60 * 60 * 24).seconds)
+        return supabaseWrapper.storage[bucket].createSignedUrl(path, expiresIn = (60 * 60 * 24 * 365).seconds)
     }
 }

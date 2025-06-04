@@ -278,7 +278,10 @@ fun MainScreen(
                 }
             }
             composable<Search> {
-                SearchScreen(navController = navController)
+                SearchScreen(
+                    userId = userId,
+                    navController = navController
+                )
             }
             composable<Chats> {
                 ChatsScreen(

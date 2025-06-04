@@ -35,14 +35,6 @@ class ChatsViewModel(
         }
     }
 
-    fun toggleSearch() = intent {
-        reduce { state.copy(isSearchActive = !state.isSearchActive, searchQuery = if (state.isSearchActive) "" else state.searchQuery) }
-    }
-
-    fun updateSearchQuery(query: String) = intent {
-        reduce { state.copy(searchQuery = query) }
-    }
-
     fun refreshChats() = intent {
         chatCache.evictAll()
         println("ChatsViewModel: Cleared cache, refreshing chats")
@@ -51,7 +43,6 @@ class ChatsViewModel(
 
     fun onChatClick(chatId: String) = intent {
         postSideEffect(ChatsSideEffect.NavigateToChat(chatId))
-        // Очищаем кэш для этого чата, чтобы при возвращении данные обновились
         chatCache.remove(chatId)
         println("ChatsViewModel: Cleared cache for chat id=$chatId before navigation")
     }
@@ -82,12 +73,16 @@ class ChatsViewModel(
         }
     }
 
+    fun toggleSearch() = intent {
+        reduce { state.copy(isSearchActive = !state.isSearchActive, searchQuery = if (state.isSearchActive) "" else state.searchQuery) }
+    }
 
-    // Новые методы для контекстного меню
+    fun updateSearchQuery(query: String) = intent {
+        reduce { state.copy(searchQuery = query) }
+    }
 
     fun toggleMuteChat(chatId: String, mute: Boolean) = intent {
         chatsRepository.toggleMuteChat(chatId, mute)
-        // Обновляем состояние только для измененного чата
         val updatedChats = state.chats.map {
             if (it.id == chatId) it.copy(isMuted = mute) else it
         }
@@ -127,7 +122,8 @@ class ChatsViewModel(
             println("ChatsViewModel: Cleared history for chat id=$chatId")
         } catch (e: Exception) {
             println("ChatsViewModel: ClearChatHistory error=${e.message}")
-            postSideEffect(ChatsSideEffect.ShowError("Не удалось очистить историю чата. Пожалуйста, попробуйте еще раз или обратитесь в поддержку, если проблема сохраняется."))        }
+            postSideEffect(ChatsSideEffect.ShowError("Не удалось очистить историю чата. Пожалуйста, попробуйте еще раз или обратитесь в поддержку, если проблема сохраняется."))
+        }
     }
 
     private suspend fun getUnreadCount(chatId: String, userId: String): Int? {

@@ -91,6 +91,10 @@ class ChatsRepositoryImpl(
         }
     }
 
+    override suspend fun findOrCreatePrivateChat(userId1: String, userId2: String): Chat {
+        return createPrivateChat(userId1, userId2)
+    }
+
     override suspend fun fetchChatById(id: String): Chat? {
         val chatDto = supabaseWrapper.postgrest.from(Table.CHATS)
             .select { filter { eq("id", id) } }
@@ -188,24 +192,31 @@ class ChatsRepositoryImpl(
 
     override suspend fun createPrivateChat(userId1: String, userId2: String): Chat {
         println("ChatsRepository: Creating private chat for userId1=$userId1, userId2=$userId2")
-        val chatIds = supabaseWrapper.postgrest.from(Table.CHAT_PARTICIPANTS)
-            .select { filter { eq("user_id", userId1) } }
+        val currentUserId = supabaseWrapper.auth.currentUserOrNull()?.id
+            ?: throw IllegalStateException("No authenticated user found")
+
+        if (currentUserId != userId1) {
+            throw IllegalStateException("Current user $currentUserId does not match userId1 $userId1")
+        }
+
+        val chatIds = supabaseWrapper.postgrest[Table.CHAT_PARTICIPANTS]
+            .select { filter { eq("user_id", currentUserId) } }
             .decodeList<ChatParticipantDto>()
             .map { it.chatId }
-        println("ChatsRepository: Found ${chatIds.size} chatIds for userId1=$userId1: $chatIds")
+        println("ChatsRepository: Found ${chatIds.size} chatIds for userId1=$currentUserId: $chatIds")
 
         var existingChat: ChatDto? = null
         for (chatId in chatIds) {
-            val chat = supabaseWrapper.postgrest.from(Table.CHATS)
+            val chat = supabaseWrapper.postgrest[Table.CHATS]
                 .select { filter { eq("type", "private"); eq("id", chatId) } }
                 .decodeSingleOrNull<ChatDto>()
             if (chat != null) {
-                val participants = supabaseWrapper.postgrest.from(Table.CHAT_PARTICIPANTS)
+                val participants = supabaseWrapper.postgrest[Table.CHAT_PARTICIPANTS]
                     .select { filter { eq("chat_id", chat.id) } }
                     .decodeList<ChatParticipantDto>()
                     .map { it.userId }
                 println("ChatsRepository: Checking participants for chatId=${chat.id}: $participants")
-                if (participants.containsAll(listOf(userId1, userId2))) {
+                if (participants.containsAll(listOf(currentUserId, userId2))) {
                     existingChat = chat
                     break
                 }
@@ -214,7 +225,7 @@ class ChatsRepositoryImpl(
 
         if (existingChat != null) {
             val participantUser = usersRepository.fetchById(userId2)
-            val participantIds = supabaseWrapper.postgrest.from(Table.CHAT_PARTICIPANTS)
+            val participantIds = supabaseWrapper.postgrest[Table.CHAT_PARTICIPANTS]
                 .select { filter { eq("chat_id", existingChat.id) } }
                 .decodeList<ChatParticipantDto>()
                 .map { it.userId }
@@ -222,10 +233,9 @@ class ChatsRepositoryImpl(
             return existingChat.toDomain(
                 participantName = participantUser?.name,
                 participantUser = participantUser,
-                participantIds = participantIds,
-//                isMuted = existingChat.isMuted
+                participantIds = participantIds
             ).also {
-                println("ChatsRepository: Returning existing private chat id=${it.id} for users $userId1, $userId2")
+                println("ChatsRepository: Returning existing private chat id=${it.id} for users $currentUserId, $userId2")
             }
         }
 
@@ -234,31 +244,34 @@ class ChatsRepositoryImpl(
             type = "private",
             eventId = null,
             createdAt = OffsetDateTime.now().toString(),
-            updatedAt = OffsetDateTime.now().toString(),
-//            isMuted = false
+            updatedAt = OffsetDateTime.now().toString()
         )
         println("ChatsRepository: Creating new chat: $chatDto")
 
-        supabaseWrapper.postgrest.from(Table.CHATS).insert(chatDto)
+        supabaseWrapper.postgrest[Table.CHATS].insert(chatDto)
 
-        listOf(userId1, userId2).forEach { userId ->
+        listOf(currentUserId, userId2).forEach { userId ->
             val participantDto = ChatParticipantDto(
                 chatId = chatDto.id,
                 userId = userId,
                 lastReadAt = null
             )
             println("ChatsRepository: Adding participant to chatId=${chatDto.id}: $participantDto")
-            supabaseWrapper.postgrest.from(Table.CHAT_PARTICIPANTS).insert(participantDto)
+            try {
+                supabaseWrapper.postgrest[Table.CHAT_PARTICIPANTS].insert(participantDto)
+            } catch (e: Exception) {
+                println("ChatsRepository: Failed to insert participant $participantDto, error=${e.message}")
+                throw e
+            }
         }
 
         val participantUser = usersRepository.fetchById(userId2)
         return chatDto.toDomain(
             participantName = participantUser?.name,
             participantUser = participantUser,
-            participantIds = listOf(userId1, userId2),
-//            isMuted = chatDto.isMuted
+            participantIds = listOf(currentUserId, userId2)
         ).also {
-            println("ChatsRepository: Created private chat id=${it.id} for users $userId1, $userId2")
+            println("ChatsRepository: Created private chat id=${it.id} for users $currentUserId, $userId2")
         }
     }
 
@@ -287,8 +300,8 @@ class ChatsRepositoryImpl(
         }
     }
 
-    // Новые методы для контекстного меню
 
+    // Новые методы для контекстного меню
     override suspend fun markChatAsRead(chatId: String, userId: String) {
         val currentTime = OffsetDateTime.now().toString()
         supabaseWrapper.postgrest.from(Table.CHAT_PARTICIPANTS)

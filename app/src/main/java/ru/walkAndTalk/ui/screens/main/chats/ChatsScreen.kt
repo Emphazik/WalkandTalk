@@ -44,6 +44,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -131,7 +132,6 @@ fun ChatsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             if (state.isSearchActive) {
-                // Режим поиска
                 TopAppBar(
                     title = {
                         TextField(
@@ -205,7 +205,6 @@ fun ChatsScreen(
                     )
                 )
             } else {
-                // Обычный режим
                 TopAppBar(
                     expandedHeight = 32.dp,
                     title = {
