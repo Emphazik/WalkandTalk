@@ -25,6 +25,7 @@ import kotlinx.serialization.json.JsonNull.content
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 import java.time.OffsetDateTime
 import java.util.UUID
 
@@ -32,6 +33,7 @@ class ChatViewModel(
     private val chatId: String,
     private val userId: String,
     private val chatsRepository: ChatsRepository,
+    private val usersRepository: RemoteUsersRepository,
     private val messagesRepository: MessagesRepository,
     private val supabaseWrapper: SupabaseWrapper
 ) : ContainerHost<ChatViewState, ChatSideEffect>, ViewModel() {
@@ -52,7 +54,6 @@ class ChatViewModel(
     private var pollingJob: Job? = null
     private var isSubscribed = false // Флаг для предотвращения повторной подписки
 
-    // Функция для запуска опроса
     private fun startPollingMessages() = intent {
         pollingJob?.cancel() // Отменяем предыдущий опрос, если он был
         pollingJob = viewModelScope.launch {
@@ -241,6 +242,9 @@ class ChatViewModel(
         try {
             messagesChannel = supabaseWrapper.realtime.channel("messages-channel-$chatId")
             println("ChatViewModel: Subscribing to channel: messages-channel-$chatId")
+            val chat = chatsRepository.fetchChatById(chatId)
+                ?: throw IllegalStateException("Chat not found: $chatId")
+            val isGroupChat = chat.type == "group"
 
             val insertFlow = messagesChannel.postgresChangeFlow<PostgresAction.Insert>(
                 schema = "public"
@@ -266,7 +270,6 @@ class ChatViewModel(
                     val content = record["content"]?.jsonPrimitive?.content ?: ""
                     val createdAt = record["created_at"]?.jsonPrimitive?.content ?: ""
                     val isRead = record["is_read"]?.jsonPrimitive?.boolean ?: false
-                    // Обрабатываем deleted_by как JsonArray
                     val deletedBy = record["deleted_by"]?.let { element ->
                         if (element is JsonArray) {
                             element.mapNotNull { it.jsonPrimitive.contentOrNull }
@@ -280,6 +283,12 @@ class ChatViewModel(
                         return@collect
                     }
 
+                    val senderName = if (isGroupChat && senderId != supabaseWrapper.auth.currentUserOrNull()?.id) {
+                        usersRepository.fetchById(senderId)?.name ?: "Unknown"
+                    } else {
+                        null
+                    }
+
                     val message = Message(
                         id = messageId,
                         chatId = messageChatId,
@@ -287,8 +296,9 @@ class ChatViewModel(
                         content = content,
                         createdAt = createdAt,
                         isRead = isRead,
-                        tempId = null, // Поле отсутствует в базе, устанавливаем null
-                        deletedBy = deletedBy
+                        tempId = null,
+                        deletedBy = deletedBy,
+                        senderName = senderName
                     )
 
                     if (state.messages.any { it.id == messageId || (it.tempId != null && it.senderId == senderId && it.content == content) }) {
@@ -339,7 +349,8 @@ class ChatViewModel(
             println("ChatViewModel: Successfully subscribed to messages for chatId=$chatId")
         } catch (e: Exception) {
             println("ChatViewModel: Error subscribing to messages: ${e.message}")
-            postSideEffect(ChatSideEffect.ShowError("Не удалось подключиться к обновлениям сообщений. Пожалуйста, перезайдите в чат или проверьте интернет-соединение."))        }
+            postSideEffect(ChatSideEffect.ShowError("Не удалось подключиться к обновлениям сообщений. Пожалуйста, перезайдите в чат или проверьте интернет-соединение."))
+        }
     }
 
     private fun subscribeToMessageReadUpdates() = intent {
@@ -504,16 +515,6 @@ class ChatViewModel(
         }
     }
 
-    fun deleteChat(chatId: String) = intent {
-        try {
-            chatsRepository.deleteChat(chatId)
-            println("ChatViewModel: Deleted chatId=$chatId")
-        } catch (e: Exception) {
-            postSideEffect(ChatSideEffect.ShowError(e.message ?: "Ошибка удаления чата"))
-            println("ChatViewModel: Error deleting chat: ${e.message}")
-        }
-    }
-
     fun clearChatHistory(chatId: String) = intent {
         try {
             chatsRepository.clearChatHistory(chatId, userId)
@@ -525,6 +526,4 @@ class ChatViewModel(
             println("ChatViewModel: Error clearing history: ${e.message}")
         }
     }
-
-
 }

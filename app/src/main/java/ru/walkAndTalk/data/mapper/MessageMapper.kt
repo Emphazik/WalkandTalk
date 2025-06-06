@@ -3,7 +3,7 @@ package ru.walkAndTalk.data.mapper
 import ru.walkAndTalk.data.model.MessageDto
 import ru.walkAndTalk.domain.model.Message
 
-fun MessageDto.toDomain(): Message {
+fun MessageDto.toDomain(senderName: String? = null): Message {
     return Message(
         id = id,
         chatId = chatId,
@@ -11,7 +11,8 @@ fun MessageDto.toDomain(): Message {
         content = content,
         createdAt = createdAt,
         isRead = isRead,
-        tempId = null, // Поле отсутствует в базе
-        deletedBy = deletedBy
+        tempId = tempId,
+        deletedBy = deletedBy,
+        senderName = senderName
     )
 }

@@ -7,28 +7,38 @@ import ru.walkAndTalk.data.model.MessageDto
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.Table
 import ru.walkAndTalk.domain.model.Message
+import ru.walkAndTalk.domain.repository.ChatsRepository
 import ru.walkAndTalk.domain.repository.MessagesRepository
+import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 import java.time.OffsetDateTime
 import java.util.UUID
 
 class MessagesRepositoryImpl(
-    private val supabaseWrapper: SupabaseWrapper
+    private val supabaseWrapper: SupabaseWrapper,
+    private val chatsRepository: ChatsRepository,
+    private val usersRepository: RemoteUsersRepository
 ) : MessagesRepository {
 
     override suspend fun fetchMessages(chatId: String): List<Message> {
-        return try {
-            val response = supabaseWrapper.postgrest.from(Table.MESSAGES)
-                .select {
-                    filter { eq("chat_id", chatId) }
-                    order("created_at", Order.ASCENDING)
-                }.decodeList<MessageDto>()
-            val currentUserId = supabaseWrapper.auth.currentUserOrNull()?.id
-            response.map { it.toDomain() }.filterNot { message ->
-                message.deletedBy?.contains(currentUserId) == true
+        println("MessagesRepository: Fetching messages for chatId=$chatId")
+        val chat = chatsRepository.fetchChatById(chatId)
+            ?: throw IllegalArgumentException("Chat not found: $chatId")
+        val isGroupChat = chat.type == "group"
+        val messages = supabaseWrapper.postgrest[Table.MESSAGES]
+            .select {
+                filter { eq("chat_id", chatId) }
+                order("created_at", Order.ASCENDING)
             }
-        } catch (e: Exception) {
-            println("MessagesRepository: Error fetching messages: ${e.message}, stacktrace: ${e.stackTraceToString()}")
-            throw e
+            .decodeList<MessageDto>()
+        return messages.map { messageDto ->
+            val senderName = if (isGroupChat && messageDto.senderId != supabaseWrapper.auth.currentUserOrNull()?.id) {
+                usersRepository.fetchById(messageDto.senderId)?.name ?: "Unknown"
+            } else {
+                null
+            }
+            messageDto.toDomain(senderName)
+        }.also {
+            println("MessagesRepository: Fetched ${it.size} messages for chatId=$chatId")
         }
     }
 

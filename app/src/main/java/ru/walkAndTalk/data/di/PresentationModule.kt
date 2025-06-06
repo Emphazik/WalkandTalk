@@ -5,6 +5,7 @@ import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.parameter.parametersOf
 import org.koin.dsl.module
+import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.ui.screens.auth.login.LoginViewModel
 import ru.walkAndTalk.ui.screens.auth.register.RegisterViewModel
 import ru.walkAndTalk.ui.screens.main.chats.ChatsViewModel
@@ -32,9 +33,28 @@ private val viewModelModule = module {
     viewModelOf(::FeedViewModel)
     viewModelOf(::ChatsViewModel)
     viewModelOf(::SearchViewModel)
-    viewModelOf(::EventDetailsViewModel)
-    viewModelOf(::ChatViewModel)
-
+    //viewModelOf(::EventDetailsViewModel)
+    //viewModelOf(::ChatViewModel)
+    factory { (chatId: String, userId: String) ->
+        ChatViewModel(
+            chatId = chatId,
+            userId = userId,
+            chatsRepository = get(),
+            messagesRepository = get(),
+            usersRepository =  get(),
+            supabaseWrapper = get(),
+        )
+    }
+    factory {
+        EventDetailsViewModel(
+            eventsRepository = get(),
+            eventParticipantsRepository = get(),
+            chatsRepository = get(),
+            currentUserId = get<SupabaseWrapper>().auth.currentUserOrNull()?.id
+                ?: throw IllegalStateException("User not authenticated"),
+            usersRepository = get(),
+        )
+    }
 }
 
 internal val presentationModule = module {

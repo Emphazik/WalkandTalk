@@ -73,9 +73,9 @@ import ru.walkAndTalk.ui.theme.montserratFont
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    userId: String, // userId текущего пользователя
+    userId: String,
     navController: NavController,
-    viewModel: SearchViewModel = koinViewModel(parameters = { parametersOf(userId) }) // Передаем userId
+    viewModel: SearchViewModel = koinViewModel(parameters = { parametersOf(userId) })
 ) {
     val state by viewModel.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
@@ -198,27 +198,31 @@ fun SearchScreen(
                         )
                     },
                     actions = {
-                        IconButton(
-                            onClick = { viewModel.toggleSearch() },
-                            modifier = Modifier.size(32.dp)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp) // Добавляем отступ между иконками
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Поиск",
-                                tint = colorScheme.onBackground,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = { viewModel.refreshUsers() },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_refresh64),
-                                contentDescription = "Обновить",
-                                tint = colorScheme.onBackground,
-                                modifier = Modifier.size(24.dp)
-                            )
+                            IconButton(
+                                onClick = { viewModel.toggleSearch() },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "Поиск",
+                                    tint = colorScheme.onBackground,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            IconButton(
+                                onClick = { viewModel.refreshUsers() },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_refresh64),
+                                    contentDescription = "Обновить",
+                                    tint = colorScheme.onBackground,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -235,6 +239,7 @@ fun SearchScreen(
                 .background(colorScheme.background)
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp)
+                .padding(top = 8.dp)
         ) {
             if (state.isSearchActive && state.searchQuery.isEmpty()) {
                 Text(
@@ -304,7 +309,7 @@ fun SearchScreen(
                 navController.navigate("profile/${sideEffect.userId}")
             }
             is SearchSideEffect.NavigateToMessage -> {
-                navController.navigate("chat/${sideEffect.chatId}") // Исправлено на chatId
+                navController.navigate("chat/${sideEffect.chatId}")
             }
             is SearchSideEffect.ShowError -> {
                 coroutineScope.launch {
@@ -326,7 +331,7 @@ fun UserCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 4.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -334,7 +339,7 @@ fun UserCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
@@ -342,7 +347,7 @@ fun UserCard(
                 contentDescription = user.name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(60.dp)
+                    .size(56.dp)
                     .clip(CircleShape)
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -353,29 +358,29 @@ fun UserCard(
                 Text(
                     text = user.name,
                     fontFamily = montserratFont,
-                    fontSize = 16.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = colorScheme.onSurface
                 )
                 Text(
                     text = user.city ?: "Город не указан",
                     fontFamily = montserratFont,
-                    fontSize = 14.sp,
+                    fontSize = 12.sp,
                     color = colorScheme.onSurface.copy(alpha = 0.6f)
                 )
                 if (user.interestIds.isEmpty()) {
                     Text(
                         text = "Не указаны интересы",
                         fontFamily = montserratFont,
-                        fontSize = 12.sp,
+                        fontSize = 10.sp,
                         color = colorScheme.onSurface.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = 2.dp)
                     )
                 } else {
                     Row(
                         modifier = Modifier
                             .horizontalScroll(rememberScrollState())
-                            .padding(top = 4.dp),
+                            .padding(top = 2.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         user.interestIds.forEach { interestId ->
@@ -383,16 +388,16 @@ fun UserCard(
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
                                 color = colorScheme.primaryContainer,
-                                modifier = Modifier.padding(vertical = 2.dp)
+                                modifier = Modifier.padding(vertical = 1.dp)
                             ) {
                                 Text(
                                     text = interestName,
                                     fontFamily = montserratFont,
-                                    fontSize = 12.sp,
+                                    fontSize = 10.sp,
                                     color = colorScheme.onPrimaryContainer,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
                         }
@@ -400,9 +405,9 @@ fun UserCard(
                 }
             }
 
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalAlignment = Alignment.End
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(-5.dp), // Уменьшенный горизонтальный отступ
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
                     onClick = { viewModel.onUserClick(user.id) }
@@ -411,7 +416,7 @@ fun UserCard(
                         painter = painterResource(id = R.drawable.ic_profile64),
                         contentDescription = "Перейти к профилю",
                         tint = colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
                 IconButton(
@@ -421,7 +426,7 @@ fun UserCard(
                         painter = painterResource(id = R.drawable.ic_chat64),
                         contentDescription = "Написать сообщение",
                         tint = colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }

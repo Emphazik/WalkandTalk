@@ -13,3 +13,15 @@ data class ChatsViewState(
     val isSearchActive: Boolean = false,
     val searchQuery: String = ""
 )
+
+//@Immutable
+//data class ChatsViewState(
+//    val chats: List<Chat> = emptyList(),
+//    val messages: List<Message> = emptyList(),
+//    val currentChatId: String? = null,
+//    val isLoading: Boolean = false,
+//    val error: String? = null,
+//    val searchQuery: String = "",
+//    val isSearchActive: Boolean = false,
+//    val selectedMessageIds: Set<String> = emptySet()
+//)

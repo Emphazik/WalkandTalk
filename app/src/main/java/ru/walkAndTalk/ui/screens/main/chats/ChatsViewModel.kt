@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import org.orbitmvi.orbit.Container
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
+import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.model.Chat
 import ru.walkAndTalk.domain.repository.ChatsRepository
 import ru.walkAndTalk.domain.repository.EventsRepository
@@ -12,7 +13,8 @@ import ru.walkAndTalk.domain.repository.EventsRepository
 class ChatsViewModel(
     private val chatsRepository: ChatsRepository,
     private val eventsRepository: EventsRepository,
-    private val userId: String
+    private val userId: String,
+    private val supabaseWrapper: SupabaseWrapper
 ) : ViewModel(), ContainerHost<ChatsViewState, ChatsSideEffect> {
 
     override val container: Container<ChatsViewState, ChatsSideEffect> = container(ChatsViewState())

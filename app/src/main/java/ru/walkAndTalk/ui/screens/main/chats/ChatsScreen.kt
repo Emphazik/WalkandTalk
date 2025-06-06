@@ -587,7 +587,21 @@ fun ChatItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Аватар
-            if (chat.participantUser?.profileImageUrl != null) {
+            if (chat.type == "group") {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, shape = CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = chat.eventName?.firstOrNull()?.toString() ?: "G",
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else if (chat.participantUser?.profileImageUrl != null) {
                 Image(
                     painter = rememberAsyncImagePainter(chat.participantUser.profileImageUrl),
                     contentDescription = chat.participantName ?: chat.eventName,
@@ -604,7 +618,7 @@ fun ChatItem(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = chat.participantName?.firstOrNull()?.toString() ?: "G",
+                        text = chat.participantName?.firstOrNull()?.toString() ?: "U",
                         color = Color.White,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold

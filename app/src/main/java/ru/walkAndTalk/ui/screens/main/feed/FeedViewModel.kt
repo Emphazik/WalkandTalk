@@ -15,6 +15,7 @@ import org.orbitmvi.orbit.Container
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
 import ru.walkAndTalk.domain.model.Event
+import ru.walkAndTalk.domain.repository.ChatsRepository
 import ru.walkAndTalk.domain.repository.EventParticipantsRepository
 import ru.walkAndTalk.domain.repository.EventsRepository
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
@@ -23,7 +24,8 @@ class FeedViewModel(
     private val eventsRepository: EventsRepository,
     private val eventParticipantsRepository: EventParticipantsRepository,
     private val remoteUsersRepository: RemoteUsersRepository,
-    private val currentUserId: String,
+    private val chatsRepository: ChatsRepository, // Add ChatsRepository
+    private val currentUserId: String
 ) : ViewModel(), ContainerHost<FeedViewState, FeedSideEffect> {
 
     override val container: Container<FeedViewState, FeedSideEffect> = container(FeedViewState())
@@ -31,8 +33,7 @@ class FeedViewModel(
     private val _participationState = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     val participationState = _participationState.asStateFlow()
 
-    private var allEvents: List<ru.walkAndTalk.domain.model.Event> =
-        emptyList() // Кэшируем все события
+    private var allEvents: List<ru.walkAndTalk.domain.model.Event> = emptyList()
 
     init {
         refreshEvents()
@@ -164,6 +165,12 @@ class FeedViewModel(
                         this[eventId] = false
                     }
                     _participationState.value = updatedStates
+
+                    // Remove user from group chat
+                    val chat = chatsRepository.findGroupChatByEventId(eventId)
+                    if (chat != null) {
+                        chatsRepository.removeUserFromChat(chat.id, currentUserId)
+                    }
                 }
                 postSideEffect(FeedSideEffect.LeaveEventSuccess(eventId))
                 refreshEvents()

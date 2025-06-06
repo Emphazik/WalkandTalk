@@ -1,11 +1,5 @@
 package ru.walkAndTalk.ui.screens.main.feed.events
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,11 +24,9 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.remember
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -42,6 +34,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -53,6 +46,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import coil3.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -61,16 +55,19 @@ import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import ru.walkAndTalk.R
 import ru.walkAndTalk.domain.model.Event
+import ru.walkAndTalk.domain.repository.ChatsRepository
 import ru.walkAndTalk.ui.screens.main.feed.FeedSideEffect
 import ru.walkAndTalk.ui.screens.main.feed.FeedViewModel
 import ru.walkAndTalk.ui.theme.montserratFont
+import org.koin.core.context.GlobalContext.get
 
 @Composable
 fun EventDetailsScreen(
     onNavigateBack: () -> Unit,
     eventId: String,
     viewModel: EventDetailsViewModel = koinViewModel(),
-    feedViewModel: FeedViewModel
+    feedViewModel: FeedViewModel,
+    navController: NavController
 ) {
     val state by viewModel.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
@@ -91,6 +88,14 @@ fun EventDetailsScreen(
     viewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
             is EventDetailsSideEffect.OnNavigateBack -> onNavigateBack()
+            is EventDetailsSideEffect.ShowError -> {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(sideEffect.message)
+                }
+            }
+            is EventDetailsSideEffect.NavigateToChat -> {
+                navController.navigate("chat/${sideEffect.chatId}")
+            }
         }
     }
 
@@ -101,18 +106,11 @@ fun EventDetailsScreen(
                     if (sideEffect.eventId == eventId) {
                         coroutineScope.launch {
                             snackbarHostState.showSnackbar(
-                                message = "Вы успешно записались на '${state.event?.title ?: "мероприятие"}' ${
-                                    state.event?.let {
-                                        viewModel.formatEventDate(
-                                            it.eventDate
-                                        )
-                                    } ?: ""
-                                }!"
+                                message = "Вы успешно записались на '${state.event?.title ?: "мероприятие"}' ${state.event?.let { viewModel.formatEventDate(it.eventDate) } ?: ""}!"
                             )
                         }
                     }
                 }
-
                 is FeedSideEffect.ShowError -> {
                     coroutineScope.launch {
                         snackbarHostState.showSnackbar(
@@ -120,7 +118,6 @@ fun EventDetailsScreen(
                         )
                     }
                 }
-
                 is FeedSideEffect.LeaveEventSuccess -> {
                     if (sideEffect.eventId == eventId) {
                         coroutineScope.launch {
@@ -163,12 +160,12 @@ fun EventDetailsScreen(
         } else if (state.event != null) {
             EventDetailsContent(
                 event = state.event!!,
-                participantsCount = state.participantsCount, // Добавляем количество участников
+                participantsCount = state.participantsCount,
                 onNavigateBack = onNavigateBack,
                 onParticipateClick = { feedViewModel.onParticipateClick(eventId) },
                 isParticipating = isParticipating,
                 onLeaveClick = { feedViewModel.onLeaveEventClick(eventId) },
-                onJoinChatClick = { /* Заглушка для чата */ },
+                onJoinChatClick = { viewModel.onJoinChatClick(eventId) }, // Обновляем вызов
                 colorScheme = colorScheme,
                 viewModel = viewModel
             )
@@ -179,16 +176,18 @@ fun EventDetailsScreen(
 @Composable
 fun EventDetailsContent(
     event: Event,
-    participantsCount: Int, // Добавляем параметр
+    participantsCount: Int,
     onNavigateBack: () -> Unit,
     onParticipateClick: () -> Unit,
     isParticipating: Boolean,
     onLeaveClick: () -> Unit,
-    onJoinChatClick: () -> Unit,
+    onJoinChatClick: () -> Unit, // Упрощаем сигнатуру
     colorScheme: ColorScheme,
     viewModel: EventDetailsViewModel = koinViewModel()
 ) {
     var showLeaveConfirmation by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     Column(
         modifier = Modifier
@@ -397,7 +396,15 @@ fun EventDetailsContent(
         }
         Spacer(modifier = Modifier.height(16.dp))
         Button(
-            onClick = { onJoinChatClick() },
+            onClick = {
+                if (isParticipating) {
+                    onJoinChatClick()
+                } else {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("Вы должны участвовать в мероприятии, чтобы присоединиться к чату")
+                    }
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
@@ -405,7 +412,8 @@ fun EventDetailsContent(
             colors = ButtonDefaults.buttonColors(
                 containerColor = colorScheme.secondaryContainer
             ),
-            shape = RoundedCornerShape(8.dp)
+            shape = RoundedCornerShape(8.dp),
+            enabled = isParticipating // Disable button if not participating
         ) {
             Text(
                 text = "Присоединиться к чату",
@@ -415,7 +423,13 @@ fun EventDetailsContent(
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp)) // Отступ перед концом
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // SnackbarHost for error messages
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
 
         if (showLeaveConfirmation) {
             AlertDialog(

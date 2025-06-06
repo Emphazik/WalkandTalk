@@ -1,5 +1,6 @@
 package ru.walkAndTalk.domain.repository
 import ru.walkAndTalk.domain.model.Chat
+import ru.walkAndTalk.domain.model.Message
 import ru.walkAndTalk.domain.model.User
 
 interface ChatsRepository {
@@ -14,4 +15,8 @@ interface ChatsRepository {
     suspend fun markChatAsRead(chatId: String, userId: String) // Новое
     suspend fun deleteChat(chatId: String) // Новое
     suspend fun clearChatHistory(chatId: String, userId: String)
+    suspend fun findGroupChatByEventId(eventId: String): Chat?
+    suspend fun removeUserFromChat(chatId: String, userId: String)
+
+    suspend fun fetchMessages(chatId: String): List<Message>
 }

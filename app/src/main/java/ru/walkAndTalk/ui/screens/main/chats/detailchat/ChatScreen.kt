@@ -232,7 +232,11 @@ fun ChatScreen(
                         title = {
                             if (state.selectedMessageIds.isEmpty()) {
                                 Text(
-                                    text = state.chat?.participantName ?: state.chat?.eventName ?: "Чат",
+                                    text = if (state.chat?.type == "group") {
+                                        state.chat?.eventName ?: "Групповой чат"
+                                    } else {
+                                        state.chat?.participantName ?: "Неизвестный пользователь"
+                                    },
                                     fontFamily = montserratFont,
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
@@ -843,31 +847,46 @@ fun ChatScreen(
     }
 }
 
-    @Composable
-    fun MessageItem(
-        message: Message,
-        currentUserId: String,
-        isSelected: Boolean = false,
-        onLongClick: () -> Unit,
-        onCopy: () -> Unit
+@Composable
+fun MessageItem(
+    message: Message,
+    currentUserId: String,
+    isSelected: Boolean = false,
+    onLongClick: () -> Unit,
+    onCopy: () -> Unit
+) {
+    val isOwnMessage = message.senderId == currentUserId
+    val context = LocalContext.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp)
+            .background(
+                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                else MaterialTheme.colorScheme.background
+            )
     ) {
-        val isOwnMessage = message.senderId == currentUserId
-        val context = LocalContext.current
+        if (!isOwnMessage && message.senderName != null) {
+            Text(
+                text = message.senderName,
+                fontFamily = montserratFont,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier
+                    .padding(start = 12.dp, bottom = 4.dp)
+                    .align(Alignment.Start)
+            )
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp)
-                .background(
-                    if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                    else MaterialTheme.colorScheme.background
-                )
                 .combinedClickable(
                     onClick = {
-                        val clipboard =
-                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         val clip = ClipData.newPlainText("Message", message.content)
                         clipboard.setPrimaryClip(clip)
-                        onCopy() // Триггер для интента
+                        onCopy()
                     },
                     onLongClick = onLongClick
                 ),
@@ -917,6 +936,7 @@ fun ChatScreen(
             }
         }
     }
+}
 
     @SuppressLint("SimpleDateFormat")
     fun formatMessageTimeForChat(time: String): String {

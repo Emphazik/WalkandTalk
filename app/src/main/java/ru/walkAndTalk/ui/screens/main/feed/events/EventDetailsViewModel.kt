@@ -9,6 +9,7 @@ import org.orbitmvi.orbit.Container
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
 import ru.walkAndTalk.domain.model.Event
+import ru.walkAndTalk.domain.repository.ChatsRepository
 import ru.walkAndTalk.domain.repository.EventParticipantsRepository
 import ru.walkAndTalk.domain.repository.EventsRepository
 import ru.walkAndTalk.domain.repository.UserEventRepository
@@ -17,7 +18,9 @@ import ru.walkAndTalk.domain.repository.UserEventRepository
 class EventDetailsViewModel(
     private val eventsRepository: EventsRepository,
     private val usersRepository: UserEventRepository,
-    private val eventParticipantsRepository: EventParticipantsRepository
+    private val eventParticipantsRepository: EventParticipantsRepository,
+    private val chatsRepository: ChatsRepository, // Добавляем ChatsRepository
+    private val currentUserId: String // Добавляем currentUserId
 ) : ViewModel(), ContainerHost<EventDetailsState, EventDetailsSideEffect> {
 
     override val container: Container<EventDetailsState, EventDetailsSideEffect> = container(EventDetailsState())
@@ -42,7 +45,23 @@ class EventDetailsViewModel(
                 reduce { state.copy(isLoading = false, error = "Мероприятие не найдено") }
             }
         } catch (e: Exception) {
-            reduce { state.copy(isLoading = false, error = "Ошибка загрузки: ${e.message}") }
+            reduce { state.copy(isLoading = false, error = e.message) }
+            postSideEffect(EventDetailsSideEffect.ShowError(e.message ?: "Ошибка загрузки мероприятия"))
+        }
+    }
+
+    fun onJoinChatClick(eventId: String) = intent {
+        if (currentUserId == null) {
+            postSideEffect(EventDetailsSideEffect.ShowError("Пользователь не аутентифицирован"))
+            return@intent
+        }
+        try {
+            val chat = chatsRepository.createGroupChat(eventId, currentUserId)
+            println("EventDetailsViewModel: Group chat created or found for eventId=$eventId, chatId=${chat.id}")
+            postSideEffect(EventDetailsSideEffect.NavigateToChat(chat.id))
+        } catch (e: Exception) {
+            println("EventDetailsViewModel: Error creating/finding group chat for eventId=$eventId, error=${e.message}")
+            postSideEffect(EventDetailsSideEffect.ShowError(e.message ?: "Ошибка создания чата"))
         }
     }
 

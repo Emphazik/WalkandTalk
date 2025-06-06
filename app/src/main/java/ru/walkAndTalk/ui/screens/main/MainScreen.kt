@@ -69,6 +69,8 @@ import ru.walkAndTalk.ui.screens.main.feed.FeedScreen
 import ru.walkAndTalk.ui.screens.main.feed.FeedSideEffect
 import ru.walkAndTalk.ui.screens.main.feed.FeedViewModel
 import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsScreen
+import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsSideEffect
+import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsViewModel
 import ru.walkAndTalk.ui.screens.main.profile.ProfileScreen
 import ru.walkAndTalk.ui.screens.main.profile.ProfileViewModel
 import ru.walkAndTalk.ui.screens.main.profile.edit.EditProfileScreen
@@ -155,7 +157,6 @@ fun MainScreen(
                     val selected = when (item.tabId) {
                         "feed" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Feed") == true ||
                                 currentRoute?.startsWith("ru.walkAndTalk.ui.screens.EventDetails") == true
-
                         "search" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Search") == true
                         "chats" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Chats") == true
                         "profile" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Profile") == true ||
@@ -232,41 +233,32 @@ fun MainScreen(
                 FeedScreen(
                     navController = navController,
                     feedViewModel = feedViewModel
-                ) // Передаем один экземпляр
+                )
                 LaunchedEffect(feedViewModel) {
                     feedViewModel.container.sideEffectFlow.collect { sideEffect ->
                         when (sideEffect) {
                             is FeedSideEffect.NavigateToEventDetails -> {
                                 navController.navigate(EventDetails.createRoute(sideEffect.eventId))
                             }
-
                             is FeedSideEffect.ParticipateInEvent -> {
-                                val event =
-                                    feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
+                                val event = feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
                                         message = "Вы успешно записались на '${event?.title ?: "мероприятие"}' ${
                                             event?.let {
-                                                feedViewModel.formatEventDate(
-                                                    it.eventDate
-                                                )
+                                                feedViewModel.formatEventDate(it.eventDate)
                                             } ?: ""
                                         }!"
                                     )
                                 }
                             }
-
                             is FeedSideEffect.ShowError -> {
                                 coroutineScope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        message = sideEffect.message
-                                    )
+                                    snackbarHostState.showSnackbar(message = sideEffect.message)
                                 }
                             }
-
                             is FeedSideEffect.LeaveEventSuccess -> {
-                                val event =
-                                    feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
+                                val event = feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
                                         message = "Вы успешно отменили участие в '${event?.title ?: "мероприятии"}'!"
@@ -303,8 +295,7 @@ fun MainScreen(
                 route = "profile/{userId}",
                 arguments = listOf(navArgument("userId") { type = NavType.StringType })
             ) { backStackEntry ->
-                val profileUserId =
-                    backStackEntry.arguments?.getString("userId") ?: return@composable
+                val profileUserId = backStackEntry.arguments?.getString("userId") ?: return@composable
                 ProfileScreen(
                     viewModel = koinViewModel(parameters = { parametersOf(profileUserId) }),
                     onNavigateAuth = onNavigateAuth,
@@ -319,12 +310,39 @@ fun MainScreen(
             ) { navBackStackEntry ->
                 val eventId = navBackStackEntry.arguments?.getString("eventId")
                 if (eventId != null) {
+                    val eventDetailsViewModel: EventDetailsViewModel = koinViewModel()
                     EventDetailsScreen(
                         onNavigateBack = { navController.popBackStack() },
                         eventId = eventId,
-                        viewModel = koinViewModel(),
+                        viewModel = eventDetailsViewModel,
+                        navController = navController,
                         feedViewModel = feedViewModel
                     )
+                    LaunchedEffect(eventDetailsViewModel) {
+                        eventDetailsViewModel.container.sideEffectFlow.collect { sideEffect ->
+                            when (sideEffect) {
+                                is EventDetailsSideEffect.NavigateToChat -> {
+                                    println("MainScreen: Navigating to ChatsScreen and chatId=${sideEffect.chatId}")
+                                    navController.navigate(Chats) {
+                                        popUpTo(navController.graph.startDestinationId) {
+                                            saveState = true
+                                        }
+                                        restoreState = true
+                                        launchSingleTop = true
+                                    }
+                                    navController.navigate("chat/${sideEffect.chatId}")
+                                }
+                                is EventDetailsSideEffect.ShowError -> {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(sideEffect.message)
+                                    }
+                                }
+                                is EventDetailsSideEffect.OnNavigateBack -> {
+                                    navController.popBackStack()
+                                }
+                            }
+                        }
+                    }
                 } else {
                     Box(modifier = Modifier.fillMaxSize()) {
                         Text(
@@ -337,11 +355,7 @@ fun MainScreen(
             composable<EditProfile> {
                 EditProfileScreen(
                     navController = navController,
-                    viewModel = koinViewModel(
-                        parameters = {
-                            parametersOf(userId)
-                        }
-                    )
+                    viewModel = koinViewModel(parameters = { parametersOf(userId) })
                 )
             }
             composable(
