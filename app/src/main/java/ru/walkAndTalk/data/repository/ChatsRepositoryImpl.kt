@@ -1,9 +1,11 @@
 package ru.walkAndTalk.data.repository
 
+import io.github.jan.supabase.postgrest.query.Columns.Companion.raw
 import io.github.jan.supabase.postgrest.query.Order
 import ru.walkAndTalk.data.mapper.toDomain
 import ru.walkAndTalk.data.model.ChatDto
 import ru.walkAndTalk.data.model.ChatParticipantDto
+import ru.walkAndTalk.data.model.ChatWithDetailsDto
 import ru.walkAndTalk.data.model.EventParticipantDto
 import ru.walkAndTalk.data.model.MessageDto
 import ru.walkAndTalk.data.network.SupabaseWrapper
@@ -16,6 +18,16 @@ import ru.walkAndTalk.domain.repository.EventsRepository
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 import java.time.OffsetDateTime
 import java.util.UUID
+import kotlinx.coroutines.coroutineScope
+import kotlinx.serialization.json.Json
+import kotlinx.coroutines.coroutineScope
+import io.github.jan.supabase.postgrest.rpc
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import ru.walkAndTalk.data.mapper.fromDto
 
 class ChatsRepositoryImpl(
     private val supabaseWrapper: SupabaseWrapper,
@@ -23,54 +35,125 @@ class ChatsRepositoryImpl(
     private val usersRepository: RemoteUsersRepository
 ) : ChatsRepository {
 
-    override suspend fun fetchUserChats(userId: String): List<Chat> {
+//    override suspend fun fetchUserChats(userId: String): List<Chat> {
+//        println("ChatsRepository: Fetching chats for userId=$userId")
+//        try {
+//            val chatIds = supabaseWrapper.postgrest[Table.CHAT_PARTICIPANTS]
+//                .select { filter { eq("user_id", userId) } }
+//                .decodeList<ChatParticipantDto>()
+//                .map { it.chatId }
+//                .distinct()
+//            println("ChatsRepository: Found ${chatIds.size} chatIds: $chatIds")
+//            if (chatIds.isEmpty()) return emptyList()
+//
+//            val chats = mutableListOf<ChatDto>()
+//            for (chatId in chatIds) {
+//                val chat = supabaseWrapper.postgrest[Table.CHATS]
+//                    .select { filter { eq("id", chatId) } }
+//                    .decodeSingleOrNull<ChatDto>()
+//                if (chat != null) {
+//                    chats.add(chat)
+//                }
+//                println("ChatsRepository: Fetched chatId=$chatId: $chat")
+//            }
+//            println("ChatsRepository: Found ${chats.size} chats")
+//
+//            return chats.mapNotNull { chatDto ->
+//                val participantIds = supabaseWrapper.postgrest[Table.CHAT_PARTICIPANTS]
+//                    .select { filter { eq("chat_id", chatDto.id) } }
+//                    .decodeList<ChatParticipantDto>()
+//                    .map { it.userId }
+//                println("ChatsRepository: Participants for chatId=${chatDto.id}: $participantIds")
+//
+//                val currentParticipant = supabaseWrapper.postgrest[Table.CHAT_PARTICIPANTS]
+//                    .select { filter { eq("chat_id", chatDto.id); eq("user_id", userId) } }
+//                    .decodeSingleOrNull<ChatParticipantDto>()
+//                println("ChatsRepository: Current participant for chatId=${chatDto.id}, userId=$userId: $currentParticipant")
+//                val isMuted = currentParticipant?.isMuted ?: false
+//                println("ChatsRepository: isMuted for chatId=${chatDto.id} and userId=$userId: $isMuted")
+//
+//                val event = if (chatDto.type == "group" && chatDto.eventId != null) {
+//                    eventsRepository.fetchEventById(chatDto.eventId)
+//                } else null
+//
+//                // Для личных чатов выбираем другого участника
+//                val (participantName, participantUser) = if (chatDto.type == "private") {
+//                    val participantId = participantIds.firstOrNull { it != userId }
+//                    val user = participantId?.let { usersRepository.fetchById(it) }
+//                    user?.name to user
+//                } else {
+//                    null to null // Для групповых чатов не заполняем
+//                }
+//
+//
+//                val lastMessageQuery = supabaseWrapper.postgrest[Table.MESSAGES]
+//                    .select { filter { eq("chat_id", chatDto.id) }; order("created_at", Order.DESCENDING); limit(1) }
+//                    .decodeSingleOrNull<MessageDto>()
+//                val lastMessageSenderId = lastMessageQuery?.senderId
+//
+//                val senderName = if (chatDto.type == "group" && lastMessageSenderId != null && lastMessageSenderId != userId) {
+//                    usersRepository.fetchById(lastMessageSenderId)?.name ?: "Неизвестный"
+//                } else {
+//                    null
+//                }
+//                chatDto.toDomain(
+//                    event = event,
+////                    participantName = participantName,
+//                    participantName = if (chatDto.type == "private") participantName else senderName,
+//                    participantUser = participantUser,
+//                    participantIds = participantIds,
+//                    lastMessage = lastMessageQuery?.content,
+//                    lastMessageTime = lastMessageQuery?.createdAt,
+//                    lastMessageSenderId = lastMessageSenderId,
+//                    unreadCount = getUnreadCount(chatDto.id, userId),
+//                    isMessageRead = lastMessageQuery?.isRead,
+//                    isMuted = isMuted
+//                )
+//            }.also {
+//                println("ChatsRepository: Fetched ${it.size} chats for userId=$userId: $it")
+//            }
+//        } catch (e: Exception) {
+//            println("ChatsRepository: Error fetching chats: ${e.message}, stackTrace=${e.stackTraceToString()}")
+//            throw e
+//        }
+//    }
+
+    override suspend fun fetchUserChats(userId: String): List<Chat> = coroutineScope {
         println("ChatsRepository: Fetching chats for userId=$userId")
         try {
-            val chatIds = supabaseWrapper.postgrest[Table.CHAT_PARTICIPANTS]
-                .select { filter { eq("user_id", userId) } }
-                .decodeList<ChatParticipantDto>()
-                .map { it.chatId }
+            val chatsData = supabaseWrapper.postgrest.rpc(
+                function = "fetch_user_chats",
+                parameters = buildJsonObject { put("input_user_id", userId) }
+            ).decodeList<ChatWithDetailsDto>()
+            println("ChatsRepository: Fetched ${chatsData.size} chats with details")
+
+            val eventIds = chatsData
+                .filter { it.chat.type == "group" && it.chat.eventId != null }
+                .map { it.chat.eventId!! }
                 .distinct()
-            println("ChatsRepository: Found ${chatIds.size} chatIds: $chatIds")
-            if (chatIds.isEmpty()) return emptyList()
 
-            val chats = mutableListOf<ChatDto>()
-            for (chatId in chatIds) {
-                val chat = supabaseWrapper.postgrest[Table.CHATS]
-                    .select { filter { eq("id", chatId) } }
-                    .decodeSingleOrNull<ChatDto>()
-                if (chat != null) {
-                    chats.add(chat)
-                }
-                println("ChatsRepository: Fetched chatId=$chatId: $chat")
+            val eventDeferred = eventIds.map { eventId ->
+                async { eventsRepository.fetchEventById(eventId) }
             }
-            println("ChatsRepository: Found ${chats.size} chats")
+            val events = eventDeferred.awaitAll()
+            val eventMap = eventIds.zip(events).filter { it.second != null }.associate { it.first to it.second }
 
-            return chats.mapNotNull { chatDto ->
-                val participantIds = supabaseWrapper.postgrest[Table.CHAT_PARTICIPANTS]
-                    .select { filter { eq("chat_id", chatDto.id) } }
-                    .decodeList<ChatParticipantDto>()
-                    .map { it.userId }
-                println("ChatsRepository: Participants for chatId=${chatDto.id}: $participantIds")
-
-                val currentParticipant = supabaseWrapper.postgrest[Table.CHAT_PARTICIPANTS]
-                    .select { filter { eq("chat_id", chatDto.id); eq("user_id", userId) } }
-                    .decodeSingleOrNull<ChatParticipantDto>()
-                println("ChatsRepository: Current participant for chatId=${chatDto.id}, userId=$userId: $currentParticipant")
-                val isMuted = currentParticipant?.isMuted ?: false
-                println("ChatsRepository: isMuted for chatId=${chatDto.id} and userId=$userId: $isMuted")
-
+            chatsData.mapNotNull { chatWithDetails ->
+                val chatDto = chatWithDetails.chat
+                val participantIds = chatWithDetails.participants.map { it.userId }
+                val isMuted = chatWithDetails.currentParticipant?.isMuted ?: false
                 val event = if (chatDto.type == "group" && chatDto.eventId != null) {
-                    eventsRepository.fetchEventById(chatDto.eventId)
+                    eventMap[chatDto.eventId]
                 } else null
-
-                // Для личных чатов выбираем другого участника
                 val (participantName, participantUser) = if (chatDto.type == "private") {
                     val participantId = participantIds.firstOrNull { it != userId }
-                    val user = participantId?.let { usersRepository.fetchById(it) }
-                    user?.name to user
+                    val userDto = chatWithDetails.users.find { it.id == participantId }
+                    (userDto?.name ?: "Неизвестный пользователь") to userDto?.fromDto()
                 } else {
-                    null to null // Для групповых чатов не заполняем
+                    null to null
+                }
+                chatsData.forEach { chatWithDetails ->
+                    println("Chat ID: ${chatWithDetails.chat.id}, Last Message: ${chatWithDetails.lastMessage?.content}, Sender ID: ${chatWithDetails.lastMessage?.senderId}")
                 }
 
                 val lastMessageQuery = supabaseWrapper.postgrest[Table.MESSAGES]
@@ -78,9 +161,15 @@ class ChatsRepositoryImpl(
                     .decodeSingleOrNull<MessageDto>()
                 val lastMessageSenderId = lastMessageQuery?.senderId
 
+//                val lastMessage = chatWithDetails.lastMessage
+                val senderName = if (chatDto.type == "group" && lastMessageQuery?.senderId != null && lastMessageQuery.senderId != userId) {
+                    chatWithDetails.users.find { it.id == lastMessageQuery.senderId }?.name ?: "Неизвестный"
+                } else {
+                    null
+                }
                 chatDto.toDomain(
                     event = event,
-                    participantName = participantName,
+                    participantName = if (chatDto.type == "private") participantName else senderName,
                     participantUser = participantUser,
                     participantIds = participantIds,
                     lastMessage = lastMessageQuery?.content,
@@ -91,7 +180,7 @@ class ChatsRepositoryImpl(
                     isMuted = isMuted
                 )
             }.also {
-                println("ChatsRepository: Fetched ${it.size} chats for userId=$userId: $it")
+                println("ChatsRepository: Mapped ${it.size} chats for userId=$userId")
             }
         } catch (e: Exception) {
             println("ChatsRepository: Error fetching chats: ${e.message}, stackTrace=${e.stackTraceToString()}")
@@ -149,46 +238,6 @@ class ChatsRepositoryImpl(
     override suspend fun findOrCreatePrivateChat(userId1: String, userId2: String): Chat {
         return createPrivateChat(userId1, userId2)
     }
-
-//    override suspend fun fetchChatById(id: String): Chat? {
-//        val chatDto = supabaseWrapper.postgrest.from(Table.CHATS)
-//            .select { filter { eq("id", id) } }
-//            .decodeSingleOrNull<ChatDto>()
-//
-//        return chatDto?.let { dto ->
-//            val participantIds = supabaseWrapper.postgrest.from(Table.CHAT_PARTICIPANTS)
-//                .select { filter { eq("chat_id", dto.id) } }
-//                .decodeList<ChatParticipantDto>()
-//                .map { it.userId }
-//            val currentUserId = supabaseWrapper.auth.currentUserOrNull()?.id
-//            val currentParticipant = currentUserId?.let { userId ->
-//                supabaseWrapper.postgrest.from(Table.CHAT_PARTICIPANTS)
-//                    .select { filter { eq("chat_id", dto.id); eq("user_id", userId) } }
-//                    .decodeSingleOrNull<ChatParticipantDto>()
-//            }
-//            val isMuted = currentParticipant?.isMuted ?: false
-//
-//            val participantId = participantIds.firstOrNull { it != currentUserId }
-//            val participantUser = participantId?.let { usersRepository.fetchById(it) }
-//
-//            val lastMessage = supabaseWrapper.postgrest.from(Table.MESSAGES)
-//                .select { filter { eq("chat_id", dto.id) }; order("created_at", Order.DESCENDING); limit(1) }
-//                .decodeSingleOrNull<MessageDto>()
-//
-//            dto.toDomain(
-//                event = if (dto.type == "group" && dto.eventId != null) eventsRepository.fetchEventById(dto.eventId) else null,
-//                participantName = participantUser?.name,
-//                participantUser = participantUser,
-//                participantIds = participantIds,
-//                lastMessage = lastMessage?.content,
-//                lastMessageTime = lastMessage?.createdAt,
-//                unreadCount = currentUserId?.let { getUnreadCount(dto.id, it) } ?: 0,
-//                isMuted = isMuted
-//            )
-//        }.also {
-//            println("ChatsRepository: Fetched chat id=$id, result=$it")
-//        }
-//    }
 
     override suspend fun toggleMuteChat(chatId: String, mute: Boolean) {
         val currentUserId = supabaseWrapper.auth.currentUserOrNull()?.id
@@ -345,21 +394,29 @@ class ChatsRepositoryImpl(
     }
 
     override suspend fun fetchMessages(chatId: String): List<Message> {
-        println("ChatsRepository: Fetching messages for chatId=$chatId")
+        println("MessagesRepository: Fetching messages for chatId=$chatId")
         val chat = fetchChatById(chatId) ?: throw IllegalArgumentException("Chat not found: $chatId")
-        val isGroupChat = chat.type == "group" // Исправляем с "private" на "group"
+        val isGroupChat = chat.type == "group"
+        val currentUserId = supabaseWrapper.auth.currentUserOrNull()?.id ?: throw IllegalStateException("User not authenticated")
         val messages = supabaseWrapper.postgrest[Table.MESSAGES]
-            .select { filter { eq("chat_id", chatId) }; order("created_at", Order.DESCENDING) } // c true na Order.DESCENDING
+            .select {
+                filter {
+                    eq("chat_id", chatId)
+                    raw("NOT deleted_by @> ARRAY['$currentUserId']::text[]") // Basic PostgreSQL filter
+                }
+                order("created_at", Order.DESCENDING)
+                limit(50)
+            }
             .decodeList<MessageDto>()
         return messages.map { messageDto ->
-            val senderName = if (isGroupChat && messageDto.senderId != supabaseWrapper.auth.currentUserOrNull()?.id) {
+            val senderName = if (isGroupChat && messageDto.senderId != currentUserId) {
                 usersRepository.fetchById(messageDto.senderId)?.name ?: "Unknown"
             } else {
                 null
             }
             messageDto.toDomain(senderName)
         }.also {
-            println("ChatsRepository: Fetched ${it.size} messages for chatId=$chatId")
+            println("MessagesRepository: Fetched ${it.size} messages for chatId=$chatId")
         }
     }
 
@@ -537,6 +594,20 @@ class ChatsRepositoryImpl(
         }
     }
 
+    override suspend fun leaveGroupChat(chatId: String, userId: String) {
+        println("ChatsRepository: Leaving group chat id=$chatId for userId=$userId")
+        val chat = fetchChatById(chatId) ?: throw IllegalArgumentException("Chat not found: $chatId")
+        if (chat.type != "group") {
+            println("ChatsRepository: Cannot leave private chat id=$chatId")
+            throw IllegalStateException("Выход возможен только из групповых чатов")
+        }
+        supabaseWrapper.postgrest[Table.CHAT_PARTICIPANTS]
+            .delete {
+                filter { eq("chat_id", chatId) }
+                filter { eq("user_id", userId) }
+            }
+        println("ChatsRepository: User id=$userId removed from chat_participants for chatId=$chatId")
+    }
     override suspend fun fetchUsersForChats(chatIds: List<String>): List<User> {
         return emptyList()
     }

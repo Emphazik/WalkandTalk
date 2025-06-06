@@ -49,31 +49,201 @@ class ChatViewModel(
         startPollingMessages()
     }
 
+    private fun subscribeToMessages() = intent {
+        if (isSubscribed) {
+            println("ChatViewModel: Already subscribed to messages for chatId=$chatId")
+            return@intent
+        }
+        try {
+            messagesChannel = supabaseWrapper.realtime.channel("messages-channel-$chatId")
+            println("ChatViewModel: Subscribing to channel: messages-channel-$chatId")
+            val chat = chatsRepository.fetchChatById(chatId) ?: throw IllegalStateException("Chat not found: $chatId")
+            val isGroupChat = chat.type == "group"
+
+            val insertFlow = messagesChannel.postgresChangeFlow<PostgresAction.Insert>(
+                schema = "public"
+            ) {
+                filter("chat_id", FilterOperator.EQ, chatId)
+            }
+            val updateFlow = messagesChannel.postgresChangeFlow<PostgresAction.Update>(
+                schema = "public"
+            ) {
+                filter("chat_id", FilterOperator.EQ, chatId)
+            }
+            val deleteFlow = messagesChannel.postgresChangeFlow<PostgresAction.Delete>(
+                schema = "public"
+            ) {
+                filter("chat_id", FilterOperator.EQ, chatId)
+            }
+
+            viewModelScope.launch {
+                insertFlow.collect { payload ->
+                    println("ChatViewModel: Received insert payload: $payload")
+                    val record = payload.record as Map<String, JsonElement>
+                    val messageId = record["id"]?.jsonPrimitive?.content ?: ""
+                    val messageChatId = record["chat_id"]?.jsonPrimitive?.content ?: ""
+                    val senderId = record["sender_id"]?.jsonPrimitive?.content ?: ""
+                    val content = record["content"]?.jsonPrimitive?.content ?: ""
+                    val createdAt = record["created_at"]?.jsonPrimitive?.content ?: ""
+                    val isRead = record["is_read"]?.jsonPrimitive?.boolean ?: false
+                    val deletedBy = record["deleted_by"]?.let { element ->
+                        if (element is JsonArray) {
+                            element.mapNotNull { it.jsonPrimitive.contentOrNull }
+                        } else {
+                            emptyList()
+                        }
+                    } ?: emptyList()
+
+                    if (messageId.isEmpty() || content.isEmpty()) {
+                        println("ChatViewModel: Received invalid message from Realtime, id=$messageId")
+                        return@collect
+                    }
+
+                    val senderName = if (isGroupChat && senderId != supabaseWrapper.auth.currentUserOrNull()?.id) {
+                        usersRepository.fetchById(senderId)?.name ?: "Unknown"
+                    } else {
+                        null
+                    }
+
+                    val message = Message(
+                        id = messageId,
+                        chatId = messageChatId,
+                        senderId = senderId,
+                        content = content,
+                        createdAt = createdAt,
+                        isRead = isRead,
+                        tempId = null,
+                        deletedBy = deletedBy,
+                        senderName = senderName
+                    )
+
+                    if (state.messages.any { it.id == messageId || (it.tempId != null && it.senderId == senderId && it.content == content) }) {
+                        println("ChatViewModel: Ignoring duplicate message from Realtime, id=$messageId")
+                        return@collect
+                    }
+
+                    reduce {
+                        val updatedMessages = (state.messages + message).sortedBy {
+                            OffsetDateTime.parse(it.createdAt).toInstant().toEpochMilli()
+                        }
+                        state.copy(messages = updatedMessages)
+                    }
+                    println("ChatViewModel: Received new message for chatId=$chatId, message=$message")
+                    if (message.senderId != userId) {
+                        markMessageAsRead(message)
+                    }
+                }
+            }
+            viewModelScope.launch {
+                updateFlow.collect { payload ->
+                    println("ChatViewModel: Received update payload: $payload")
+                    val record = payload.record as Map<String, JsonElement>
+                    val messageId = record["id"]?.jsonPrimitive?.content ?: ""
+                    val content = record["content"]?.jsonPrimitive?.content ?: ""
+                    val isRead = record["is_read"]?.jsonPrimitive?.boolean ?: false
+                    val deletedBy = record["deleted_by"]?.let { element ->
+                        if (element is JsonArray) {
+                            element.mapNotNull { it.jsonPrimitive.contentOrNull }
+                        } else {
+                            emptyList()
+                        }
+                    } ?: emptyList()
+                    if (messageId.isEmpty()) {
+                        println("ChatViewModel: Received invalid update from Realtime, id=$messageId")
+                        return@collect
+                    }
+                    val updatedMessages = state.messages.mapNotNull { msg ->
+                        if (msg.id == messageId) {
+                            if (userId in deletedBy) {
+                                println("ChatViewModel: Message id=$messageId deleted for userId=$userId")
+                                null // Remove message if deleted by current user
+                            } else {
+                                println("ChatViewModel: Updating message id=$messageId with content=$content, isRead=$isRead, deletedBy=$deletedBy")
+                                msg.copy(content = content, isRead = isRead, deletedBy = deletedBy)
+                            }
+                        } else {
+                            msg
+                        }
+                    }
+                    reduce { state.copy(messages = updatedMessages) }
+                    println("ChatViewModel: Updated messages state: $updatedMessages")
+                }
+            }
+
+            viewModelScope.launch { deleteFlow.collect { payload ->
+                println("ChatViewModel: Received delete payload: $payload")
+                val record = payload.oldRecord as Map<String, JsonElement>
+                val messageId = record["id"]?.jsonPrimitive?.content ?: ""
+                if (messageId.isEmpty()) {
+                    println("ChatViewModel: Received invalid delete from Realtime, id=$messageId")
+                    return@collect
+                }
+                val updatedMessages = state.messages.filter { it.id != messageId }
+                reduce { state.copy(messages = updatedMessages) }
+                println("ChatViewModel: Deleted message id=$messageId from state")
+            } }
+
+            messagesChannel.subscribe()
+            isSubscribed = true
+            println("ChatViewModel: Successfully subscribed to messages for chatId=$chatId")
+        } catch (e: Exception) {
+            println("ChatViewModel: Error subscribing to messages: ${e.message}")
+            postSideEffect(ChatSideEffect.ShowError("Не удалось подключиться к обновлениям сообщений"))
+        }
+    }
+
+    private fun subscribeToMessageReadUpdates() = intent {
+        // Удаляем, так как функционал объединён в subscribeToMessages
+        println("ChatViewModel: Message read updates handled in subscribeToMessages")
+    }
+
     private lateinit var messagesChannel: RealtimeChannel
     private lateinit var participantsChannel: RealtimeChannel
     private var pollingJob: Job? = null
     private var isSubscribed = false // Флаг для предотвращения повторной подписки
 
     private fun startPollingMessages() = intent {
-        pollingJob?.cancel() // Отменяем предыдущий опрос, если он был
-        pollingJob = viewModelScope.launch {
-            while (isActive) {
-                try {
-                    val updatedMessages = messagesRepository.fetchMessages(chatId)
-                    if (updatedMessages != state.messages) {
-                        reduce { state.copy(messages = updatedMessages) }
-                        println("ChatViewModel: Polling updated messages for chatId=$chatId, count=${updatedMessages.size}")
-                    } else {
-                        println("ChatViewModel: Polling - no new messages for chatId=$chatId")
-                    }
-                } catch (e: Exception) {
-                    println("ChatViewModel: Polling error for chatId=$chatId: ${e.message}")
-                }
-                delay(5000) // 5 секунд
-            }
-        }
-        println("ChatViewModel: Started polling messages for chatId=$chatId")
+        // Comment out or remove polling
+        // pollingJob?.cancel()
+        // pollingJob = viewModelScope.launch {
+        //     while (isActive) {
+        //         try {
+        //             val updatedMessages = messagesRepository.fetchMessages(chatId)
+        //             if (updatedMessages != state.messages) {
+        //                 reduce { state.copy(messages = updatedMessages) }
+        //                 println("ChatViewModel: Polling updated messages for chatId=$chatId, count=${updatedMessages.size}")
+        //             } else {
+        //                 println("ChatViewModel: Polling - no new messages for chatId=$chatId")
+        //             }
+        //         } catch (e: Exception) {
+        //             println("ChatViewModel: Polling error for chatId=$chatId: ${e.message}")
+        //         }
+        //         delay(5000)
+        //     }
+        // }
+        println("ChatViewModel: Polling disabled for chatId=$chatId, using Realtime subscriptions")
     }
+
+//    private fun startPollingMessages() = intent {
+//        pollingJob?.cancel() // Отменяем предыдущий опрос, если он был
+//        pollingJob = viewModelScope.launch {
+//            while (isActive) {
+//                try {
+//                    val updatedMessages = messagesRepository.fetchMessages(chatId)
+//                    if (updatedMessages != state.messages) {
+//                        reduce { state.copy(messages = updatedMessages) }
+//                        println("ChatViewModel: Polling updated messages for chatId=$chatId, count=${updatedMessages.size}")
+//                    } else {
+//                        println("ChatViewModel: Polling - no new messages for chatId=$chatId")
+//                    }
+//                } catch (e: Exception) {
+//                    println("ChatViewModel: Polling error for chatId=$chatId: ${e.message}")
+//                }
+//                delay(5000) // 5 секунд
+//            }
+//        }
+//        println("ChatViewModel: Started polling messages for chatId=$chatId")
+//    }
 
     fun onInputTextChange(value: String) = intent {
         reduce { state.copy(inputText = value) }
@@ -234,154 +404,154 @@ class ChatViewModel(
         }
     }
 
-    private fun subscribeToMessages() = intent {
-        if (isSubscribed) {
-            println("ChatViewModel: Already subscribed to messages for chatId=$chatId")
-            return@intent
-        }
-        try {
-            messagesChannel = supabaseWrapper.realtime.channel("messages-channel-$chatId")
-            println("ChatViewModel: Subscribing to channel: messages-channel-$chatId")
-            val chat = chatsRepository.fetchChatById(chatId)
-                ?: throw IllegalStateException("Chat not found: $chatId")
-            val isGroupChat = chat.type == "group"
-
-            val insertFlow = messagesChannel.postgresChangeFlow<PostgresAction.Insert>(
-                schema = "public"
-            ) {
-                filter("chat_id", FilterOperator.EQ, chatId)
-                println("ChatViewModel: Insert filter set for chatId=$chatId")
-            }
-
-            val updateFlow = messagesChannel.postgresChangeFlow<PostgresAction.Update>(
-                schema = "public"
-            ) {
-                filter("chat_id", FilterOperator.EQ, chatId)
-                println("ChatViewModel: Update filter set for chatId=$chatId")
-            }
-
-            viewModelScope.launch {
-                insertFlow.collect { payload ->
-                    println("ChatViewModel: Received insert payload: $payload")
-                    val record = payload.record as Map<String, JsonElement>
-                    val messageId = record["id"]?.jsonPrimitive?.content ?: ""
-                    val messageChatId = record["chat_id"]?.jsonPrimitive?.content ?: ""
-                    val senderId = record["sender_id"]?.jsonPrimitive?.content ?: ""
-                    val content = record["content"]?.jsonPrimitive?.content ?: ""
-                    val createdAt = record["created_at"]?.jsonPrimitive?.content ?: ""
-                    val isRead = record["is_read"]?.jsonPrimitive?.boolean ?: false
-                    val deletedBy = record["deleted_by"]?.let { element ->
-                        if (element is JsonArray) {
-                            element.mapNotNull { it.jsonPrimitive.contentOrNull }
-                        } else {
-                            emptyList()
-                        }
-                    } ?: emptyList()
-
-                    if (messageId.isEmpty() || content.isEmpty()) {
-                        println("ChatViewModel: Received invalid message from Realtime, id=$messageId")
-                        return@collect
-                    }
-
-                    val senderName = if (isGroupChat && senderId != supabaseWrapper.auth.currentUserOrNull()?.id) {
-                        usersRepository.fetchById(senderId)?.name ?: "Unknown"
-                    } else {
-                        null
-                    }
-
-                    val message = Message(
-                        id = messageId,
-                        chatId = messageChatId,
-                        senderId = senderId,
-                        content = content,
-                        createdAt = createdAt,
-                        isRead = isRead,
-                        tempId = null,
-                        deletedBy = deletedBy,
-                        senderName = senderName
-                    )
-
-                    if (state.messages.any { it.id == messageId || (it.tempId != null && it.senderId == senderId && it.content == content) }) {
-                        println("ChatViewModel: Ignoring duplicate message from Realtime, id=$messageId")
-                        return@collect
-                    }
-
-                    reduce {
-                        val updatedMessages = (state.messages + message).sortedBy {
-                            OffsetDateTime.parse(it.createdAt).toInstant().toEpochMilli()
-                        }
-                        state.copy(messages = updatedMessages)
-                    }
-                    println("ChatViewModel: Received new message for chatId=$chatId, message=$message")
-                    if (message.senderId != userId) {
-                        markMessageAsRead(message)
-                    }
-                }
-
-                updateFlow.collect { payload ->
-                    println("ChatViewModel: Received update payload: $payload")
-                    val record = payload.record as Map<String, JsonElement>
-                    val messageId = record["id"]?.jsonPrimitive?.content ?: ""
-                    val content = record["content"]?.jsonPrimitive?.content ?: ""
-                    val isRead = record["is_read"]?.jsonPrimitive?.boolean ?: false
-
-                    if (messageId.isEmpty()) {
-                        println("ChatViewModel: Received invalid update from Realtime, id=$messageId")
-                        return@collect
-                    }
-
-                    val updatedMessages = state.messages.map { msg ->
-                        if (msg.id == messageId) {
-                            println("ChatViewModel: Updating message id=$messageId with content=$content, isRead=$isRead")
-                            msg.copy(content = content, isRead = isRead)
-                        } else {
-                            msg
-                        }
-                    }
-                    reduce { state.copy(messages = updatedMessages) }
-                    println("ChatViewModel: Updated messages state: $updatedMessages")
-                }
-            }
-
-            println("ChatViewModel: Attempting to subscribe to messages channel for chatId=$chatId")
-            messagesChannel.subscribe()
-            isSubscribed = true
-            println("ChatViewModel: Successfully subscribed to messages for chatId=$chatId")
-        } catch (e: Exception) {
-            println("ChatViewModel: Error subscribing to messages: ${e.message}")
-            postSideEffect(ChatSideEffect.ShowError("Не удалось подключиться к обновлениям сообщений. Пожалуйста, перезайдите в чат или проверьте интернет-соединение."))
-        }
-    }
-
-    private fun subscribeToMessageReadUpdates() = intent {
-        if (!isSubscribed) {
-            println("ChatViewModel: Cannot subscribe to message read updates, not subscribed to messages channel")
-            return@intent
-        }
-        try {
-            val updateFlow = messagesChannel.postgresChangeFlow<PostgresAction.Update>(
-                schema = "public"
-            ) {
-                filter("chat_id", FilterOperator.EQ, chatId)
-            }
-
-            viewModelScope.launch {
-                updateFlow.collect { payload ->
-                    val record = payload.record as Map<String, JsonElement>
-                    val messageId = record["id"]?.jsonPrimitive?.content ?: return@collect
-                    val isRead = record["is_read"]?.jsonPrimitive?.boolean ?: false
-
-                    val updatedMessages = state.messages.map {
-                        if (it.id == messageId) it.copy(isRead = isRead) else it
-                    }
-                    reduce { state.copy(messages = updatedMessages) }
-                    println("ChatViewModel: Updated isRead for message id=$messageId, isRead=$isRead")
-                }
-            }
-        } catch (e: Exception) {
-            println("ChatViewModel: Error subscribing to message read updates: ${e.message}")
-        }
-    }
+//    private fun subscribeToMessages() = intent {
+//        if (isSubscribed) {
+//            println("ChatViewModel: Already subscribed to messages for chatId=$chatId")
+//            return@intent
+//        }
+//        try {
+//            messagesChannel = supabaseWrapper.realtime.channel("messages-channel-$chatId")
+//            println("ChatViewModel: Subscribing to channel: messages-channel-$chatId")
+//            val chat = chatsRepository.fetchChatById(chatId)
+//                ?: throw IllegalStateException("Chat not found: $chatId")
+//            val isGroupChat = chat.type == "group"
+//
+//            val insertFlow = messagesChannel.postgresChangeFlow<PostgresAction.Insert>(
+//                schema = "public"
+//            ) {
+//                filter("chat_id", FilterOperator.EQ, chatId)
+//                println("ChatViewModel: Insert filter set for chatId=$chatId")
+//            }
+//
+//            val updateFlow = messagesChannel.postgresChangeFlow<PostgresAction.Update>(
+//                schema = "public"
+//            ) {
+//                filter("chat_id", FilterOperator.EQ, chatId)
+//                println("ChatViewModel: Update filter set for chatId=$chatId")
+//            }
+//
+//            viewModelScope.launch {
+//                insertFlow.collect { payload ->
+//                    println("ChatViewModel: Received insert payload: $payload")
+//                    val record = payload.record as Map<String, JsonElement>
+//                    val messageId = record["id"]?.jsonPrimitive?.content ?: ""
+//                    val messageChatId = record["chat_id"]?.jsonPrimitive?.content ?: ""
+//                    val senderId = record["sender_id"]?.jsonPrimitive?.content ?: ""
+//                    val content = record["content"]?.jsonPrimitive?.content ?: ""
+//                    val createdAt = record["created_at"]?.jsonPrimitive?.content ?: ""
+//                    val isRead = record["is_read"]?.jsonPrimitive?.boolean ?: false
+//                    val deletedBy = record["deleted_by"]?.let { element ->
+//                        if (element is JsonArray) {
+//                            element.mapNotNull { it.jsonPrimitive.contentOrNull }
+//                        } else {
+//                            emptyList()
+//                        }
+//                    } ?: emptyList()
+//
+//                    if (messageId.isEmpty() || content.isEmpty()) {
+//                        println("ChatViewModel: Received invalid message from Realtime, id=$messageId")
+//                        return@collect
+//                    }
+//
+//                    val senderName = if (isGroupChat && senderId != supabaseWrapper.auth.currentUserOrNull()?.id) {
+//                        usersRepository.fetchById(senderId)?.name ?: "Unknown"
+//                    } else {
+//                        null
+//                    }
+//
+//                    val message = Message(
+//                        id = messageId,
+//                        chatId = messageChatId,
+//                        senderId = senderId,
+//                        content = content,
+//                        createdAt = createdAt,
+//                        isRead = isRead,
+//                        tempId = null,
+//                        deletedBy = deletedBy,
+//                        senderName = senderName
+//                    )
+//
+//                    if (state.messages.any { it.id == messageId || (it.tempId != null && it.senderId == senderId && it.content == content) }) {
+//                        println("ChatViewModel: Ignoring duplicate message from Realtime, id=$messageId")
+//                        return@collect
+//                    }
+//
+//                    reduce {
+//                        val updatedMessages = (state.messages + message).sortedBy {
+//                            OffsetDateTime.parse(it.createdAt).toInstant().toEpochMilli()
+//                        }
+//                        state.copy(messages = updatedMessages)
+//                    }
+//                    println("ChatViewModel: Received new message for chatId=$chatId, message=$message")
+//                    if (message.senderId != userId) {
+//                        markMessageAsRead(message)
+//                    }
+//                }
+//
+//                updateFlow.collect { payload ->
+//                    println("ChatViewModel: Received update payload: $payload")
+//                    val record = payload.record as Map<String, JsonElement>
+//                    val messageId = record["id"]?.jsonPrimitive?.content ?: ""
+//                    val content = record["content"]?.jsonPrimitive?.content ?: ""
+//                    val isRead = record["is_read"]?.jsonPrimitive?.boolean ?: false
+//
+//                    if (messageId.isEmpty()) {
+//                        println("ChatViewModel: Received invalid update from Realtime, id=$messageId")
+//                        return@collect
+//                    }
+//
+//                    val updatedMessages = state.messages.map { msg ->
+//                        if (msg.id == messageId) {
+//                            println("ChatViewModel: Updating message id=$messageId with content=$content, isRead=$isRead")
+//                            msg.copy(content = content, isRead = isRead)
+//                        } else {
+//                            msg
+//                        }
+//                    }
+//                    reduce { state.copy(messages = updatedMessages) }
+//                    println("ChatViewModel: Updated messages state: $updatedMessages")
+//                }
+//            }
+//
+//            println("ChatViewModel: Attempting to subscribe to messages channel for chatId=$chatId")
+//            messagesChannel.subscribe()
+//            isSubscribed = true
+//            println("ChatViewModel: Successfully subscribed to messages for chatId=$chatId")
+//        } catch (e: Exception) {
+//            println("ChatViewModel: Error subscribing to messages: ${e.message}")
+//            postSideEffect(ChatSideEffect.ShowError("Не удалось подключиться к обновлениям сообщений. Пожалуйста, перезайдите в чат или проверьте интернет-соединение."))
+//        }
+//    }
+//
+//    private fun subscribeToMessageReadUpdates() = intent {
+//        if (!isSubscribed) {
+//            println("ChatViewModel: Cannot subscribe to message read updates, not subscribed to messages channel")
+//            return@intent
+//        }
+//        try {
+//            val updateFlow = messagesChannel.postgresChangeFlow<PostgresAction.Update>(
+//                schema = "public"
+//            ) {
+//                filter("chat_id", FilterOperator.EQ, chatId)
+//            }
+//
+//            viewModelScope.launch {
+//                updateFlow.collect { payload ->
+//                    val record = payload.record as Map<String, JsonElement>
+//                    val messageId = record["id"]?.jsonPrimitive?.content ?: return@collect
+//                    val isRead = record["is_read"]?.jsonPrimitive?.boolean ?: false
+//
+//                    val updatedMessages = state.messages.map {
+//                        if (it.id == messageId) it.copy(isRead = isRead) else it
+//                    }
+//                    reduce { state.copy(messages = updatedMessages) }
+//                    println("ChatViewModel: Updated isRead for message id=$messageId, isRead=$isRead")
+//                }
+//            }
+//        } catch (e: Exception) {
+//            println("ChatViewModel: Error subscribing to message read updates: ${e.message}")
+//        }
+//    }
 
     private fun subscribeToParticipantActivity() = intent {
         try {

@@ -2,7 +2,10 @@ package ru.walkAndTalk.data.repository
 
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import ru.walkAndTalk.data.mapper.toDomain
+import ru.walkAndTalk.data.model.ChatParticipantDto
 import ru.walkAndTalk.data.model.MessageDto
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.Table
@@ -74,12 +77,12 @@ class MessagesRepositoryImpl(
                 println("MessagesRepository: No message IDs provided for deletion")
                 return
             }
-
+            val currentUserId = supabaseWrapper.auth.currentUserOrNull()?.id ?: return
             messageIds.forEach { messageId ->
                 supabaseWrapper.postgrest.from(Table.MESSAGES)
                     .delete {
                         filter { eq("id", messageId) }
-                        filter { eq("sender_id", supabaseWrapper.auth.currentUserOrNull()?.id ?: "") } // Проверка RLS
+                        filter { eq("sender_id", currentUserId) }
                     }
                 println("MessagesRepository: Successfully deleted message: $messageId")
             }
@@ -88,6 +91,27 @@ class MessagesRepositoryImpl(
             throw e
         }
     }
+
+//    override suspend fun deleteMessages(messageIds: List<String>) {
+//        try {
+//            if (messageIds.isEmpty()) {
+//                println("MessagesRepository: No message IDs provided for deletion")
+//                return
+//            }
+//
+//            messageIds.forEach { messageId ->
+//                supabaseWrapper.postgrest.from(Table.MESSAGES)
+//                    .delete {
+//                        filter { eq("id", messageId) }
+//                        filter { eq("sender_id", supabaseWrapper.auth.currentUserOrNull()?.id ?: "") } // Проверка RLS
+//                    }
+//                println("MessagesRepository: Successfully deleted message: $messageId")
+//            }
+//        } catch (e: Exception) {
+//            println("MessagesRepository: Error deleting messages: ${e.message}, stacktrace: ${e.stackTraceToString()}")
+//            throw e
+//        }
+//    }
 
     override suspend fun editMessage(messageId: String, newContent: String): Message {
         supabaseWrapper.postgrest.from(Table.MESSAGES)

@@ -19,4 +19,5 @@ interface ChatsRepository {
     suspend fun removeUserFromChat(chatId: String, userId: String)
 
     suspend fun fetchMessages(chatId: String): List<Message>
+    suspend fun leaveGroupChat(chatId: String, userId: String)
 }

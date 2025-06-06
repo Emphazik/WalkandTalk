@@ -102,6 +102,7 @@ fun ChatsScreen(
                 navController.currentBackStackEntry?.savedStateHandle?.set("refreshChats", false)
             }
         }
+        viewModel.loadChats(userId)
     }
 
     LaunchedEffect(navController) {
@@ -114,6 +115,9 @@ fun ChatsScreen(
         }
     }
 
+    LaunchedEffect(state.chats) {
+        println("ChatsScreen: Recomposed with ${state.chats.size} chats, first=${state.chats.firstOrNull()?.lastMessage}")
+    }
     viewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
             is ChatsSideEffect.NavigateToChat -> {
@@ -121,9 +125,15 @@ fun ChatsScreen(
                 println("ChatsScreen: Navigate to chat id=${sideEffect.chatId}")
             }
             is ChatsSideEffect.ShowError -> {
-                coroutineScope.launch {
+//                coroutineScope.launch {
                     snackbarHostState.showSnackbar(sideEffect.message)
-                }
+//                }
+            }
+            is ChatsSideEffect.ShowSuccess -> {
+                snackbarHostState.showSnackbar(sideEffect.message)
+            }
+            is ChatsSideEffect.ShowPrivateChatWarning -> {
+                snackbarHostState.showSnackbar(sideEffect.message)
             }
         }
     }
@@ -226,8 +236,8 @@ fun ChatsScreen(
                             )
                         }
                         IconButton(onClick = {
-                            viewModel.loadChats(userId)
-                            println("ChatsScreen: Refresh chats triggered")
+                            viewModel.refreshChats()
+                            println("ChatsScreen: Manual refresh triggered")
                         }) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_refresh64),
@@ -442,13 +452,13 @@ fun ChatsScreen(
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_delete64),
-                                contentDescription = "Удалить чат",
+                                contentDescription = if (syncedSelectedChat.type == "group") "Выйти из чата" else "Удалить чат",
                                 modifier = Modifier.size(24.dp),
                                 tint = MaterialTheme.colorScheme.error
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Удалить чат",
+                                text = if (syncedSelectedChat.type == "group") "Выйти из чата" else "Удалить чат",
                                 fontFamily = montserratFont,
                                 fontSize = 16.sp,
                                 color = MaterialTheme.colorScheme.error
@@ -456,13 +466,12 @@ fun ChatsScreen(
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
-
                     if (showDeleteDialog) {
                         AlertDialog(
                             onDismissRequest = { showDeleteDialog = false },
                             title = {
                                 Text(
-                                    text = "Удалить чат?",
+                                    text = if (syncedSelectedChat.type == "group") "Выйти из чата?" else "Удалить чат?",
                                     fontFamily = montserratFont,
                                     fontSize = 18.sp,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -470,7 +479,9 @@ fun ChatsScreen(
                             },
                             text = {
                                 Text(
-                                    text = "Вы уверены, что хотите удалить этот чат? Это действие нельзя отменить.",
+                                    text = if (syncedSelectedChat.type == "group")
+                                        "Вы уверены, что хотите выйти из этого группового чата? Вы больше не будете получать сообщения."
+                                    else "Вы уверены, что хотите удалить этот чат? Это действие нельзя отменить.",
                                     fontFamily = montserratFont,
                                     fontSize = 14.sp,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -480,14 +491,18 @@ fun ChatsScreen(
                                 TextButton(
                                     onClick = {
                                         coroutineScope.launch {
-                                            viewModel.deleteChat(syncedSelectedChat.id)
+                                            if (syncedSelectedChat.type == "group") {
+                                                viewModel.leaveGroupChat(syncedSelectedChat.id)
+                                            } else {
+                                                viewModel.deleteChat(syncedSelectedChat.id)
+                                            }
                                             showDeleteDialog = false
                                             showBottomSheet = false
                                         }
                                     }
                                 ) {
                                     Text(
-                                        text = "Удалить",
+                                        text = if (syncedSelectedChat.type == "group") "Выйти" else "Удалить",
                                         color = MaterialTheme.colorScheme.error
                                     )
                                 }
@@ -563,7 +578,8 @@ fun ChatItem(
     chat: Chat,
     userId: String,
     onClick: () -> Unit,
-    onLongPress: () -> Unit
+    onLongPress: () -> Unit,
+    viewModel: ChatsViewModel = koinViewModel()
 ) {
     Card(
         modifier = Modifier
@@ -662,10 +678,8 @@ fun ChatItem(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val lastMessage = chat.lastMessage ?: "Нет сообщений"
-                    val displayMessage = if (chat.lastMessageSenderId == userId) "Вы: $lastMessage" else lastMessage
                     Text(
-                        text = displayMessage,
+                        text = viewModel.getLastMessageText(chat, userId), // Используем метод из ViewModel
                         fontFamily = montserratFont,
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
