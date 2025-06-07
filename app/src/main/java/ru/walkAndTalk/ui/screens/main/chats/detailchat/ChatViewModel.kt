@@ -19,12 +19,14 @@ import io.github.jan.supabase.realtime.channel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull.content
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import ru.walkAndTalk.data.model.ChatParticipantDto
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -188,7 +190,7 @@ class ChatViewModel(
             println("ChatViewModel: Successfully subscribed to messages for chatId=$chatId")
         } catch (e: Exception) {
             println("ChatViewModel: Error subscribing to messages: ${e.message}")
-            postSideEffect(ChatSideEffect.ShowError("Не удалось подключиться к обновлениям сообщений"))
+            //postSideEffect(ChatSideEffect.ShowError("Не удалось подключиться к обновлениям сообщений"))
         }
     }
 
@@ -278,12 +280,19 @@ class ChatViewModel(
             markAllMessagesAsRead(messages)
         } catch (e: Exception) {
             reduce { state.copy(isLoading = false, error = e.message) }
-            postSideEffect(ChatSideEffect.ShowError("Не удалось загрузить чат. Проверьте соединение или попробуйте позже."))
+                //postSideEffect(ChatSideEffect.ShowError("Не удалось загрузить чат. Проверьте соединение или попробуйте позже."))
             println("ChatViewModel: Error loading chat: ${e.message}")
         }
     }
 
-
+    fun getParticipantCount(): Int {
+        return runBlocking {
+            supabaseWrapper.postgrest.from("chat_participants")
+                .select { filter { eq("chat_id", chatId) } }
+                .decodeList<ChatParticipantDto>()
+                .size
+        }
+    }
 
     fun onEditClick(message: Message) = intent {
         reduce {
@@ -331,22 +340,46 @@ class ChatViewModel(
                 println("ChatViewModel: Locally deleted messages: $messageIds")
             } else {
                 try {
-                    messagesRepository.deleteMessages(messageIds)
-                    val updatedMessages = state.messages.filterNot { it.id in messageIds }
+                    messagesRepository.deleteMessages(messagesToDelete.map { it.id }) // Only delete own messages
+                    val updatedMessages = state.messages.filterNot { it.id in messagesToDelete.map { it.id } }
                     reduce { state.copy(messages = updatedMessages, selectedMessageIds = emptySet()) }
-                    println("ChatViewModel: Deleted messages on server: $messageIds")
+                    println("ChatViewModel: Deleted messages on server: ${messagesToDelete.map { it.id }}")
                 } catch (e: Exception) {
                     postSideEffect(ChatSideEffect.ShowError("Не удалось удалить сообщения: ${e.message}"))
                     println("ChatViewModel: Error deleting messages: ${e.message}")
                 }
             }
-            toggleShowDeleteDialog() // Закрываем диалог после действия
         } else {
             postSideEffect(ChatSideEffect.ShowError("Вы не можете удалить сообщения собеседника"))
             println("ChatViewModel: No permission to delete messages: $messageIds")
-            toggleShowDeleteDialog() // Закрываем диалог при ошибке
         }
+        toggleShowDeleteDialog() // Close dialog
     }
+//    fun onDeleteMessagesClick(messageIds: List<String>, isLocal: Boolean = false) = intent {
+//        val messagesToDelete = state.messages.filter { it.id in messageIds && it.senderId == userId }
+//        if (messagesToDelete.isNotEmpty()) {
+//            if (isLocal) {
+//                val updatedMessages = state.messages.filterNot { it.id in messageIds }
+//                reduce { state.copy(messages = updatedMessages, selectedMessageIds = emptySet()) }
+//                println("ChatViewModel: Locally deleted messages: $messageIds")
+//            } else {
+//                try {
+//                    messagesRepository.deleteMessages(messageIds)
+//                    val updatedMessages = state.messages.filterNot { it.id in messageIds }
+//                    reduce { state.copy(messages = updatedMessages, selectedMessageIds = emptySet()) }
+//                    println("ChatViewModel: Deleted messages on server: $messageIds")
+//                } catch (e: Exception) {
+//                    postSideEffect(ChatSideEffect.ShowError("Не удалось удалить сообщения: ${e.message}"))
+//                    println("ChatViewModel: Error deleting messages: ${e.message}")
+//                }
+//            }
+//            toggleShowDeleteDialog() // Закрываем диалог после действия
+//        } else {
+//            postSideEffect(ChatSideEffect.ShowError("Вы не можете удалить сообщения собеседника"))
+//            println("ChatViewModel: No permission to delete messages: $messageIds")
+//            toggleShowDeleteDialog() // Закрываем диалог при ошибке
+//        }
+//    }
 
     fun toggleShowDeleteDialog() = intent {
         reduce { state.copy(showDeleteDialog = !state.showDeleteDialog) }
@@ -587,7 +620,8 @@ class ChatViewModel(
             println("ChatViewModel: Successfully subscribed to participant activity for chatId=$chatId")
         } catch (e: Exception) {
             println("ChatViewModel: Error subscribing to participant activity: ${e.message}")
-            postSideEffect(ChatSideEffect.ShowError("Не удалось обновить статус участников. Попробуйте перезайти в чат позже."))        }
+            //postSideEffect(ChatSideEffect.ShowError("Не удалось обновить статус участников. Попробуйте перезайти в чат позже."))        }
+        }
     }
 
     override fun onCleared() {

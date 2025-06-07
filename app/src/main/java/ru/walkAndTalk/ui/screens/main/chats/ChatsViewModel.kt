@@ -60,36 +60,55 @@ class ChatsViewModel(
             messagesChannel = supabaseWrapper.realtime.channel("chats-messages-global")
             val insertFlow = messagesChannel.postgresChangeFlow<PostgresAction.Insert>(
                 schema = "public"
-            ) {
-                table = "messages"
-            }
+            ) { table = "messages" }
+            val updateFlow = messagesChannel.postgresChangeFlow<PostgresAction.Update>(
+                schema = "public"
+            ) { table = "messages" }
+            val deleteFlow = messagesChannel.postgresChangeFlow<PostgresAction.Delete>(
+                schema = "public"
+            ) { table = "messages" }
+
             viewModelScope.launch {
                 insertFlow.collect { payload ->
-                    println("ChatsViewModel: Received new message payload: $payload")
-                    val record = payload.record as Map<String, JsonElement>
-                    val chatId = record["chat_id"]?.jsonPrimitive?.content ?: ""
-                    val isUserInChat = supabaseWrapper.postgrest.from("chat_participants")
-                        .select {
-                            filter { eq("chat_id", chatId); eq("user_id", userId) }
-                        }
-                        .decodeList<ChatParticipantDto>()
-                        .isNotEmpty()
-                    if (isUserInChat) {
-                        chatCache.evictAll()
-                        val chats = chatsRepository.fetchUserChats(userId)
-                            .sortedByDescending { it.lastMessageTime?.let { time -> OffsetDateTime.parse(time).toInstant().toEpochMilli() } ?: 0L }
-                        chatCache.put(userId, chats)
-                        reduce { state.copy(chats = chats) }
-                        println("ChatsViewModel: Updated chats due to new message in chatId=$chatId")
-                    }
+                    val chatId = payload.record["chat_id"]?.jsonPrimitive?.content ?: ""
+                    updateChatIfRelevant(chatId)
                 }
             }
+            viewModelScope.launch {
+                updateFlow.collect { payload ->
+                    val chatId = payload.record["chat_id"]?.jsonPrimitive?.content ?: ""
+                    updateChatIfRelevant(chatId)
+                }
+            }
+            viewModelScope.launch {
+                deleteFlow.collect { payload ->
+                    val chatId = payload.oldRecord["chat_id"]?.jsonPrimitive?.content ?: ""
+                    updateChatIfRelevant(chatId)
+                }
+            }
+
             messagesChannel.subscribe()
             isSubscribed = true
             println("ChatsViewModel: Successfully subscribed to messages")
         } catch (e: Exception) {
             println("ChatsViewModel: Error subscribing to messages: ${e.message}")
-            postSideEffect(ChatsSideEffect.ShowError("Failed to subscribe to message updates"))
+            //postSideEffect(ChatsSideEffect.ShowError("Failed to subscribe to message updates"))
+        }
+    }
+
+    private suspend fun updateChatIfRelevant(chatId: String) {
+        if (chatId.isNotEmpty() && supabaseWrapper.postgrest.from("chat_participants")
+                .select { filter { eq("chat_id", chatId); eq("user_id", userId) } }
+                .decodeList<ChatParticipantDto>().isNotEmpty()
+        ) {
+            intent {
+                chatCache.evictAll()
+                val chats = chatsRepository.fetchUserChats(userId)
+                    .sortedByDescending { it.lastMessageTime?.let { time -> OffsetDateTime.parse(time).toInstant().toEpochMilli() } ?: 0L }
+                chatCache.put(userId, chats)
+                reduce { state.copy(chats = chats) }
+                println("ChatsViewModel: Updated chats due to change in chatId=$chatId")
+            }
         }
     }
 

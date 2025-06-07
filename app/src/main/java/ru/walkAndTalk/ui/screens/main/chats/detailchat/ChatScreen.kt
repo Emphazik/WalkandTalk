@@ -23,7 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -72,6 +72,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
@@ -168,13 +169,13 @@ fun ChatScreen(
                                         text = "Поиск сообщений...",
                                         fontSize = 16.sp,
                                         fontFamily = montserratFont,
-                                        color = Color.Gray // Серый для плейсхолдера
+                                        color = Color.Gray
                                     )
                                 },
                                 textStyle = TextStyle(
                                     fontSize = 16.sp,
                                     fontFamily = montserratFont,
-                                    color = Color.Black // Текст ввода черный
+                                    color = Color.Black
                                 ),
                                 singleLine = true,
                                 colors = TextFieldDefaults.colors(
@@ -182,7 +183,7 @@ fun ChatScreen(
                                     unfocusedIndicatorColor = Color.Transparent,
                                     focusedContainerColor = Color.Transparent,
                                     unfocusedContainerColor = Color.Transparent,
-                                    cursorColor = Color.Black, // Явный цвет курсора
+                                    cursorColor = Color.Black,
                                     focusedTextColor = Color.Black,
                                     unfocusedTextColor = Color.Black
                                 ),
@@ -228,20 +229,33 @@ fun ChatScreen(
                 } else {
                     // Обычный режим
                     TopAppBar(
-                        expandedHeight = 32.dp,
+                        expandedHeight = 48.dp,
                         title = {
                             if (state.selectedMessageIds.isEmpty()) {
-                                Text(
-                                    text = if (state.chat?.type == "group") {
-                                        state.chat?.eventName ?: "Групповой чат"
-                                    } else {
-                                        state.chat?.participantName ?: "Неизвестный пользователь"
-                                    },
-                                    fontFamily = montserratFont,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
+                                Column {
+                                    Text(
+                                        text = if (state.chat?.type == "group") {
+                                            state.chat?.eventName ?: "Групповой чат"
+                                        } else {
+                                            state.chat?.participantName ?: "Неизвестный пользователь"
+                                        },
+                                        fontFamily = montserratFont,
+                                        fontSize = if (state.chat?.type == "group") 15.sp else 18.sp, // Different font sizes
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onBackground,
+                                        maxLines = 1, // Limit to one line
+                                        overflow = TextOverflow.Ellipsis // Add ellipsis for overflow
+                                    )
+                                    if (state.chat?.type == "group") {
+                                        val participantCount = viewModel.getParticipantCount()
+                                        Text(
+                                            text = "$participantCount участников",
+                                            fontFamily = montserratFont,
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
+                                    }
+                                }
                             } else {
                                 Text(
                                     text = "Выбрано: ${state.selectedMessageIds.size}",
@@ -387,11 +401,7 @@ fun ChatScreen(
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .height(1.dp)
-                                                .background(
-                                                    MaterialTheme.colorScheme.onSurface.copy(
-                                                        alpha = 0.2f
-                                                    )
-                                                )
+                                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
                                         )
                                         Text(
                                             text = formatDateForSeparator(messages.first().createdAt),
@@ -404,22 +414,23 @@ fun ChatScreen(
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .height(1.dp)
-                                                .background(
-                                                    MaterialTheme.colorScheme.onSurface.copy(
-                                                        alpha = 0.2f
-                                                    )
-                                                )
+                                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
                                         )
                                     }
                                 }
-                                items(messages) { message ->
+                                itemsIndexed(messages) { msgIndex, message ->
+                                    val showSenderName = if (msgIndex > 0) {
+                                        val prevMessage = messages[msgIndex - 1]
+                                        message.senderId != prevMessage.senderId && message.senderName != null
+                                    } else {
+                                        message.senderName != null
+                                    }
                                     MessageItem(
                                         message = message,
                                         currentUserId = userId,
                                         isSelected = message.id in state.selectedMessageIds,
-                                        onLongClick = {
-                                            viewModel.toggleMessageSelection(message.id)
-                                        },
+                                        showSenderName = showSenderName,
+                                        onLongClick = { viewModel.toggleMessageSelection(message.id) },
                                         onCopy = { viewModel.showCopySuccess() }
                                     )
                                 }
@@ -846,12 +857,12 @@ fun ChatScreen(
         }
     }
 }
-
 @Composable
 fun MessageItem(
     message: Message,
     currentUserId: String,
     isSelected: Boolean = false,
+    showSenderName: Boolean,
     onLongClick: () -> Unit,
     onCopy: () -> Unit
 ) {
@@ -866,9 +877,9 @@ fun MessageItem(
                 else MaterialTheme.colorScheme.background
             )
     ) {
-        if (!isOwnMessage && message.senderName != null) {
+        if (!isOwnMessage && showSenderName) {
             Text(
-                text = message.senderName,
+                text = message.senderName ?: "Unknown",
                 fontFamily = montserratFont,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
@@ -937,6 +948,96 @@ fun MessageItem(
         }
     }
 }
+//@Composable
+//fun MessageItem(
+//    message: Message,
+//    currentUserId: String,
+//    isSelected: Boolean = false,
+//    onLongClick: () -> Unit,
+//    onCopy: () -> Unit,
+//) {
+//    val isOwnMessage = message.senderId == currentUserId
+//    val context = LocalContext.current
+//    Column(
+//        modifier = Modifier
+//            .fillMaxWidth()
+//            .padding(horizontal = 8.dp)
+//            .background(
+//                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+//                else MaterialTheme.colorScheme.background
+//            )
+//    ) {
+//        if (!isOwnMessage && message.senderName != null) {
+//            Text(
+//                text = message.senderName,
+//                fontFamily = montserratFont,
+//                fontSize = 12.sp,
+//                fontWeight = FontWeight.Medium,
+//                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+//                modifier = Modifier
+//                    .padding(start = 12.dp, bottom = 4.dp)
+//                    .align(Alignment.Start)
+//            )
+//        }
+//        Row(
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .combinedClickable(
+//                    onClick = {
+//                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+//                        val clip = ClipData.newPlainText("Message", message.content)
+//                        clipboard.setPrimaryClip(clip)
+//                        onCopy()
+//                    },
+//                    onLongClick = onLongClick
+//                ),
+//            horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start,
+//            verticalAlignment = Alignment.CenterVertically
+//        ) {
+//            Card(
+//                modifier = Modifier
+//                    .widthIn(max = 300.dp)
+//                    .padding(4.dp),
+//                colors = CardDefaults.cardColors(
+//                    containerColor = if (isOwnMessage) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+//                )
+//            ) {
+//                Column(
+//                    modifier = Modifier.padding(8.dp)
+//                ) {
+//                    Text(
+//                        text = message.content,
+//                        fontFamily = montserratFont,
+//                        fontSize = 14.sp,
+//                        color = MaterialTheme.colorScheme.onSurface
+//                    )
+//                    Row(
+//                        verticalAlignment = Alignment.CenterVertically,
+//                        modifier = Modifier.padding(top = 4.dp)
+//                    ) {
+//                        Text(
+//                            text = formatMessageTimeForChat(message.createdAt),
+//                            fontFamily = montserratFont,
+//                            fontSize = 12.sp,
+//                            color = MaterialTheme.colorScheme.onSurfaceVariant
+//                        )
+//                        if (isOwnMessage) {
+//                            Spacer(modifier = Modifier.width(4.dp))
+//                            Icon(
+//                                painter = painterResource(
+//                                    id = if (message.isRead) R.drawable.ic_double_check64 else R.drawable.ic_single_check64
+//                                ),
+//                                contentDescription = if (message.isRead) "Прочитано" else "Отправлено",
+//                                modifier = Modifier.size(16.dp),
+//                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+//                            )
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    }
+//}
 
     @SuppressLint("SimpleDateFormat")
     fun formatMessageTimeForChat(time: String): String {
