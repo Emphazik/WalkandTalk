@@ -12,4 +12,5 @@ object Table {
     const val EVENT_PARTICIPANTS = "event_participants"
     const val REVIEWS = "reviews"
     const val ROUTES = "routes"
+    const val EVENT_REVIEWS = "event_reviews"
 }

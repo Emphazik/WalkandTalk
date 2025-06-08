@@ -59,6 +59,7 @@ fun ProfileScreen(
     viewModel: ProfileViewModel,
     onNavigateAuth: () -> Unit,
     onNavigateEditProfile: () -> Unit,
+    onNavigateEventStatistics: () -> Unit,
     isOwnProfile: Boolean = true
 ) {
     val state by viewModel.collectAsState()
@@ -73,7 +74,7 @@ fun ProfileScreen(
     viewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
             is ProfileSideEffect.OnNavigateExit -> onNavigateAuth()
-            is ProfileSideEffect.LaunchImagePicker -> { /* Ничего не делаем, так как редактирование убрано с этого экрана */ }
+            is ProfileSideEffect.LaunchImagePicker -> {}
             is ProfileSideEffect.RequestLocationPermission -> { }
         }
     }
@@ -308,7 +309,8 @@ fun ProfileScreen(
                             },
                             onClick = {
                                 showEditMenu = false
-                                // Заглушка для статистики
+                                onNavigateEventStatistics()
+//                                navController.navigate("event_statistics")
                             }
                         )
                         DropdownMenuItem(

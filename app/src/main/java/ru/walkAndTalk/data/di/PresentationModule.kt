@@ -16,6 +16,7 @@ import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsViewModel
 import ru.walkAndTalk.ui.screens.onboarding.OnboardingViewModel
 import ru.walkAndTalk.ui.screens.main.profile.ProfileViewModel
 import ru.walkAndTalk.ui.screens.main.profile.edit.EditProfileViewModel
+import ru.walkAndTalk.ui.screens.main.profile.statistics.EventStatisticsViewModel
 import ru.walkAndTalk.ui.screens.main.search.SearchViewModel
 import ru.walkAndTalk.ui.screens.splash.SplashViewModel
 import ru.walkAndTalk.ui.screens.welcome.WelcomeViewModel
@@ -35,6 +36,7 @@ private val viewModelModule = module {
     viewModelOf(::SearchViewModel)
     //viewModelOf(::EventDetailsViewModel)
     //viewModelOf(::ChatViewModel)
+    viewModelOf(::EventStatisticsViewModel)
     factory { (chatId: String, userId: String) ->
         ChatViewModel(
             chatId = chatId,
@@ -55,6 +57,7 @@ private val viewModelModule = module {
             usersRepository = get(),
         )
     }
+
 }
 
 internal val presentationModule = module {

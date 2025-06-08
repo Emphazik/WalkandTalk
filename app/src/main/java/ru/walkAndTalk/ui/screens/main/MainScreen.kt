@@ -2,8 +2,10 @@ package ru.walkAndTalk.ui.screens.main
 
 import SearchScreen
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -13,13 +15,19 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -27,9 +35,11 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -40,11 +50,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -57,9 +71,11 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import ru.walkAndTalk.R
+import ru.walkAndTalk.data.store.UserPreferences
 import ru.walkAndTalk.ui.screens.Chats
 import ru.walkAndTalk.ui.screens.EditProfile
 import ru.walkAndTalk.ui.screens.EventDetails
+import ru.walkAndTalk.ui.screens.EventStatistics
 import ru.walkAndTalk.ui.screens.Feed
 import ru.walkAndTalk.ui.screens.Profile
 import ru.walkAndTalk.ui.screens.Search
@@ -74,6 +90,7 @@ import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsViewModel
 import ru.walkAndTalk.ui.screens.main.profile.ProfileScreen
 import ru.walkAndTalk.ui.screens.main.profile.ProfileViewModel
 import ru.walkAndTalk.ui.screens.main.profile.edit.EditProfileScreen
+import ru.walkAndTalk.ui.screens.main.profile.statistics.EventStatisticsScreen
 
 val montserratFont = FontFamily(Font(R.font.montserrat_semi_bold))
 
@@ -86,7 +103,8 @@ sealed class BottomNavBarItem(
     data object FeedItem : BottomNavBarItem(Feed, "Главная", R.drawable.ic_home1, "feed")
     data object SearchItem : BottomNavBarItem(Search, "Поиск", R.drawable.ic_people64, "search")
     data object ChatsItem : BottomNavBarItem(Chats, "Чаты", R.drawable.ic_chat64, "chats")
-    data class ProfileItem(val id: String) : BottomNavBarItem(Profile(id), "Профиль", R.drawable.ic_profile1, "profile")
+    data class ProfileItem(val id: String) :
+        BottomNavBarItem(Profile(id), "Профиль", R.drawable.ic_profile1, "profile")
 }
 
 @Composable
@@ -106,46 +124,144 @@ fun MainScreen(
     val colorScheme = MaterialTheme.colorScheme
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
-    val feedViewModel: FeedViewModel = koinViewModel(
-        parameters = { parametersOf(userId) }
-    )
-    val profileViewModel: ProfileViewModel = koinViewModel(
-        parameters = { parametersOf(userId) }
-    )
+    val feedViewModel: FeedViewModel = koinViewModel(parameters = { parametersOf(userId) })
+    val profileViewModel: ProfileViewModel = koinViewModel(parameters = { parametersOf(userId) })
     var isSnackbarVisible by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var showProfileSetupNotification by remember { mutableStateOf(false) }
 
-    LaunchedEffect(snackbarHostState.currentSnackbarData) {
-        isSnackbarVisible = snackbarHostState.currentSnackbarData != null
-    }
 
-    // Логирование для отладки
-    LaunchedEffect(currentRoute) {
-        println("MainScreen: CurrentRoute=$currentRoute")
-        tabs.forEach { tab ->
-            val selected = when (tab.tabId) {
-                "feed" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Feed") == true ||
-                        currentRoute?.startsWith("ru.walkAndTalk.ui.screens.EventDetails") == true
-
-                "search" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Search") == true
-                "chats" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Chats") == true
-                "profile" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Profile") == true ||
-                        currentRoute?.startsWith("ru.walkAndTalk.ui.screens.EditProfile") == true
-
-                else -> false
-            }
-            println("MainScreen: Tab=${tab.label}, Route=${tab.route}, TabId=${tab.tabId}, Selected=$selected")
+    LaunchedEffect(userId) {
+        val hasSeenNotification = UserPreferences.hasSeenProfileNotification(context)
+        if (!hasSeenNotification) {
+            val user = profileViewModel.getUserProfile()
+            showProfileSetupNotification =
+                user?.bio.isNullOrBlank() && user?.interestIds.isNullOrEmpty()
+            println("MainScreen: User profile check - showProfileSetupNotification=$showProfileSetupNotification, user=$user")
         }
     }
 
+    LaunchedEffect(showProfileSetupNotification) {
+        if (showProfileSetupNotification) {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar(
+                    message = "Настройте свой профиль и интересы в разделе 'Профиль'!",
+                    actionLabel = "Перейти",
+                    duration = SnackbarDuration.Long
+                )
+            }
+        }
+    }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
-                Snackbar(
-                    snackbarData = data,
-                    contentColor = colorScheme.onSurface,
-                    containerColor = colorScheme.surfaceVariant
+                val scale by animateFloatAsState(
+                    targetValue = if (data.visuals.message.isNotEmpty()) 1f else 0.8f,
+                    animationSpec = tween(300)
                 )
+
+                AnimatedVisibility(
+                    visible = data.visuals.message.isNotEmpty(),
+                    enter = slideInVertically(
+                        initialOffsetY = { it },
+                        animationSpec = tween(300)
+                    ),
+                    exit = slideOutVertically(
+                        targetOffsetY = { it },
+                        animationSpec = tween(300)
+                    )
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .fillMaxWidth()
+                            .scale(scale),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.Transparent,
+                            contentColor = Color.White
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                        shape = CardDefaults.shape // Rounded corners
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            Color(0xFF00796B), // Teal
+                                            Color(0xFF00ACC1) // Cyan
+                                            // For pink/red gradient, uncomment below and comment above:
+                                            // Color(0xFFF06292), // Pink
+                                            // Color(0xFFF50057) // Red
+                                        )
+                                    )
+                                )
+                                .padding(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_profile1),
+                                        contentDescription = "Profile Icon",
+                                        tint = Color.White,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .padding(end = 8.dp)
+                                    )
+                                    Text(
+                                        text = data.visuals.message,
+                                        fontFamily = montserratFont,
+                                        fontSize = 14.sp,
+                                        color = Color.White,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                if (data.visuals.actionLabel != null) {
+                                    TextButton(
+                                        onClick = {
+                                            if (data.visuals.actionLabel == "Перейти") {
+                                                navController.navigate(Profile(userId)) {
+                                                    popUpTo(navController.graph.startDestinationId) {
+                                                        saveState = true
+                                                    }
+                                                    restoreState = true
+                                                    launchSingleTop = true
+                                                }
+                                                showProfileSetupNotification = false
+                                                coroutineScope.launch {
+                                                    UserPreferences.setHasSeenProfileNotification(
+                                                        context,
+                                                        true
+                                                    )
+                                                }
+                                            }
+                                            data.dismiss()
+                                        },
+                                        colors = ButtonDefaults.textButtonColors(
+                                            contentColor = Color(0xFFFFCA28)
+                                        )
+                                    ) {
+                                        Text(
+                                            text = data.visuals.actionLabel!!,
+                                            fontFamily = montserratFont,
+                                            fontSize = 14.sp,
+                                            color = Color(0xFFFFCA28)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         bottomBar = {
@@ -157,11 +273,16 @@ fun MainScreen(
                     val selected = when (item.tabId) {
                         "feed" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Feed") == true ||
                                 currentRoute?.startsWith("ru.walkAndTalk.ui.screens.EventDetails") == true
+
                         "search" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Search") == true
                         "chats" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Chats") == true
+//                        "profile" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Profile") == true ||
+//                                currentRoute?.startsWith("ru.walkAndTalk.ui.screens.EditProfile") == true ||
+//                                currentRoute?.startsWith("profile/") == true
                         "profile" -> currentRoute?.startsWith("ru.walkAndTalk.ui.screens.Profile") == true ||
                                 currentRoute?.startsWith("ru.walkAndTalk.ui.screens.EditProfile") == true ||
-                                currentRoute?.startsWith("profile/") == true
+                                currentRoute?.startsWith("profile/") == true ||
+                                currentRoute == "ru.walkAndTalk.ui.screens.EventStatistics"
 
                         else -> false
                     }
@@ -240,25 +361,28 @@ fun MainScreen(
                             is FeedSideEffect.NavigateToEventDetails -> {
                                 navController.navigate(EventDetails.createRoute(sideEffect.eventId))
                             }
+
                             is FeedSideEffect.ParticipateInEvent -> {
-                                val event = feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
+                                val event =
+                                    feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
                                         message = "Вы успешно записались на '${event?.title ?: "мероприятие"}' ${
-                                            event?.let {
-                                                feedViewModel.formatEventDate(it.eventDate)
-                                            } ?: ""
+                                            event?.let { feedViewModel.formatEventDate(it.eventDate) } ?: ""
                                         }!"
                                     )
                                 }
                             }
+
                             is FeedSideEffect.ShowError -> {
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(message = sideEffect.message)
                                 }
                             }
+
                             is FeedSideEffect.LeaveEventSuccess -> {
-                                val event = feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
+                                val event =
+                                    feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
                                         message = "Вы успешно отменили участие в '${event?.title ?: "мероприятии"}'!"
@@ -288,6 +412,7 @@ fun MainScreen(
                     onNavigateAuth = onNavigateAuth,
                     navController = navController,
                     onNavigateEditProfile = { navController.navigate(EditProfile) },
+                    onNavigateEventStatistics = { navController.navigate(EventStatistics) },
                     isOwnProfile = true
                 )
             }
@@ -295,12 +420,14 @@ fun MainScreen(
                 route = "profile/{userId}",
                 arguments = listOf(navArgument("userId") { type = NavType.StringType })
             ) { backStackEntry ->
-                val profileUserId = backStackEntry.arguments?.getString("userId") ?: return@composable
+                val profileUserId =
+                    backStackEntry.arguments?.getString("userId") ?: return@composable
                 ProfileScreen(
                     viewModel = koinViewModel(parameters = { parametersOf(profileUserId) }),
                     onNavigateAuth = onNavigateAuth,
                     navController = navController,
                     onNavigateEditProfile = { navController.navigate(EditProfile) },
+                    onNavigateEventStatistics = { navController.navigate(EventStatistics) },
                     isOwnProfile = profileUserId == userId
                 )
             }
@@ -332,11 +459,13 @@ fun MainScreen(
                                     }
                                     navController.navigate("chat/${sideEffect.chatId}")
                                 }
+
                                 is EventDetailsSideEffect.ShowError -> {
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar(sideEffect.message)
                                     }
                                 }
+
                                 is EventDetailsSideEffect.OnNavigateBack -> {
                                     navController.popBackStack()
                                 }
@@ -354,6 +483,13 @@ fun MainScreen(
             }
             composable<EditProfile> {
                 EditProfileScreen(
+                    navController = navController,
+                    viewModel = koinViewModel(parameters = { parametersOf(userId) })
+                )
+            }
+            composable<EventStatistics> {
+                EventStatisticsScreen(
+                    userId = userId,
                     navController = navController,
                     viewModel = koinViewModel(parameters = { parametersOf(userId) })
                 )

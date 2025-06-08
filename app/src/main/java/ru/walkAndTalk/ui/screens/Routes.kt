@@ -30,3 +30,4 @@ data class Main(val userId: String)
     }
 }
 @Serializable object EditProfile
+@Serializable object EventStatistics

@@ -6,10 +6,4 @@ class MainViewModel(
 
 ) : ContainerViewModel<MainViewState, MainSideEffect>(
     initialState = MainViewState()
-) {
-
-    fun onSelectedTabChange(value: Int) = intent {
-        reduce { state.copy(selectedTab = value) }
-    }
-
-}
+)

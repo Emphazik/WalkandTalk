@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.collectLatest
 import org.orbitmvi.orbit.syntax.Syntax
 import ru.walkAndTalk.data.location.LocationService
 import ru.walkAndTalk.data.network.SupabaseWrapper
+import ru.walkAndTalk.domain.model.User
 import ru.walkAndTalk.domain.repository.CityKnowledgeLevelRepository
 import ru.walkAndTalk.domain.repository.InterestsRepository
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
@@ -29,6 +30,15 @@ class ProfileViewModel(
 ) {
     override suspend fun Syntax<ProfileViewState, ProfileSideEffect>.onCreate() {
         refreshData(listOf("Новичёк", "Знаток", "Эксперт"))
+    }
+
+    suspend fun getUserProfile(): User? {
+        return try {
+            remoteUsersRepository.fetchById(userId)
+        } catch (e: Exception) {
+            Log.e("ProfileViewModel", "Error fetching user profile: ${e.message}")
+            null
+        }
     }
 
     fun refreshData(cityStatuses: List<String> = emptyList()) = intent {
