@@ -1,7 +1,9 @@
 package ru.walkAndTalk.data.repository
 
+import android.util.Log
 import ru.walkAndTalk.data.mapper.toDomain
 import ru.walkAndTalk.data.mapper.toDto
+import ru.walkAndTalk.data.model.EventReviewDto
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.Table
 import ru.walkAndTalk.domain.model.EventReview
@@ -20,6 +22,20 @@ class EventReviewRepositoryImpl(
             }
             .decodeSingleOrNull<ru.walkAndTalk.data.model.EventReviewDto>()
             ?.toDomain()
+    }
+
+    override suspend fun fetchUserReviews(userId: String): List<EventReview> {
+        return try {
+            val reviews = supabaseWrapper.postgrest[Table.EVENT_REVIEWS]
+                .select { filter { eq("user_id", userId) } }
+                .decodeList<EventReviewDto>()
+                .map { it.toDomain() }
+            Log.d("EventReviewRepository", "Fetched ${reviews.size} reviews for userId: $userId")
+            reviews
+        } catch (e: Exception) {
+            Log.e("EventReviewRepository", "Error fetching user reviews: ${e.message}", e)
+            emptyList()
+        }
     }
 
     override suspend fun deleteReview(userId: String, eventId: String): Boolean {

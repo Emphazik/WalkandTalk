@@ -8,6 +8,8 @@ import ru.walkAndTalk.data.location.LocationService
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.model.User
 import ru.walkAndTalk.domain.repository.CityKnowledgeLevelRepository
+import ru.walkAndTalk.domain.repository.EventReviewRepository
+import ru.walkAndTalk.domain.repository.EventsRepository
 import ru.walkAndTalk.domain.repository.InterestsRepository
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 import ru.walkAndTalk.domain.repository.UserInterestsRepository
@@ -16,6 +18,12 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
 
 class ProfileViewModel(
     private val remoteUsersRepository: RemoteUsersRepository,
@@ -25,6 +33,8 @@ class ProfileViewModel(
     private val userId: String,
     private val supabaseWrapper: SupabaseWrapper,
     private val locationService: LocationService,
+    private val eventReviewRepository: EventReviewRepository, // Добавлено
+    private val eventsRepository: EventsRepository, // Добавлено
 ) : ContainerViewModel<ProfileViewState, ProfileSideEffect>(
     initialState = ProfileViewState()
 ) {
@@ -50,6 +60,13 @@ class ProfileViewModel(
         } ?: "Не указано"
         val interests = userInterestsRepository.fetchInterestsForUser(userId).map { it.name }
         val availableInterests = interestsRepository.fetchAll().map { it.name }
+        val reviews = eventReviewRepository.fetchUserReviews(userId)
+        val eventIds = reviews.map { it.eventId }.toSet()
+        val events = if (eventIds.isNotEmpty()) {
+            eventsRepository.getEventsByIds(eventIds).associateBy { it.id }
+        } else {
+            emptyMap()
+        }
 
         reduce {
             state.copy(
@@ -69,6 +86,9 @@ class ProfileViewModel(
                 newBio = user.bio ?: "",
                 newGoals = user.goals ?: "",
                 newCity = user.city ?: state.newCity,
+                showReviews = user.showReviews,
+                reviews = reviews.associateBy { it.eventId },
+                events = events
             )
         }
     }
@@ -116,7 +136,8 @@ class ProfileViewModel(
     fun onLocationPermissionGranted() = intent {
         try {
             locationService.getCurrentLocation().collectLatest { location ->
-                val city = locationService.getCityFromCoordinates(location.latitude, location.longitude)
+                val city =
+                    locationService.getCityFromCoordinates(location.latitude, location.longitude)
                 if (city != null) {
                     reduce { state.copy(newCity = city) }
                     remoteUsersRepository.updateUserCity(userId, city)
@@ -354,6 +375,7 @@ class ProfileViewModel(
             )
         }
     }
+
     fun onDeleteImage() = intent {
         remoteUsersRepository.updateUserProfile(
             userId = userId,
@@ -460,6 +482,57 @@ class ProfileViewModel(
             reduce { state.copy(photoURL = imageUrl) }
         } catch (e: Exception) {
             Log.e("ProfileViewModel", "Ошибка загрузки изображения: ${e.message}")
+        }
+    }
+
+    //    fun formatEventDate(isoDate: String?): String? {
+//        if (isoDate == null) return null
+//        return try {
+//            val instant = Instant.parse(isoDate)
+//            val dateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
+//            val month = when (dateTime.monthNumber) {
+//                1 -> "января"
+//                2 -> "февраля"
+//                3 -> "марта"
+//                4 -> "апреля"
+//                5 -> "мая"
+//                6 -> "июня"
+//                7 -> "июля"
+//                8 -> "августа"
+//                9 -> "сентября"
+//                10 -> "октября"
+//                11 -> "ноября"
+//                12 -> "декабря"
+//                else -> ""
+//            }
+//            "${dateTime.dayOfMonth} $month ${dateTime.year}, ${dateTime.hour}:${dateTime.minute.toString().padStart(2, '0')}"
+//        } catch (e: Exception) {
+//            null // Возвращаем null при ошибке парсинга
+//        }
+//    }
+    fun formatEventDate(isoDate: String?): String? {
+        if (isoDate == null) return null
+        return try {
+            // Парсим как OffsetDateTime, чтобы сохранить информацию о часовом поясе
+            val offsetDateTime = OffsetDateTime.parse(isoDate)
+            // Получаем текущее время в часовом поясе устройства
+            val zoneId = ZoneId.systemDefault() // Часовой пояс устройства
+            val now = LocalDateTime.now(zoneId)
+            // Определяем формат в зависимости от даты
+            val formatter = when {
+                offsetDateTime.toLocalDate() == now.toLocalDate() -> SimpleDateFormat(
+                    "HH:mm",
+                    Locale.getDefault()
+                )
+
+                offsetDateTime.year == now.year -> SimpleDateFormat("dd MMM", Locale("ru"))
+                else -> SimpleDateFormat("dd MMM yyyy", Locale("ru"))
+            }
+            // Преобразуем в миллисекунды с учетом смещения
+            formatter.format(offsetDateTime.toInstant().toEpochMilli())
+        } catch (e: Exception) {
+            println("ProfileViewModel: Error parsing date: $e")
+            null
         }
     }
 }

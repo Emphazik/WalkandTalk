@@ -1,5 +1,8 @@
 package ru.walkAndTalk.ui.screens.main.profile
 
+import ru.walkAndTalk.domain.model.Event
+import ru.walkAndTalk.domain.model.EventReview
+
 data class ProfileViewState(
     val name: String = "",
     val newName: String = "",
@@ -27,4 +30,7 @@ data class ProfileViewState(
     val goalsError: String? = null,
     val city: String? = null,
     val newCity: String = "Не указано",
+    val showReviews: Boolean = false, // Новое поле
+    val reviews: Map<String, EventReview> = emptyMap(), // Новое поле
+    val events: Map<String, Event> = emptyMap() // Новое поле
     )

@@ -1,5 +1,6 @@
 package ru.walkAndTalk.data.repository
 
+import android.util.Log
 import kotlinx.datetime.LocalDateTime
 import ru.walkAndTalk.data.mapper.toDomain
 import ru.walkAndTalk.data.model.EventDto
@@ -44,6 +45,23 @@ class EventsRepositoryImpl(
             )
         ) {
             filter { EventDto::id eq eventId }
+        }
+    }
+
+    override suspend fun getEventsByIds(eventIds: Set<String>): List<Event> {
+        return try {
+            val events = supabaseWrapper.postgrest[Table.EVENTS]
+                .select { filter { isIn("id", eventIds.toList()) } }
+                .decodeList<EventDto>()
+            Log.d("EventsRepository", "Fetched ${events.size} events: $events")
+            events.map { eventDto ->
+                val tagNames = eventInterestsRepository.fetchTagsForEvent(eventDto.id)
+                    .map { it.name }
+                eventDto.toDomain(tagNames)
+            }
+        } catch (e: Exception) {
+            Log.e("EventsRepository", "Error fetching events by IDs: ${e.message}", e)
+            emptyList()
         }
     }
 

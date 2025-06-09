@@ -236,7 +236,7 @@ class RemoteUsersRepositoryImpl(
         photoURL: String?,
         bio: String?,
         goals: String?,
-        city: String?
+        city: String?,
     ) {
         // Валидация
         require(userId.isNotBlank()) { "ID пользователя не может быть пустым" }
@@ -290,10 +290,25 @@ class RemoteUsersRepositoryImpl(
             profileImageUrl = photoURL,
             bio = bio,
             goals = goals,
-            city = city
+            city = city,
         )
         supabaseWrapper.postgrest.from(Table.USERS).update(updates) {
             filter { eq("id", userId) }
+        }
+    }
+
+    override suspend fun updateShowReviews(userId: String, showReviews: Boolean): Boolean {
+        Log.d("RemoteUsersRepository", "Updating show_reviews for userId: $userId, showReviews: $showReviews")
+        return try {
+            supabaseWrapper.postgrest[Table.USERS]
+                .update(mapOf("show_reviews" to showReviews)) {
+                    filter { eq("id", userId) }
+                }
+            Log.d("RemoteUsersRepository", "Successfully updated show_reviews for userId: $userId")
+            true
+        } catch (e: Exception) {
+            Log.e("RemoteUsersRepository", "Error updating show_reviews: ${e.message}", e)
+            false
         }
     }
 

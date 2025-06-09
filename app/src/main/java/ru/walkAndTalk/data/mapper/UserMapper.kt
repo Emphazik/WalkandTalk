@@ -3,6 +3,7 @@ package ru.walkAndTalk.data.mapper
 import android.util.Log
 import com.vk.id.VKIDUser
 import com.vk.sdk.api.users.dto.UsersUserFullDto
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Clock.System
 import kotlinx.datetime.Instant
 import ru.walkAndTalk.data.model.UserDto
@@ -27,9 +28,10 @@ fun UserDto.fromDto(): User = User(
     createdAt = Instant.parse(createdAt),
     updatedAt = updatedAt?.let { Instant.parse(it) },
     birthdate = birthdate,
-    city = city
-
+    city = city,
+    showReviews = showReviews // Добавлено
 )
+
 fun User.toDto(): UserDto = UserDto(
     id = id,
     email = email,
@@ -45,12 +47,11 @@ fun User.toDto(): UserDto = UserDto(
     createdAt = createdAt.toString(),
     updatedAt = updatedAt?.toString(),
     birthdate = birthdate,
-    city = city
+    city = city,
+    showReviews = showReviews // Добавлено
 )
 
-fun VKIDUser.toUser(
-    vkId: Long
-): User = User(
+fun VKIDUser.toUser(vkId: Long): User = User(
     id = "", // id будет установлен после регистрации через Supabase Auth
     email = email.toString(),
     password = UUID.randomUUID().toString(),
@@ -66,19 +67,13 @@ fun VKIDUser.toUser(
     updatedAt = System.now(),
     birthdate = null,
     city = null,
+    showReviews = false // Добавлено
 )
 
 fun UsersUserFullDto.fromVkUser(): User {
     Log.d("VKUsersRepository", "Raw VK user data: " +
-            "id=${id.value}, " +
-            "firstName=$firstName, " +
-            "lastName=$lastName, " +
-            "email=$email, " +
-            "phone=$mobilePhone, " +
-            "photo50=$photo50," +
-            "birthdate=$bdate"
-    )
-
+            "id=${id.value}, firstName=$firstName, lastName=$lastName, email=$email, " +
+            "phone=$mobilePhone, photo50=$photo50, birthdate=$bdate")
     return User(
         id = "", // id будет установлен после регистрации через Supabase Auth
         email = email.toString(),
@@ -94,6 +89,7 @@ fun UsersUserFullDto.fromVkUser(): User {
         createdAt = System.now(),
         updatedAt = System.now(),
         birthdate = bdate,
-        city = city.toString()
+        city = city.toString(),
+        showReviews = false // Добавлено
     )
 }

@@ -27,6 +27,7 @@ interface RemoteUsersRepository {
         goals: String? = null,
         city: String? = null
     )
+    suspend fun updateShowReviews(userId: String, showReviews: Boolean): Boolean
     suspend fun updateUserCity(userId: String, city: String): PostgrestResult
     suspend fun logout()
 

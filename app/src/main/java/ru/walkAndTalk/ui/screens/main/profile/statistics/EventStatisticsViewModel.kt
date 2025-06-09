@@ -8,6 +8,7 @@ import kotlinx.datetime.toLocalDateTime
 import ru.walkAndTalk.domain.model.EventReview
 import ru.walkAndTalk.domain.repository.EventReviewRepository
 import ru.walkAndTalk.domain.repository.EventsRepository
+import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 import ru.walkAndTalk.ui.orbit.ContainerViewModel
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -15,7 +16,8 @@ import java.time.format.DateTimeFormatter
 class EventStatisticsViewModel(
     private val userId: String,
     private val eventRepository: EventsRepository,
-    private val eventReviewRepository: EventReviewRepository
+    private val eventReviewRepository: EventReviewRepository,
+    private val remoteUsersRepository: RemoteUsersRepository
 ) : ContainerViewModel<EventStatisticsViewState, EventStatisticsSideEffect>(
     initialState = EventStatisticsViewState(isLoading = true)
 ) {
@@ -43,12 +45,14 @@ class EventStatisticsViewModel(
                     isSubmitted = reviews[event.id]?.rating != 0
                 )
             }
+            val user = remoteUsersRepository.fetchById(userId)
             Log.d("EventStatisticsViewModel", "Loaded ${events.size} events for user: $userId")
             reduce {
                 state.copy(
                     pastEvents = events,
                     reviews = reviews,
                     reviewInputs = reviewInputs,
+                    showReviews = user?.showReviews ?: false,
                     isLoading = false,
                     error = null
                 )
@@ -220,6 +224,21 @@ class EventStatisticsViewModel(
             Log.e("EventStatisticsViewModel", "Error deleting review: ${e.message}")
             postSideEffect(EventStatisticsSideEffect.ShowError("Ошибка: ${e.message}"))
             reduce { state.copy(isLoading = false) }
+        }
+    }
+
+    fun onShowReviewsChanged(showReviews: Boolean) = intent {
+        try {
+            val success = remoteUsersRepository.updateShowReviews(userId, showReviews)
+            if (success) {
+                Log.d("EventStatisticsViewModel", "Updated showReviews to $showReviews")
+                reduce { state.copy(showReviews = showReviews) }
+            } else {
+                postSideEffect(EventStatisticsSideEffect.ShowError("Не удалось обновить настройку"))
+            }
+        } catch (e: Exception) {
+            Log.e("EventStatisticsViewModel", "Error updating showReviews: ${e.message}")
+            postSideEffect(EventStatisticsSideEffect.ShowError("Ошибка: ${e.message}"))
         }
     }
 //    private fun fetchPastEvents() = intent {

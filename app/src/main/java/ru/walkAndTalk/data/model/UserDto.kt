@@ -34,5 +34,7 @@ data class UserDto(
     @SerialName("birthdate")
     val birthdate: String? = null,
     @SerialName("city")
-    val city: String? = null
+    val city: String? = null,
+    @SerialName("show_reviews")
+    val showReviews: Boolean = false
 )

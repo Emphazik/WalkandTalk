@@ -9,5 +9,6 @@ data class EventStatisticsViewState(
     val reviews: Map<String, EventReview> = emptyMap(),
     val reviewInputs: Map<String, ReviewInput> = emptyMap(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val showReviews: Boolean = false
 )
