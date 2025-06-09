@@ -95,6 +95,7 @@ dependencies {
     implementation(libs.room)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.core.splashscreen)
+    implementation(libs.androidx.paging.common.android)
     ksp(libs.room.compiler)
     /** ORBIT MVI **/
     implementation(libs.orbit.core)

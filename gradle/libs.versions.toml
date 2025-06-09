@@ -30,6 +30,7 @@ orbit = "9.0.0"
 navigationCompose = "2.9.0"
 supabase = "3.1.4"
 coreSplashscreen = "1.0.1"
+pagingCommonAndroid = "3.3.6"
 
 [libraries]
 androidx-datastore = {module = "androidx.datastore:datastore-preferences", version.ref = "dataStore"}
@@ -95,6 +96,7 @@ androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscree
 lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "lottie" }
 #Google-GPS
 play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "google-gps" }
+androidx-paging-common-android = { group = "androidx.paging", name = "paging-common-android", version.ref = "pagingCommonAndroid" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

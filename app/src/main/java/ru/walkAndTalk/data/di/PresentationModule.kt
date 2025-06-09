@@ -13,6 +13,7 @@ import ru.walkAndTalk.ui.screens.main.feed.FeedViewModel
 import ru.walkAndTalk.ui.screens.main.MainViewModel
 import ru.walkAndTalk.ui.screens.main.chats.detailchat.ChatViewModel
 import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsViewModel
+import ru.walkAndTalk.ui.screens.main.feed.notifications.NotificationsViewModel
 import ru.walkAndTalk.ui.screens.onboarding.OnboardingViewModel
 import ru.walkAndTalk.ui.screens.main.profile.ProfileViewModel
 import ru.walkAndTalk.ui.screens.main.profile.edit.EditProfileViewModel
@@ -55,6 +56,13 @@ private val viewModelModule = module {
             currentUserId = get<SupabaseWrapper>().auth.currentUserOrNull()?.id
                 ?: throw IllegalStateException("User not authenticated"),
             usersRepository = get(),
+        )
+    }
+//    viewModelOf(::NotificationsViewModel)
+    viewModel { (userId: String) ->
+        NotificationsViewModel(
+            notificationsRepository = get(),
+            currentUserId = userId
         )
     }
 

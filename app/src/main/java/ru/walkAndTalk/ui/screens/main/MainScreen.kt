@@ -77,6 +77,7 @@ import ru.walkAndTalk.ui.screens.EditProfile
 import ru.walkAndTalk.ui.screens.EventDetails
 import ru.walkAndTalk.ui.screens.EventStatistics
 import ru.walkAndTalk.ui.screens.Feed
+import ru.walkAndTalk.ui.screens.Notifications
 import ru.walkAndTalk.ui.screens.Profile
 import ru.walkAndTalk.ui.screens.Search
 import ru.walkAndTalk.ui.screens.main.chats.ChatsScreen
@@ -87,6 +88,8 @@ import ru.walkAndTalk.ui.screens.main.feed.FeedViewModel
 import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsScreen
 import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsSideEffect
 import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsViewModel
+import ru.walkAndTalk.ui.screens.main.feed.notifications.NotificationsScreen
+import ru.walkAndTalk.ui.screens.main.feed.notifications.NotificationsViewModel
 import ru.walkAndTalk.ui.screens.main.profile.ProfileScreen
 import ru.walkAndTalk.ui.screens.main.profile.ProfileViewModel
 import ru.walkAndTalk.ui.screens.main.profile.edit.EditProfileScreen
@@ -124,6 +127,7 @@ fun MainScreen(
     val colorScheme = MaterialTheme.colorScheme
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val notificationsViewModel: NotificationsViewModel = koinViewModel(parameters = { parametersOf(userId) })
     val feedViewModel: FeedViewModel = koinViewModel(parameters = { parametersOf(userId) })
     val profileViewModel: ProfileViewModel = koinViewModel(parameters = { parametersOf(userId) })
     var isSnackbarVisible by remember { mutableStateOf(false) }
@@ -361,10 +365,14 @@ fun MainScreen(
                             is FeedSideEffect.NavigateToEventDetails -> {
                                 navController.navigate(EventDetails.createRoute(sideEffect.eventId))
                             }
-
+                            is FeedSideEffect.NavigateToNotifications -> {
+                                navController.navigate(Notifications)
+                            }
+                            is FeedSideEffect.NavigateToChat -> {
+                                navController.navigate("chat/${sideEffect.chatId}")
+                            }
                             is FeedSideEffect.ParticipateInEvent -> {
-                                val event =
-                                    feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
+                                val event = feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
                                         message = "Вы успешно записались на '${event?.title ?: "мероприятие"}' ${
@@ -373,16 +381,13 @@ fun MainScreen(
                                     )
                                 }
                             }
-
                             is FeedSideEffect.ShowError -> {
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(message = sideEffect.message)
                                 }
                             }
-
                             is FeedSideEffect.LeaveEventSuccess -> {
-                                val event =
-                                    feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
+                                val event = feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
                                         message = "Вы успешно отменили участие в '${event?.title ?: "мероприятии"}'!"
@@ -514,6 +519,13 @@ fun MainScreen(
                         )
                     }
                 }
+            }
+            composable<Notifications> {
+                NotificationsScreen(
+                    navController = navController,
+                    userId = userId,
+                    viewModel = koinViewModel(parameters = { parametersOf(userId) })
+                )
             }
         }
     }

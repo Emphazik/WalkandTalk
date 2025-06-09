@@ -16,6 +16,7 @@ import ru.walkAndTalk.data.repository.EventsRepositoryImpl
 import ru.walkAndTalk.data.repository.InterestsRepositoryImpl
 import ru.walkAndTalk.data.repository.LocalDataStoreRepositoryImpl
 import ru.walkAndTalk.data.repository.MessagesRepositoryImpl
+import ru.walkAndTalk.data.repository.NotificationsRepositoryImpl
 import ru.walkAndTalk.data.repository.RemoteUsersRepositoryImpl
 import ru.walkAndTalk.data.repository.StorageRepositoryImpl
 import ru.walkAndTalk.data.repository.UserEventRepositoryImpl
@@ -32,6 +33,7 @@ import ru.walkAndTalk.domain.repository.EventsRepository
 import ru.walkAndTalk.domain.repository.InterestsRepository
 import ru.walkAndTalk.domain.repository.LocalDataStoreRepository
 import ru.walkAndTalk.domain.repository.MessagesRepository
+import ru.walkAndTalk.domain.repository.NotificationsRepository
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 import ru.walkAndTalk.domain.repository.StorageRepository
 import ru.walkAndTalk.domain.repository.UserEventRepository
@@ -59,6 +61,7 @@ private val repositoryModule = module {
     singleOf(::EventInterestsRepositoryImpl) {bind<EventInterestsRepository>()}
     singleOf(::MessagesRepositoryImpl) {bind<MessagesRepository>()}
     singleOf(::EventReviewRepositoryImpl) {bind<EventReviewRepository>()}
+    singleOf(::NotificationsRepositoryImpl) {bind<NotificationsRepository>()}
 }
 private val serviceModule = module {
     single { LocationService(get()) } // Предоставляем Context через androidContext()

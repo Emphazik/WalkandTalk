@@ -86,11 +86,21 @@ fun FeedScreen(
             is FeedSideEffect.NavigateToEventDetails -> {
                 navController.navigate(EventDetails.createRoute(sideEffect.eventId))
             }
+
+            is FeedSideEffect.NavigateToChat -> {
+                navController.navigate("chat/${sideEffect.chatId}")
+            }
+
+            is FeedSideEffect.NavigateToNotifications -> {
+                navController.navigate("notifications")
+            }
+
             is FeedSideEffect.ShowError -> {
                 coroutineScope.launch {
                     snackbarHostState.showSnackbar(sideEffect.message)
                 }
             }
+
             else -> {
                 // Делегируем остальные случаи MainScreen
             }
@@ -119,11 +129,7 @@ fun FeedScreen(
                     modifier = Modifier.weight(1f)
                 )
                 IconButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar("Уведомлений нет")
-                        }
-                    },
+                    onClick = { feedViewModel.navigateToNotifications() },
                     modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
@@ -249,7 +255,7 @@ fun EventCard(
                     .padding(16.dp)
             ) {
                 Text(
-                    text = viewModel.formatEventDate(event.eventDate),
+                    text = viewModel.formatEventDate(event.eventDate).toString(),
                     fontFamily = montserratFont,
                     fontSize = 12.sp,
                     color = colorScheme.primary,
@@ -314,7 +320,10 @@ fun EventCard(
                                         fontFamily = montserratFont,
                                         fontSize = 12.sp,
                                         color = colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                        modifier = Modifier.padding(
+                                            horizontal = 8.dp,
+                                            vertical = 4.dp
+                                        )
                                     )
                                 }
                             }

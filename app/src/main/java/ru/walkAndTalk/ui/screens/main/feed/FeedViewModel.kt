@@ -2,42 +2,47 @@ package ru.walkAndTalk.ui.screens.main.feed
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toJavaZoneId
 import kotlinx.datetime.toLocalDateTime
 import org.orbitmvi.orbit.Container
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
+import ru.walkAndTalk.data.mapper.toDomain
 import ru.walkAndTalk.domain.model.Event
+import ru.walkAndTalk.domain.model.Notification
+import ru.walkAndTalk.domain.model.NotificationType
 import ru.walkAndTalk.domain.repository.ChatsRepository
 import ru.walkAndTalk.domain.repository.EventParticipantsRepository
 import ru.walkAndTalk.domain.repository.EventsRepository
+import ru.walkAndTalk.domain.repository.NotificationsRepository
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
+import java.text.SimpleDateFormat
+import java.time.OffsetDateTime
+import java.util.Locale
 
 class FeedViewModel(
     private val eventsRepository: EventsRepository,
     private val eventParticipantsRepository: EventParticipantsRepository,
     private val remoteUsersRepository: RemoteUsersRepository,
     private val chatsRepository: ChatsRepository, // Add ChatsRepository
-    private val currentUserId: String
-) : ViewModel(), ContainerHost<FeedViewState, FeedSideEffect> {
+    private val currentUserId: String,
+    private val notificationsRepository: NotificationsRepository,
+    ) : ViewModel(), ContainerHost<FeedViewState, FeedSideEffect> {
 
     override val container: Container<FeedViewState, FeedSideEffect> = container(FeedViewState())
 
     private val _participationState = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     val participationState = _participationState.asStateFlow()
 
-    private var allEvents: List<ru.walkAndTalk.domain.model.Event> = emptyList()
+    private var allEvents: List<Event> = emptyList()
 
     init {
         refreshEvents()
-        loadParticipationStates()
     }
 
     fun refreshEvents() = intent {
@@ -51,17 +56,18 @@ class FeedViewModel(
             println("FeedViewModel: Loaded ${allEvents.size} events")
             val sortedEvents = applySort(state.sortType, allEvents)
             reduce { state.copy(events = sortedEvents, isLoading = false) }
-            loadParticipationStates() // Перемещаем сюда
+            loadParticipationStates()
         } catch (e: Exception) {
             println("FeedViewModel: LoadEvents error=${e.message}")
             reduce { state.copy(isLoading = false, error = e.message) }
         }
     }
 
+
+
     private fun loadParticipationStates() {
         viewModelScope.launch {
-//            val eventIds = container.stateFlow.value.events.map { it.id }
-            val eventIds = allEvents.map { it.id } // Используем allEvents
+            val eventIds = allEvents.map { it.id }
             val states = eventIds.associateWith { eventId ->
                 eventParticipantsRepository.isUserParticipating(eventId, currentUserId)
             }
@@ -82,7 +88,6 @@ class FeedViewModel(
                     }
                 }
             } else {
-                // Обычный поиск по названию и описанию
                 allEvents.filter { event ->
                     event.title.contains(query, ignoreCase = true) ||
                             event.description.contains(query, ignoreCase = true)
@@ -116,17 +121,19 @@ class FeedViewModel(
             SortType.DateNewestFirst -> events.sortedByDescending {
                 Instant.parse(it.eventDate).toEpochMilliseconds()
             }
-
             SortType.DateOldestFirst -> events.sortedBy {
                 Instant.parse(it.eventDate).toEpochMilliseconds()
             }
-
             null -> events
         }
     }
 
     fun onEventClick(eventId: String) = intent {
         postSideEffect(FeedSideEffect.NavigateToEventDetails(eventId))
+    }
+
+    fun navigateToNotifications() = intent {
+        postSideEffect(FeedSideEffect.NavigateToNotifications)
     }
 
     fun onParticipateClick(eventId: String) = intent {
@@ -137,7 +144,6 @@ class FeedViewModel(
                 postSideEffect(FeedSideEffect.ShowError("Вы уже участвуете в этом мероприятии"))
                 return@intent
             }
-
             val result = eventParticipantsRepository.joinEvent(eventId, currentUserId)
             result.onSuccess {
                 viewModelScope.launch {
@@ -165,8 +171,6 @@ class FeedViewModel(
                         this[eventId] = false
                     }
                     _participationState.value = updatedStates
-
-                    // Remove user from group chat
                     val chat = chatsRepository.findGroupChatByEventId(eventId)
                     if (chat != null) {
                         chatsRepository.removeUserFromChat(chat.id, currentUserId)
@@ -175,22 +179,12 @@ class FeedViewModel(
                 postSideEffect(FeedSideEffect.LeaveEventSuccess(eventId))
                 refreshEvents()
             }.onFailure { error ->
-                postSideEffect(
-                    FeedSideEffect.ShowError(
-                        error.message ?: "Ошибка при отмене участия"
-                    )
-                )
+                postSideEffect(FeedSideEffect.ShowError(error.message ?: "Ошибка при отмене участия"))
             }
         } catch (e: Exception) {
             postSideEffect(FeedSideEffect.ShowError("Ошибка: ${e.message}"))
         }
     }
-
-//    fun isUserParticipating(eventId: String): Boolean {
-//        return runBlocking {
-//            eventParticipantsRepository.isUserParticipating(eventId, currentUserId)
-//        }
-//    }
 
     fun isUserParticipating(eventId: String): Boolean {
         return _participationState.value[eventId] ?: false
@@ -205,26 +199,71 @@ class FeedViewModel(
         }
     }
 
-    fun formatEventDate(isoDate: String): String {
-        val instant = Instant.parse(isoDate)
-        val dateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
-        val month = when (dateTime.monthNumber) {
-            1 -> "января"
-            2 -> "февраля"
-            3 -> "марта"
-            4 -> "апреля"
-            5 -> "мая"
-            6 -> "июня"
-            7 -> "июля"
-            8 -> "августа"
-            9 -> "сентября"
-            10 -> "октября"
-            11 -> "ноября"
-            12 -> "декабря"
-            else -> ""
+//    fun formatEventDate(isoDate: String?): String? {
+//        if (isoDate == null) return null
+//        return try {
+//            val offsetDateTime = OffsetDateTime.parse(isoDate)
+//            val zoneId = TimeZone.currentSystemDefault().toJavaZoneId()
+//            val now = java.time.LocalDateTime.now(zoneId)
+//            val formatter = when {
+//                offsetDateTime.toLocalDate() == now.toLocalDate() -> SimpleDateFormat("HH:mm", Locale("ru"))
+//                offsetDateTime.year == now.year -> SimpleDateFormat("dd MMM", Locale("ru"))
+//                else -> SimpleDateFormat("dd MMM yyyy", Locale("ru"))
+//            }
+//            formatter.format(offsetDateTime.toInstant().toEpochMilli())
+//        } catch (e: Exception) {
+//            println("FeedViewModel: Error parsing date: $e")
+//            null
+//        }
+//    }
+
+
+//    fun formatEventDate(isoDate: String): String {
+//        val instant = Instant.parse(isoDate)
+//        val timeZone = TimeZone.currentSystemDefault()
+//        val dateTime = instant.toLocalDateTime(timeZone)
+//        val now = kotlinx.datetime.Clock.System.now().toLocalDateTime(timeZone)
+//
+//        val day = dateTime.dayOfMonth
+//        val month = getMonthName(dateTime.monthNumber)
+//        val yearPart = if (dateTime.year != now.year) " ${dateTime.year}" else ""
+//        val time = String.format("%02d:%02d", dateTime.hour, dateTime.minute)
+//
+//        return "$day $month$yearPart, $time"
+//    }
+//
+//    fun getMonthName(month: Int): String {
+//        return when (month) {
+//            1 -> "января"
+//            2 -> "февраля"
+//            3 -> "марта"
+//            4 -> "апреля"
+//            5 -> "мая"
+//            6 -> "июня"
+//            7 -> "июля"
+//            8 -> "августа"
+//            9 -> "сентября"
+//            10 -> "октября"
+//            11 -> "ноября"
+//            12 -> "декабря"
+//            else -> ""
+//        }
+//    }
+
+    fun formatEventDate(isoDate: String?): String? {
+        if (isoDate == null) return null
+        return try {
+            val offsetDateTime = OffsetDateTime.parse(isoDate)
+            val zoneId = TimeZone.currentSystemDefault().toJavaZoneId()
+            val now = OffsetDateTime.now(zoneId)
+            when {
+                offsetDateTime.toLocalDate() == now.toLocalDate() -> "Сегодня, ${SimpleDateFormat("HH:mm", Locale("ru")).format(offsetDateTime.toInstant().toEpochMilli())}"
+                offsetDateTime.toLocalDate() == now.toLocalDate().minusDays(1) -> "Вчера, ${SimpleDateFormat("HH:mm", Locale("ru")).format(offsetDateTime.toInstant().toEpochMilli())}"
+                else -> SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("ru")).format(offsetDateTime.toInstant().toEpochMilli())
+            }
+        } catch (e: Exception) {
+            println("FeedViewModel: Error parsing date: $e")
+            null
         }
-        return "${dateTime.dayOfMonth} $month ${dateTime.year}, ${dateTime.hour}:${
-            dateTime.minute.toString().padStart(2, '0')
-        }"
     }
 }

@@ -195,7 +195,6 @@ class ChatViewModel(
     }
 
     private fun subscribeToMessageReadUpdates() = intent {
-        // Удаляем, так как функционал объединён в subscribeToMessages
         println("ChatViewModel: Message read updates handled in subscribeToMessages")
     }
 
@@ -205,47 +204,8 @@ class ChatViewModel(
     private var isSubscribed = false // Флаг для предотвращения повторной подписки
 
     private fun startPollingMessages() = intent {
-        // Comment out or remove polling
-        // pollingJob?.cancel()
-        // pollingJob = viewModelScope.launch {
-        //     while (isActive) {
-        //         try {
-        //             val updatedMessages = messagesRepository.fetchMessages(chatId)
-        //             if (updatedMessages != state.messages) {
-        //                 reduce { state.copy(messages = updatedMessages) }
-        //                 println("ChatViewModel: Polling updated messages for chatId=$chatId, count=${updatedMessages.size}")
-        //             } else {
-        //                 println("ChatViewModel: Polling - no new messages for chatId=$chatId")
-        //             }
-        //         } catch (e: Exception) {
-        //             println("ChatViewModel: Polling error for chatId=$chatId: ${e.message}")
-        //         }
-        //         delay(5000)
-        //     }
-        // }
         println("ChatViewModel: Polling disabled for chatId=$chatId, using Realtime subscriptions")
     }
-
-//    private fun startPollingMessages() = intent {
-//        pollingJob?.cancel() // Отменяем предыдущий опрос, если он был
-//        pollingJob = viewModelScope.launch {
-//            while (isActive) {
-//                try {
-//                    val updatedMessages = messagesRepository.fetchMessages(chatId)
-//                    if (updatedMessages != state.messages) {
-//                        reduce { state.copy(messages = updatedMessages) }
-//                        println("ChatViewModel: Polling updated messages for chatId=$chatId, count=${updatedMessages.size}")
-//                    } else {
-//                        println("ChatViewModel: Polling - no new messages for chatId=$chatId")
-//                    }
-//                } catch (e: Exception) {
-//                    println("ChatViewModel: Polling error for chatId=$chatId: ${e.message}")
-//                }
-//                delay(5000) // 5 секунд
-//            }
-//        }
-//        println("ChatViewModel: Started polling messages for chatId=$chatId")
-//    }
 
     fun onInputTextChange(value: String) = intent {
         reduce { state.copy(inputText = value) }

@@ -3,6 +3,7 @@ package ru.walkAndTalk.data.repository
 import io.github.jan.supabase.postgrest.Postgrest
 import ru.walkAndTalk.data.model.UserDto
 import ru.walkAndTalk.data.network.SupabaseWrapper
+import ru.walkAndTalk.domain.Table
 import ru.walkAndTalk.domain.repository.AuthRepository
 import java.time.Instant
 import java.util.UUID
@@ -13,9 +14,9 @@ class AuthRepositoryImpl(
 ) : AuthRepository {
 
     override suspend fun authenticateUser(vkId: Long, email: String, phone: String, name: String): UserDto {
-        val existingUser = postgrest["users"]
-            .select { // Блок select для выбора колонок (если нужно)
-                filter { // Блок filter для фильтрации
+        val existingUser = supabaseWrapper.postgrest[Table.USERS]
+            .select {
+                filter {
                     eq("vk_id", vkId)
                 }
             }
@@ -38,7 +39,7 @@ class AuthRepositoryImpl(
                 updatedAt = null,
                 password = UUID.randomUUID().toString()
             )
-            postgrest["users"].insert(newUser).decodeSingle<UserDto>()
+            supabaseWrapper.postgrest[Table.USERS].insert(newUser).decodeSingle<UserDto>()
         }
     }
 
