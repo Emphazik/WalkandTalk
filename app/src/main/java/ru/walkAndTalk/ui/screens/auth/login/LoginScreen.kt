@@ -42,12 +42,14 @@ import ru.walkAndTalk.R
 fun LoginScreen(
     viewModel: LoginViewModel = koinViewModel(),
     onNavigateMain: (String) -> Unit,
+    onNavigateAdmin: (String) -> Unit,
     onNavigateRegister: () -> Unit,
 ) {
     val state by viewModel.collectAsState()
     viewModel.collectSideEffect {
         when (it) {
             is LoginSideEffect.OnNavigateMain -> onNavigateMain(it.id)
+            is LoginSideEffect.OnNavigateAdmin -> onNavigateAdmin(it.userId)
             is LoginSideEffect.OnNavigateRegister -> onNavigateRegister()
         }
     }

@@ -29,7 +29,8 @@ fun UserDto.fromDto(): User = User(
     updatedAt = updatedAt?.let { Instant.parse(it) },
     birthdate = birthdate,
     city = city,
-    showReviews = showReviews // Добавлено
+    showReviews = showReviews,
+    isAdmin = isAdmin
 )
 
 fun User.toDto(): UserDto = UserDto(
@@ -48,7 +49,8 @@ fun User.toDto(): UserDto = UserDto(
     updatedAt = updatedAt?.toString(),
     birthdate = birthdate,
     city = city,
-    showReviews = showReviews // Добавлено
+    showReviews = showReviews,
+    isAdmin = isAdmin
 )
 
 fun VKIDUser.toUser(vkId: Long): User = User(
@@ -67,7 +69,8 @@ fun VKIDUser.toUser(vkId: Long): User = User(
     updatedAt = System.now(),
     birthdate = null,
     city = null,
-    showReviews = false // Добавлено
+    showReviews = false,
+    isAdmin = false,
 )
 
 fun UsersUserFullDto.fromVkUser(): User {
@@ -90,6 +93,7 @@ fun UsersUserFullDto.fromVkUser(): User {
         updatedAt = System.now(),
         birthdate = bdate,
         city = city.toString(),
-        showReviews = false // Добавлено
+        showReviews = false,
+        isAdmin = false
     )
 }

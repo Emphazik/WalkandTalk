@@ -24,6 +24,8 @@ class LocalDataStoreRepositoryImpl(
         private const val ACCESS_TOKEN_KEY_NAME = "access_token"
         val ACCESS_TOKEN_KEY = stringPreferencesKey(ACCESS_TOKEN_KEY_NAME)
 
+        private const val USER_MODE_KEY_NAME = "user_mode"
+        val USER_MODE_KEY = stringPreferencesKey(USER_MODE_KEY_NAME)
     }
 
     override val isFirstLaunch = context.dataStore.data.map {
@@ -32,6 +34,10 @@ class LocalDataStoreRepositoryImpl(
 
     override val accessToken = context.dataStore.data.map {
         it[ACCESS_TOKEN_KEY] ?: ""
+    }
+
+    override val userMode = context.dataStore.data.map {
+        it[USER_MODE_KEY] ?: "admin"
     }
 
     override suspend fun saveIsFirstLaunch(value: Boolean) {
@@ -43,6 +49,12 @@ class LocalDataStoreRepositoryImpl(
     override suspend fun saveAccessToken(value: String) {
         context.dataStore.edit {
             it[ACCESS_TOKEN_KEY] = value
+        }
+    }
+
+    override suspend fun saveUserMode(value: String) {
+        context.dataStore.edit {
+            it[USER_MODE_KEY] = value
         }
     }
 }

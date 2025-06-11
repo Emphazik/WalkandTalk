@@ -18,5 +18,6 @@ data class User(
     val updatedAt: Instant? = null,
     val birthdate: String? = null,
     val city: String? = null,
-    val showReviews: Boolean = false
+    val showReviews: Boolean = false,
+    val isAdmin: Boolean = false
 )

@@ -15,7 +15,6 @@ import kotlinx.serialization.json.Json
 import ru.walkAndTalk.BuildConfig
 
 class SupabaseWrapper {
-
     val client: SupabaseClient = createSupabaseClient(
         supabaseUrl = BuildConfig.SUPABASE_URL,
         supabaseKey = BuildConfig.SUPABASE_KEY
@@ -29,7 +28,6 @@ class SupabaseWrapper {
         install(Realtime)
         install(Postgrest)
     }
-
     val auth = client.auth
     val storage = client.storage
     val realtime = client.realtime

@@ -34,5 +34,4 @@ interface RemoteUsersRepository {
     //Для SearchViewModel
     suspend fun searchUsers(query: String): List<User>
     suspend fun fetchInterestNames(interestIds: List<String>): List<String>
-
 }

@@ -39,11 +39,13 @@ fun SplashScreen(
     onNavigateMain: (String) -> Unit,
     onNavigateWelcome: () -> Unit,
     onNavigateOnboarding: () -> Unit,
+    onNavigateAdmin: (String) -> Unit
 ) {
     val state by viewModel.collectAsState()
     viewModel.collectSideEffect {
         when (it) {
             is SplashSideEffect.OnNavigateMain -> onNavigateMain(it.id)
+            is SplashSideEffect.OnNavigateAdmin -> onNavigateAdmin(it.id)
             is SplashSideEffect.OnNavigateWelcome -> onNavigateWelcome()
             is SplashSideEffect.OnNavigateOnboarding -> onNavigateOnboarding()
         }

@@ -14,4 +14,9 @@ object Table {
     const val ROUTES = "routes"
     const val EVENT_REVIEWS = "event_reviews"
     const val NOTIFICATIONS = "notifications"
+    const val EVENT_STATUSES = "event_statuses"
+    const val ANNOUNCEMENTS = "announcements"
+    const val REPORTS = "reports"
+    const val CONTENT_TYPES = "content_types"
+
 }

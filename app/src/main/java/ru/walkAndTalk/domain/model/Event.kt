@@ -11,5 +11,6 @@ data class Event(
     val eventImageUrl: String?,
     //OrganizerName v bd nety, local
     val organizerName: String? = null,
-    val tagIds: List<String> = emptyList()
+    val tagIds: List<String> = emptyList(),
+    val status: String // 'pending', 'approved', 'rejected', 'reported'
 )

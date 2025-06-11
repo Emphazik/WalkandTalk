@@ -17,6 +17,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Main(val userId: String)
 
+@Serializable
+data class Admin(val userId: String)
 /** Local Main Screen **/
 // Screen
 @Serializable data class Profile(val userId: String)

@@ -9,6 +9,7 @@ import io.github.jan.supabase.auth.user.UserInfo
 import io.github.jan.supabase.exceptions.RestException
 import org.orbitmvi.orbit.annotation.OrbitExperimental
 import ru.walkAndTalk.data.mapper.toUser
+import ru.walkAndTalk.data.model.UserDto
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.Regex
 import ru.walkAndTalk.domain.Table
@@ -56,8 +57,16 @@ class LoginViewModel(
                 if (supabaseWrapper.auth.currentSessionOrNull() == null) {
                     throw Exception("Сессия не установлена после входа.")
                 }
+                // Проверяем роль пользователя
+                val userData = supabaseWrapper.postgrest.from(Table.USERS).select {
+                    filter { eq("id", user.id) }
+                }.decodeSingle<UserDto>()
                 reduce { state.copy(isLoading = false, user = null) }
-                postSideEffect(LoginSideEffect.OnNavigateMain(user.id))
+                if (userData.isAdmin) {
+                    postSideEffect(LoginSideEffect.OnNavigateAdmin(user.id))
+                } else {
+                    postSideEffect(LoginSideEffect.OnNavigateMain(user.id))
+                }
             } else {
                 throw Exception("Не удалось войти: пользователь не найден.")
             }
@@ -136,8 +145,16 @@ class LoginViewModel(
                     userId
                 }
             }
-            postSideEffect(LoginSideEffect.OnNavigateMain(userId))
+            // Проверяем роль пользователя
+            val userData = supabaseWrapper.postgrest.from(Table.USERS).select {
+                filter { eq("id", userId) }
+            }.decodeSingle<UserDto>()
             reduce { state.copy(isLoading = false) }
+            if (userData.isAdmin) {
+                postSideEffect(LoginSideEffect.OnNavigateAdmin(userId))
+            } else {
+                postSideEffect(LoginSideEffect.OnNavigateMain(userId))
+            }
         } catch (e: Exception) {
             Log.e("LoginViewModel", "VK auth error: ${e.message}", e)
             reduce { state.copy(isLoading = false, error = "VK auth error: ${e.message}") }

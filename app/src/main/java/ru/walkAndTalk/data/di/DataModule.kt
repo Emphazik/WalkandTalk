@@ -6,6 +6,8 @@ import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 import ru.walkAndTalk.data.location.LocationService
 import ru.walkAndTalk.data.network.SupabaseWrapper
+import ru.walkAndTalk.data.repository.AdminContentRepositoryImpl
+import ru.walkAndTalk.data.repository.AdminUsersRepositoryImpl
 import ru.walkAndTalk.data.repository.AuthRepositoryImpl
 import ru.walkAndTalk.data.repository.ChatsRepositoryImpl
 import ru.walkAndTalk.data.repository.CityKnowledgeLevelRepositoryImpl
@@ -23,6 +25,8 @@ import ru.walkAndTalk.data.repository.UserEventRepositoryImpl
 import ru.walkAndTalk.data.repository.UserInterestsRepositoryImpl
 import ru.walkAndTalk.data.repository.VKUsersRepositoryImpl
 import ru.walkAndTalk.domain.model.Message
+import ru.walkAndTalk.domain.repository.AdminContentRepository
+import ru.walkAndTalk.domain.repository.AdminUsersRepository
 import ru.walkAndTalk.domain.repository.AuthRepository
 import ru.walkAndTalk.domain.repository.ChatsRepository
 import ru.walkAndTalk.domain.repository.CityKnowledgeLevelRepository
@@ -62,6 +66,8 @@ private val repositoryModule = module {
     singleOf(::MessagesRepositoryImpl) {bind<MessagesRepository>()}
     singleOf(::EventReviewRepositoryImpl) {bind<EventReviewRepository>()}
     singleOf(::NotificationsRepositoryImpl) {bind<NotificationsRepository>()}
+    singleOf(::AdminContentRepositoryImpl) { bind<AdminContentRepository>() }
+    singleOf(::AdminUsersRepositoryImpl) { bind<AdminUsersRepository>() }
 }
 private val serviceModule = module {
     single { LocationService(get()) } // Предоставляем Context через androidContext()
