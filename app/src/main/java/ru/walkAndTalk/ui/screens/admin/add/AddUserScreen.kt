@@ -30,8 +30,8 @@ import ru.walkAndTalk.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddUserScreen(
-    viewModel: AdminViewModel = koinViewModel(),
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit,
+    viewModel: AdminViewModel = koinViewModel()
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val snackbarHostState = remember { SnackbarHostState() }
@@ -70,7 +70,7 @@ fun AddUserScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { onBackClick() }) {
+                    IconButton(onClick = onBackClick) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_back),
                             contentDescription = "Back",
@@ -273,13 +273,13 @@ fun AddUserScreen(
                     onDismissRequest = { genderExpanded = false },
                     modifier = Modifier.background(colorScheme.surface)
                 ) {
-                    listOf("Мужской", "Женский", "Другой").forEach { option ->
+                    listOf("male", "female", "other").forEach { option ->
                         DropdownMenuItem(
                             text = {
                                 Text(
                                     text = when (option) {
-                                        "Мужской" -> "Мужской"
-                                        "Женский" -> "Женский"
+                                        "male" -> "Мужской"
+                                        "female" -> "Женский"
                                         else -> "Другой"
                                     },
                                     fontFamily = montserratFont,
@@ -314,62 +314,63 @@ fun AddUserScreen(
                     fontSize = 14.sp,
                     color = colorScheme.onSurface
                 )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedButton(
-                        onClick = {onBackClick()},
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            text = "Отмена",
-                            fontFamily = montserratFont,
-                            fontSize = 14.sp,
-                            color = colorScheme.primary
-                        )
-                    }
-                    Button(
-                        onClick = {
-                            nameError = name.isEmpty()
-                            emailError = !isValidEmail(email)
-                            passwordError = password.length < 6
-                            phoneError = phone.isNotEmpty() && !isValidPhone(phone)
-
-                            if (!nameError && !emailError && !passwordError && !phoneError) {
-                                viewModel.addUser(
-                                    name = name,
-                                    email = email,
-                                    password = password
-                                )
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colorScheme.primary,
-                            contentColor = colorScheme.onPrimary
-                        )
-                    ) {
-                        Text(
-                            text = "Сохранить",
-                            fontFamily = montserratFont,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = onBackClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "Отмена",
+                        fontFamily = montserratFont,
+                        fontSize = 14.sp,
+                        color = colorScheme.primary
+                    )
+                }
+                Button(
+                    onClick = {
+                        nameError = name.isEmpty()
+                        emailError = !isValidEmail(email)
+                        passwordError = password.length < 6
+                        phoneError = phone.isNotEmpty() && !isValidPhone(phone)
+
+                        if (!nameError && !emailError && !passwordError && !phoneError) {
+                            viewModel.addUser(
+                                name = name,
+                                email = email,
+                                password = password
+                            )
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorScheme.primary,
+                        contentColor = colorScheme.onPrimary
+                    )
+                ) {
+                    Text(
+                        text = "Сохранить",
+                        fontFamily = montserratFont,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
+
 
 private fun isValidPhone(phone: String): Boolean {
     return phone.matches(Regex("^\\+?[1-9]\\d{1,14}\$"))

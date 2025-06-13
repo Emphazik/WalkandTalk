@@ -64,7 +64,6 @@ import ru.walkAndTalk.ui.theme.montserratFont
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminScreen(
-    navController: NavController,
     userId: String,
     viewModel: AdminViewModel = koinViewModel()
 ) {
@@ -80,28 +79,11 @@ fun AdminScreen(
     LaunchedEffect(Unit) {
         viewModel.container.sideEffectFlow.collect { sideEffect ->
             when (sideEffect) {
-                is AdminSideEffect.NavigateToAuth -> {
-                    navController.navigate(Auth) {
-                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                    }
-                }
-                is AdminSideEffect.NavigateToMain -> {
-                    navController.navigate(Main(sideEffect.userId)) {
-                        popUpTo("Admin/$userId") { inclusive = true }
-                        launchSingleTop = true
-                    }
-                }
-                is AdminSideEffect.NavigateToAddUser -> {
-                    navController.navigate(AddUser)
-                }
-                is AdminSideEffect.NavigateToEditUser -> {
-                    navController.navigate("EditUser/${sideEffect.userId}")
-                }
-                is AdminSideEffect.NavigateToProfile -> {
-                    navController.navigate(Profile(userId = sideEffect.userId, viewOnly = true)) {
-                        launchSingleTop = true
-                    }
-                }
+                is AdminSideEffect.NavigateToAuth -> {}
+                is AdminSideEffect.NavigateToMain -> {}
+                is AdminSideEffect.NavigateToAddUser -> {}
+                is AdminSideEffect.NavigateToEditUser -> {}
+                is AdminSideEffect.NavigateToProfile -> {}
                 is AdminSideEffect.ShowError -> {
                     snackbarHostState.showSnackbar(sideEffect.message)
                 }
@@ -109,11 +91,44 @@ fun AdminScreen(
             }
         }
     }
+//    LaunchedEffect(Unit) {
+//        viewModel.container.sideEffectFlow.collect { sideEffect ->
+//            when (sideEffect) {
+//                is AdminSideEffect.NavigateToAuth -> {
+//                    navController.navigate(Auth) {
+//                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
+//                    }
+//                }
+//                is AdminSideEffect.NavigateToMain -> {
+//                    navController.navigate(Main(sideEffect.userId)) {
+//                        popUpTo("Admin/$userId") { inclusive = true }
+//                        launchSingleTop = true
+//                    }
+//                }
+//                is AdminSideEffect.NavigateToAddUser -> {
+//                    navController.navigate(AddUser)
+//                }
+//                is AdminSideEffect.NavigateToEditUser -> {
+//                    navController.navigate("EditUser/${sideEffect.userId}")
+//                }
+//                is AdminSideEffect.NavigateToProfile -> {
+//                    navController.navigate(Profile(userId = sideEffect.userId, viewOnly = true)) {
+//                        launchSingleTop = true
+//                    }
+//                }
+//                is AdminSideEffect.ShowError -> {
+//                    snackbarHostState.showSnackbar(sideEffect.message)
+//                }
+//                else -> Unit
+//            }
+//        }
+//    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
+                expandedHeight = 56.dp,
                 title = {
                     Text(
                         text = "Админ-панель",
@@ -303,6 +318,7 @@ fun AdminScreen(
                                 )
                             }
                         }
+
                         AdminTab.Events -> {
                             val filteredEvents = state.events.filter {
                                 it.title.contains(searchQuery, ignoreCase = true) ||
@@ -312,20 +328,34 @@ fun AdminScreen(
                                 EventCard(
                                     event = event,
                                     onClick = { viewModel.onEventClick(event.id) },
-                                    onStatusChange = { status -> viewModel.updateEventStatus(event.id, status) }
+                                    onStatusChange = { status ->
+                                        viewModel.updateEventStatus(
+                                            event.id,
+                                            status
+                                        )
+                                    }
                                 )
                             }
                         }
+
                         AdminTab.Announcements -> {
                             val filteredAnnouncements = state.announcements.filter {
                                 it.title.contains(searchQuery, ignoreCase = true) ||
-                                        it.description?.contains(searchQuery, ignoreCase = true) == true
+                                        it.description?.contains(
+                                            searchQuery,
+                                            ignoreCase = true
+                                        ) == true
                             }
                             items(filteredAnnouncements) { announcement ->
                                 AnnouncementCard(
                                     announcement = announcement,
                                     onClick = { viewModel.onAnnouncementClick(announcement.id) },
-                                    onStatusChange = { status -> viewModel.updateAnnouncementStatus(announcement.id, status) }
+                                    onStatusChange = { status ->
+                                        viewModel.updateAnnouncementStatus(
+                                            announcement.id,
+                                            status
+                                        )
+                                    }
                                 )
                             }
                         }

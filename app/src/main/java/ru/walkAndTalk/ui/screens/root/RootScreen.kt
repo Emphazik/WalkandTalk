@@ -33,6 +33,7 @@ import ru.walkAndTalk.ui.screens.Registration
 import ru.walkAndTalk.ui.screens.Splash
 import ru.walkAndTalk.ui.screens.Welcome
 import ru.walkAndTalk.ui.screens.admin.AdminScreen
+import ru.walkAndTalk.ui.screens.admin.AdminSideEffect
 import ru.walkAndTalk.ui.screens.admin.AdminViewModel
 import ru.walkAndTalk.ui.screens.admin.add.AddUserScreen
 import ru.walkAndTalk.ui.screens.admin.edit.EditUserScreen
@@ -51,6 +52,35 @@ fun RootScreen(intent: Intent) {
     val navController = rememberNavController()
     val supabaseWrapper: SupabaseWrapper = koinInject()
     val localDataStoreRepository: LocalDataStoreRepository = koinInject()
+    val adminViewModel: AdminViewModel = koinViewModel()
+
+    LaunchedEffect(Unit) {
+        adminViewModel.container.sideEffectFlow.collect { sideEffect ->
+            when (sideEffect) {
+                is AdminSideEffect.NavigateToAuth -> {
+                    navController.navigate(Auth) {
+                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                    }
+                }
+                is AdminSideEffect.NavigateToMain -> {
+                    navController.navigate(Main(sideEffect.userId)) {
+                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+                is AdminSideEffect.NavigateToAddUser -> {
+                    navController.navigate(AddUser)
+                }
+                is AdminSideEffect.NavigateToEditUser -> {
+                    navController.navigate("EditUser/${sideEffect.userId}")
+                }
+                is AdminSideEffect.NavigateToProfile -> {
+                    navController.navigate(Profile(userId = sideEffect.userId, viewOnly = true))
+                }
+                else -> Unit
+            }
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -144,32 +174,89 @@ fun RootScreen(intent: Intent) {
                 )
             }
         }
-        composable<Main> {
+//        composable<Main> {
+//            MainScreen(
+//                userId = it.toRoute<Main>().userId,
+//                onNavigateAuth = {
+//                    navController.navigate(Auth) {
+//                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
+//                    }
+//                }
+//            )
+//        }
+//        composable<Admin> { backStackEntry ->
+//            val admin = backStackEntry.toRoute<Admin>()
+//            val adminViewModel: AdminViewModel = koinViewModel()
+//            AdminScreen(
+//                navController = navController,
+//                userId = admin.userId,
+//                viewModel = adminViewModel
+//            )
+//        }
+//        composable<AddUser> {
+//            val adminViewModel: AdminViewModel = koinViewModel()
+//            AddUserScreen(
+//                viewModel = adminViewModel,
+//                onBackClick = { navController.navigateUp() }
+//            )
+//        }
+//        composable(
+//            route = "EditUser/{userId}",
+//            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+//        ) { backStackEntry ->
+//            val adminViewModel: AdminViewModel = koinViewModel()
+//            EditUserScreen(
+//                userId = backStackEntry.arguments?.getString("userId") ?: "",
+//                viewModel = adminViewModel,
+//                onBackClick = { navController.navigateUp() }
+//            )
+//        }
+//        composable<Profile> {
+//            val profile = it.toRoute<Profile>()
+//            ProfileScreen(
+//                viewModel = koinViewModel(parameters = { parametersOf(profile.userId) }),
+//                onNavigateAuth = {
+//                    navController.navigate(Auth) {
+//                        popUpTo(Onboarding) { inclusive = true }
+//                    }
+//                },
+//                onNavigateEditProfile = { navController.navigate(EditProfile) },
+//                onNavigateEventStatistics = { navController.navigate(EventStatistics) },
+//                onNavigateAdminScreen = {navController.navigate(Admin(profile.userId))},
+//                isViewOnly = profile.viewOnly,
+//                onBackClick = {
+//                    navController.navigateUp()
+//                }
+//            )
+//        }
+        composable<Main> { backStackEntry ->
+            val main = backStackEntry.toRoute<Main>()
             MainScreen(
-                userId = it.toRoute<Main>().userId,
+                userId = main.userId,
                 onNavigateAuth = {
                     navController.navigate(Auth) {
                         popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                    }
+                },
+                onNavigateAdmin = { userId ->
+                    navController.navigate(Admin(userId)) {
+                        popUpTo(Main(main.userId)) { inclusive = true } // Очищаем MainScreen
+                        launchSingleTop = true
                     }
                 }
             )
         }
         composable<Admin> { backStackEntry ->
             val admin = backStackEntry.toRoute<Admin>()
-            val adminViewModel: AdminViewModel = koinViewModel()
             AdminScreen(
-                navController = navController,
                 userId = admin.userId,
                 viewModel = adminViewModel
             )
         }
         composable<AddUser> {
-            val adminViewModel: AdminViewModel = koinViewModel()
             AddUserScreen(
-               viewModel = adminViewModel,
-                onBackClick = {
-                    navController.navigateUp()
-                }
+                viewModel = adminViewModel,
+                onBackClick = { navController.navigateUp() }
             )
         }
         composable(
@@ -178,29 +265,35 @@ fun RootScreen(intent: Intent) {
         ) { backStackEntry ->
             EditUserScreen(
                 userId = backStackEntry.arguments?.getString("userId") ?: "",
-                onBackClick = {
-                    navController.navigateUp()
-                }
+                viewModel = adminViewModel,
+                onBackClick = { navController.navigateUp() }
             )
         }
-        composable<Profile> {
-            val profile = it.toRoute<Profile>()
+        composable<Profile> { backStackEntry ->
+            val profile = backStackEntry.toRoute<Profile>()
             ProfileScreen(
                 viewModel = koinViewModel(parameters = { parametersOf(profile.userId) }),
                 onNavigateAuth = {
                     navController.navigate(Auth) {
-                        popUpTo(Onboarding) { inclusive = true }
+                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
                     }
                 },
                 onNavigateEditProfile = { navController.navigate(EditProfile) },
                 onNavigateEventStatistics = { navController.navigate(EventStatistics) },
-                onNavigateAdminScreen = {navController.navigate(Admin(profile.userId))},
+                onNavigateAdminScreen = {
+                    // Вызываем навигацию на AdminScreen с заменой стека
+                    navController.navigate(Admin(profile.userId)) {
+                        popUpTo(Main(profile.userId)) { inclusive = true } // Очищаем MainScreen
+                        launchSingleTop = true
+                    }
+                },
                 isViewOnly = profile.viewOnly,
-                onBackClick = {
-                    navController.navigateUp()
-                }
+                onBackClick = { navController.navigateUp() }
             )
         }
+
+
+
 //        composable<Main> { backStackEntry ->
 //            val main = backStackEntry.toRoute<Main>()
 //            MainScreen(

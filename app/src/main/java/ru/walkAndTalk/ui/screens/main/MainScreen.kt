@@ -120,6 +120,7 @@ sealed class BottomNavBarItem(
 fun MainScreen(
     userId: String,
     onNavigateAuth: () -> Unit,
+    onNavigateAdmin: (String) -> Unit,
     openProfile: Boolean = false, // Added parameter to control initial navigation
     viewOnly: Boolean = false,
     viewUserId: String? = null, // ID пользователя для просмотра
@@ -446,7 +447,8 @@ fun MainScreen(
                     onNavigateAuth = onNavigateAuth,
                     onNavigateEditProfile = { navController.navigate(EditProfile) },
                     onNavigateEventStatistics = { navController.navigate(EventStatistics) },
-                    onNavigateAdminScreen = { navController.navigate(Admin(userId)) },
+//                    onNavigateAdminScreen = { navController.navigate(Admin(userId)) },
+                    onNavigateAdminScreen = { onNavigateAdmin(profile.userId) },
                     isViewOnly = profile.viewOnly,
                     onBackClick = {
                         navController.navigateUp()
@@ -457,7 +459,6 @@ fun MainScreen(
                 val admin = backStackEntry.toRoute<Admin>()
                 val adminViewModel: AdminViewModel = koinViewModel()
                 AdminScreen(
-                    navController = navController,
                     userId = admin.userId,
                     viewModel = adminViewModel
                 )

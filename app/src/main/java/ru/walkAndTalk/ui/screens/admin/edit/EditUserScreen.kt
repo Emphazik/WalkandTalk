@@ -31,9 +31,8 @@ import ru.walkAndTalk.R
 @Composable
 fun EditUserScreen(
     userId: String,
-    viewModel: AdminViewModel = koinViewModel(),
-    onBackClick: () -> Unit = {}
-
+    onBackClick: () -> Unit,
+    viewModel: AdminViewModel = koinViewModel()
 ) {
     val state by viewModel.container.stateFlow.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
@@ -86,7 +85,7 @@ fun EditUserScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { onBackClick() }) {
+                    IconButton(onClick = onBackClick) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_back),
                             contentDescription = "Back",
@@ -305,7 +304,7 @@ fun EditUserScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
-                    onClick = { onBackClick() },
+                    onClick = onBackClick,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp)
                 ) {

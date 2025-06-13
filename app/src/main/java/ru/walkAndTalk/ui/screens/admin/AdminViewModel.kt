@@ -48,11 +48,11 @@ class AdminViewModel(
         postSideEffect(AdminSideEffect.NavigateToProfile(userId, viewOnly = true))
     }
 
-    fun navigateToAddUser() = intent{
+    fun navigateToAddUser() = intent {
         postSideEffect(AdminSideEffect.NavigateToAddUser)
     }
 
-    fun navigateToEditUser(userId: String) = intent{
+    fun navigateToEditUser(userId: String) = intent {
         postSideEffect(AdminSideEffect.NavigateToEditUser(userId))
     }
 

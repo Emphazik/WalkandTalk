@@ -12,3 +12,4 @@ sealed class AdminSideEffect {
     data class NavigateToProfile(val userId: String, val viewOnly: Boolean) : AdminSideEffect()
     object UserSaved : AdminSideEffect()
 }
+
