@@ -24,9 +24,11 @@ import ru.walkAndTalk.ui.screens.Admin
 import ru.walkAndTalk.ui.screens.Auth
 import ru.walkAndTalk.ui.screens.EditProfile
 import ru.walkAndTalk.ui.screens.EditUser
+import ru.walkAndTalk.ui.screens.EventStatistics
 import ru.walkAndTalk.ui.screens.Login
 import ru.walkAndTalk.ui.screens.Main
 import ru.walkAndTalk.ui.screens.Onboarding
+import ru.walkAndTalk.ui.screens.Profile
 import ru.walkAndTalk.ui.screens.Registration
 import ru.walkAndTalk.ui.screens.Splash
 import ru.walkAndTalk.ui.screens.Welcome
@@ -38,6 +40,7 @@ import ru.walkAndTalk.ui.screens.auth.login.LoginScreen
 import ru.walkAndTalk.ui.screens.auth.register.RegisterScreen
 import ru.walkAndTalk.ui.screens.main.MainScreen
 import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsViewModel
+import ru.walkAndTalk.ui.screens.main.profile.ProfileScreen
 import ru.walkAndTalk.ui.screens.main.profile.edit.EditProfileScreen
 import ru.walkAndTalk.ui.screens.onboarding.OnboardingScreen
 import ru.walkAndTalk.ui.screens.splash.SplashScreen
@@ -151,6 +154,53 @@ fun RootScreen(intent: Intent) {
                 }
             )
         }
+        composable<Admin> { backStackEntry ->
+            val admin = backStackEntry.toRoute<Admin>()
+            val adminViewModel: AdminViewModel = koinViewModel()
+            AdminScreen(
+                navController = navController,
+                userId = admin.userId,
+                viewModel = adminViewModel
+            )
+        }
+        composable<AddUser> {
+            val adminViewModel: AdminViewModel = koinViewModel()
+            AddUserScreen(
+               viewModel = adminViewModel,
+                onBackClick = {
+                    navController.navigateUp()
+                }
+            )
+        }
+        composable(
+            route = "EditUser/{userId}",
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            EditUserScreen(
+                userId = backStackEntry.arguments?.getString("userId") ?: "",
+                onBackClick = {
+                    navController.navigateUp()
+                }
+            )
+        }
+        composable<Profile> {
+            val profile = it.toRoute<Profile>()
+            ProfileScreen(
+                viewModel = koinViewModel(parameters = { parametersOf(profile.userId) }),
+                onNavigateAuth = {
+                    navController.navigate(Auth) {
+                        popUpTo(Onboarding) { inclusive = true }
+                    }
+                },
+                onNavigateEditProfile = { navController.navigate(EditProfile) },
+                onNavigateEventStatistics = { navController.navigate(EventStatistics) },
+                onNavigateAdminScreen = {navController.navigate(Admin(profile.userId))},
+                isViewOnly = profile.viewOnly,
+                onBackClick = {
+                    navController.navigateUp()
+                }
+            )
+        }
 //        composable<Main> { backStackEntry ->
 //            val main = backStackEntry.toRoute<Main>()
 //            MainScreen(
@@ -162,52 +212,31 @@ fun RootScreen(intent: Intent) {
 //                },
 //            )
 //        }
-        composable(
-            route = "Main/{userId}?openProfile={openProfile}&viewOnly={viewOnly}&viewUserId={viewUserId}",
-            arguments = listOf(
-                navArgument("userId") { type = NavType.StringType },
-                navArgument("openProfile") { type = NavType.BoolType; defaultValue = false },
-                navArgument("viewOnly") { type = NavType.BoolType; defaultValue = false },
-                navArgument("viewUserId") { type = NavType.StringType; nullable = true }
-            )
-        ) { backStackEntry ->
-            val userId = backStackEntry.arguments?.getString("userId") ?: ""
-            val openProfile = backStackEntry.arguments?.getBoolean("openProfile") ?: false
-            val viewOnly = backStackEntry.arguments?.getBoolean("viewOnly") ?: false
-            val viewUserId = backStackEntry.arguments?.getString("viewUserId")
-            MainScreen(
-                userId = userId,
-                onNavigateAuth = {
-                    navController.navigate(Auth) {
-                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                    }
-                },
-                openProfile = openProfile,
-                viewOnly = viewOnly,
-                viewUserId = viewUserId
-            )
-        }
-        composable<Admin> { backStackEntry ->
-            val admin = backStackEntry.toRoute<Admin>()
-            val adminViewModel: AdminViewModel = koinViewModel()
-            AdminScreen(
-                navController = navController,
-                userId = admin.userId,
-                viewModel = adminViewModel
-            )
-        }
-        composable<AddUser> {
-            AddUserScreen(navController = navController)
-        }
-        composable(
-            route = "EditUser/{userId}",
-            arguments = listOf(navArgument("userId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            EditUserScreen(
-                navController = navController,
-                userId = backStackEntry.arguments?.getString("userId") ?: ""
-            )
-        }
+//        composable(
+//            route = "Main/{userId}?openProfile={openProfile}&viewOnly={viewOnly}&viewUserId={viewUserId}",
+//            arguments = listOf(
+//                navArgument("userId") { type = NavType.StringType },
+//                navArgument("openProfile") { type = NavType.BoolType; defaultValue = false },
+//                navArgument("viewOnly") { type = NavType.BoolType; defaultValue = false },
+//                navArgument("viewUserId") { type = NavType.StringType; nullable = true }
+//            )
+//        ) { backStackEntry ->
+//            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+//            val openProfile = backStackEntry.arguments?.getBoolean("openProfile") ?: false
+//            val viewOnly = backStackEntry.arguments?.getBoolean("viewOnly") ?: false
+//            val viewUserId = backStackEntry.arguments?.getString("viewUserId")
+//            MainScreen(
+//                userId = userId,
+//                onNavigateAuth = {
+//                    navController.navigate(Auth) {
+//                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
+//                    }
+//                },
+//                openProfile = openProfile,
+//                viewOnly = viewOnly,
+//                viewUserId = viewUserId
+//            )
+//        }
     }
 
     LaunchedEffect(intent) {
@@ -218,30 +247,24 @@ fun RootScreen(intent: Intent) {
                     if (user != null) {
                         val userData = supabaseWrapper.postgrest.from(Table.USERS).select {
                             filter { eq("id", user.id) }
-                        }.decodeSingle<UserDto>()
-                        val userMode = localDataStoreRepository.userMode.first()
-                        Log.d("RootScreen", "VK auth: isAdmin=${userData.isAdmin}, userMode=$userMode, userId=${user.id}")
-                        if (userData.isAdmin) {
-                            if (userMode != "user") {
-                                localDataStoreRepository.saveUserMode("admin")
-                                Log.d("RootScreen", "VK auth: userMode reset to admin for userId: ${user.id}")
-                            }
-                            if (userMode == "admin") {
-                                navController.navigate(Admin(user.id)) {
-                                    popUpTo(Splash) { inclusive = true }
-                                    launchSingleTop = true
+                        }.decodeSingleOrNull<UserDto>()
+                        if(userData != null){
+                            localDataStoreRepository.userMode.collect { userMode ->
+                                Log.d(
+                                    "RootScreen",
+                                    "VK auth: isAdmin=${userData.isAdmin}, userMode=$userMode, userId=${user.id}"
+                                )
+                                if (userMode == "admin") {
+                                    navController.navigate(Admin(user.id)) {
+                                        popUpTo(Splash) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                } else {
+                                    navController.navigate(Main(user.id)) {
+                                        popUpTo(Splash) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
                                 }
-                            } else {
-                                navController.navigate(Main(user.id)) {
-                                    popUpTo(Splash) { inclusive = true }
-                                    launchSingleTop = true
-                                }
-                            }
-                        } else {
-                            localDataStoreRepository.saveUserMode("user")
-                            navController.navigate(Main(user.id)) {
-                                popUpTo(Splash) { inclusive = true }
-                                launchSingleTop = true
                             }
                         }
                     } else {

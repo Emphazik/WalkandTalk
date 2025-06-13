@@ -30,9 +30,10 @@ import ru.walkAndTalk.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditUserScreen(
-    navController: NavController,
     userId: String,
-    viewModel: AdminViewModel = koinViewModel()
+    viewModel: AdminViewModel = koinViewModel(),
+    onBackClick: () -> Unit = {}
+
 ) {
     val state by viewModel.container.stateFlow.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
@@ -57,7 +58,7 @@ fun EditUserScreen(
             gender = user.gender
         } ?: run {
             snackbarHostState.showSnackbar("Пользователь не найден")
-            navController.popBackStack()
+            onBackClick()
         }
     }
 
@@ -65,7 +66,7 @@ fun EditUserScreen(
         viewModel.container.sideEffectFlow.collect { sideEffect ->
             when (sideEffect) {
                 is AdminSideEffect.ShowError -> snackbarHostState.showSnackbar(sideEffect.message)
-                is AdminSideEffect.UserSaved -> navController.popBackStack()
+                is AdminSideEffect.UserSaved -> onBackClick()
                 else -> Unit
             }
         }
@@ -85,7 +86,7 @@ fun EditUserScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { onBackClick() }) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_back),
                             contentDescription = "Back",
@@ -304,7 +305,7 @@ fun EditUserScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
-                    onClick = { navController.popBackStack() },
+                    onClick = { onBackClick() },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp)
                 ) {

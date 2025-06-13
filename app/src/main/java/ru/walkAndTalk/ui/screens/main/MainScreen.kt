@@ -84,6 +84,8 @@ import ru.walkAndTalk.ui.screens.Feed
 import ru.walkAndTalk.ui.screens.Notifications
 import ru.walkAndTalk.ui.screens.Profile
 import ru.walkAndTalk.ui.screens.Search
+import ru.walkAndTalk.ui.screens.admin.AdminScreen
+import ru.walkAndTalk.ui.screens.admin.AdminViewModel
 import ru.walkAndTalk.ui.screens.main.chats.ChatsScreen
 import ru.walkAndTalk.ui.screens.main.chats.detailchat.ChatScreen
 import ru.walkAndTalk.ui.screens.main.feed.FeedScreen
@@ -121,9 +123,7 @@ fun MainScreen(
     openProfile: Boolean = false, // Added parameter to control initial navigation
     viewOnly: Boolean = false,
     viewUserId: String? = null, // ID пользователя для просмотра
-    localDataStoreRepository: LocalDataStoreRepository = getKoin().get()
 ) {
-    var shouldRedirectToAdmin by remember { mutableStateOf(false) }
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -143,23 +143,9 @@ fun MainScreen(
     val context = LocalContext.current
     var showProfileSetupNotification by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        val mode = localDataStoreRepository.userMode.first()
-        if (mode == "admin") {
-            shouldRedirectToAdmin = true
-        }
-    }
-
-    if (shouldRedirectToAdmin) {
-        navController.navigate(Admin(userId)) {
-            popUpTo(0) { inclusive = true } // Очищаем backstack
-        }
-        return
-    }
-
     LaunchedEffect(openProfile) {
         if (openProfile) {
-            navController.navigate(Profile(userId)) {
+            navController.navigate(Profile(userId, viewOnly = false)) {
                 popUpTo(navController.graph.startDestinationId) {
                     inclusive = true
                     saveState = true
@@ -453,44 +439,42 @@ fun MainScreen(
                     viewModel = koinViewModel(parameters = { parametersOf(userId) })
                 )
             }
-//            composable<Profile> {
+            composable<Profile> {
+                val profile = it.toRoute<Profile>()
+                ProfileScreen(
+                    viewModel = koinViewModel(parameters = { parametersOf(profile.userId) }),
+                    onNavigateAuth = onNavigateAuth,
+                    onNavigateEditProfile = { navController.navigate(EditProfile) },
+                    onNavigateEventStatistics = { navController.navigate(EventStatistics) },
+                    onNavigateAdminScreen = { navController.navigate(Admin(userId)) },
+                    isViewOnly = profile.viewOnly,
+                    onBackClick = {
+                        navController.navigateUp()
+                    }
+                )
+            }
+            composable<Admin> { backStackEntry ->
+                val admin = backStackEntry.toRoute<Admin>()
+                val adminViewModel: AdminViewModel = koinViewModel()
+                AdminScreen(
+                    navController = navController,
+                    userId = admin.userId,
+                    viewModel = adminViewModel
+                )
+            }
+//            composable<Profile> { backStackEntry ->
+//                val profile = backStackEntry.toRoute<Profile>()
 //                ProfileScreen(
-//                    viewModel = koinViewModel(parameters = { parametersOf(it.toRoute<Profile>().userId) }),
-//                    onNavigateAuth = onNavigateAuth,
 //                    navController = navController,
+//                    viewModel = koinViewModel(parameters = { parametersOf(if (profile.viewOnly) viewUserId ?: profile.userId else profile.userId) }),
+//                    onNavigateAuth = onNavigateAuth,
 //                    onNavigateEditProfile = { navController.navigate(EditProfile) },
 //                    onNavigateEventStatistics = { navController.navigate(EventStatistics) },
-//                    isOwnProfile = true
+//                    isOwnProfile = !profile.viewOnly && profile.userId == userId,
+//                    isViewOnly = profile.viewOnly,
+//                    onBackToAdmin = { navController.navigate(Admin(userId)) { popUpTo(navController.graph.id) } }
 //                )
 //            }
-            composable<Profile> { backStackEntry ->
-                val profile = backStackEntry.toRoute<Profile>()
-                ProfileScreen(
-                    navController = navController,
-                    viewModel = koinViewModel(parameters = { parametersOf(if (profile.viewOnly) viewUserId ?: profile.userId else profile.userId) }),
-                    onNavigateAuth = onNavigateAuth,
-                    onNavigateEditProfile = { navController.navigate(EditProfile) },
-                    onNavigateEventStatistics = { navController.navigate(EventStatistics) },
-                    isOwnProfile = !profile.viewOnly && profile.userId == userId,
-                    isViewOnly = profile.viewOnly,
-                    onBackToAdmin = { navController.navigate(Admin(userId)) { popUpTo(navController.graph.id) } }
-                )
-            }
-            composable(
-                route = "profile/{userId}",
-                arguments = listOf(navArgument("userId") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val profileUserId =
-                    backStackEntry.arguments?.getString("userId") ?: return@composable
-                ProfileScreen(
-                    viewModel = koinViewModel(parameters = { parametersOf(profileUserId) }),
-                    onNavigateAuth = onNavigateAuth,
-                    navController = navController,
-                    onNavigateEditProfile = { navController.navigate(EditProfile) },
-                    onNavigateEventStatistics = { navController.navigate(EventStatistics) },
-                    isOwnProfile = profileUserId == userId
-                )
-            }
             composable(
                 route = EventDetails.ROUTE,
                 arguments = listOf(navArgument("eventId") { type = NavType.StringType })

@@ -98,7 +98,7 @@ fun AdminScreen(
                     navController.navigate("EditUser/${sideEffect.userId}")
                 }
                 is AdminSideEffect.NavigateToProfile -> {
-                    navController.navigate("Main/${sideEffect.userId}?openProfile=true&viewOnly=${sideEffect.viewOnly}&viewUserId=${sideEffect.userId}") {
+                    navController.navigate(Profile(userId = sideEffect.userId, viewOnly = true)) {
                         launchSingleTop = true
                     }
                 }

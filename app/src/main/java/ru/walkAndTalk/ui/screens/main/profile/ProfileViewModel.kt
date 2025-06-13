@@ -88,7 +88,8 @@ class ProfileViewModel(
                 newCity = user.city ?: state.newCity,
                 showReviews = user.showReviews,
                 reviews = reviews.associateBy { it.eventId },
-                events = events
+                events = events,
+                isAdmin = user.isAdmin,
             )
         }
     }

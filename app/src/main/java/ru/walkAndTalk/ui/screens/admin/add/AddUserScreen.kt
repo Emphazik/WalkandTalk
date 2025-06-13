@@ -30,8 +30,8 @@ import ru.walkAndTalk.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddUserScreen(
-    navController: NavController,
-    viewModel: AdminViewModel = koinViewModel()
+    viewModel: AdminViewModel = koinViewModel(),
+    onBackClick: () -> Unit = {}
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val snackbarHostState = remember { SnackbarHostState() }
@@ -50,7 +50,7 @@ fun AddUserScreen(
         viewModel.container.sideEffectFlow.collect { sideEffect ->
             when (sideEffect) {
                 is AdminSideEffect.ShowError -> snackbarHostState.showSnackbar(sideEffect.message)
-                is AdminSideEffect.UserSaved -> navController.popBackStack()
+                is AdminSideEffect.UserSaved -> onBackClick()
                 else -> Unit
             }
         }
@@ -70,7 +70,7 @@ fun AddUserScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { onBackClick() }) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_back),
                             contentDescription = "Back",
@@ -273,13 +273,13 @@ fun AddUserScreen(
                     onDismissRequest = { genderExpanded = false },
                     modifier = Modifier.background(colorScheme.surface)
                 ) {
-                    listOf("male", "female", "other").forEach { option ->
+                    listOf("Мужской", "Женский", "Другой").forEach { option ->
                         DropdownMenuItem(
                             text = {
                                 Text(
                                     text = when (option) {
-                                        "male" -> "Мужской"
-                                        "female" -> "Женский"
+                                        "Мужской" -> "Мужской"
+                                        "Женский" -> "Женский"
                                         else -> "Другой"
                                     },
                                     fontFamily = montserratFont,
@@ -324,7 +324,7 @@ fun AddUserScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedButton(
-                        onClick = { navController.popBackStack() },
+                        onClick = {onBackClick()},
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp)
                     ) {

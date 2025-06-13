@@ -1,5 +1,6 @@
 package ru.walkAndTalk.ui.screens.main.profile
 
+import kotlinx.datetime.Instant
 import ru.walkAndTalk.domain.model.Event
 import ru.walkAndTalk.domain.model.EventReview
 
@@ -32,5 +33,8 @@ data class ProfileViewState(
     val newCity: String = "Не указано",
     val showReviews: Boolean = false, // Новое поле
     val reviews: Map<String, EventReview> = emptyMap(), // Новое поле
-    val events: Map<String, Event> = emptyMap() // Новое поле
+    val events: Map<String, Event> = emptyMap(), // Новое
+    val isAdmin: Boolean = false,
+    val gender: String? = null, // Новое поле: "male", "female", "other"
+    val lastLogin: Instant? = null // Новое поле
     )

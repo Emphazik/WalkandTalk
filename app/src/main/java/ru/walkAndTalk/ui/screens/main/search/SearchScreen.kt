@@ -66,6 +66,7 @@ import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import ru.walkAndTalk.R
 import ru.walkAndTalk.domain.model.User
+import ru.walkAndTalk.ui.screens.Profile
 import ru.walkAndTalk.ui.screens.main.search.SearchSideEffect
 import ru.walkAndTalk.ui.screens.main.search.SearchViewModel
 import ru.walkAndTalk.ui.theme.montserratFont
@@ -306,7 +307,7 @@ fun SearchScreen(
     viewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
             is SearchSideEffect.NavigateToProfile -> {
-                navController.navigate("profile/${sideEffect.userId}")
+                navController.navigate(Profile(sideEffect.userId, viewOnly = true))
             }
             is SearchSideEffect.NavigateToMessage -> {
                 navController.navigate("chat/${sideEffect.chatId}")

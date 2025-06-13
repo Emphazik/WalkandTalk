@@ -17,8 +17,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Main(val userId: String)
 
-@Serializable
-data class Admin(val userId: String)
+// Nested
+@Serializable data class Admin(val userId: String)
 /** Local Main Screen **/
 // Screen
 @Serializable

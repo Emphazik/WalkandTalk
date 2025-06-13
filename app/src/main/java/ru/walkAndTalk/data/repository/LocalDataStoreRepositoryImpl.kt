@@ -37,7 +37,7 @@ class LocalDataStoreRepositoryImpl(
     }
 
     override val userMode = context.dataStore.data.map {
-        it[USER_MODE_KEY] ?: "admin"
+        it[USER_MODE_KEY] ?: "user"
     }
 
     override suspend fun saveIsFirstLaunch(value: Boolean) {
