@@ -67,11 +67,15 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.toRoute
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.getKoin
 import org.koin.core.parameter.parametersOf
 import ru.walkAndTalk.R
 import ru.walkAndTalk.data.store.UserPreferences
+import ru.walkAndTalk.domain.repository.LocalDataStoreRepository
+import ru.walkAndTalk.ui.screens.Admin
 import ru.walkAndTalk.ui.screens.Chats
 import ru.walkAndTalk.ui.screens.EditProfile
 import ru.walkAndTalk.ui.screens.EventDetails
@@ -113,8 +117,13 @@ sealed class BottomNavBarItem(
 @Composable
 fun MainScreen(
     userId: String,
-    onNavigateAuth: () -> Unit
+    onNavigateAuth: () -> Unit,
+    openProfile: Boolean = false, // Added parameter to control initial navigation
+    viewOnly: Boolean = false,
+    viewUserId: String? = null, // ID пользователя для просмотра
+    localDataStoreRepository: LocalDataStoreRepository = getKoin().get()
 ) {
+    var shouldRedirectToAdmin by remember { mutableStateOf(false) }
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -134,6 +143,32 @@ fun MainScreen(
     val context = LocalContext.current
     var showProfileSetupNotification by remember { mutableStateOf(false) }
 
+    LaunchedEffect(Unit) {
+        val mode = localDataStoreRepository.userMode.first()
+        if (mode == "admin") {
+            shouldRedirectToAdmin = true
+        }
+    }
+
+    if (shouldRedirectToAdmin) {
+        navController.navigate(Admin(userId)) {
+            popUpTo(0) { inclusive = true } // Очищаем backstack
+        }
+        return
+    }
+
+    LaunchedEffect(openProfile) {
+        if (openProfile) {
+            navController.navigate(Profile(userId)) {
+                popUpTo(navController.graph.startDestinationId) {
+                    inclusive = true
+                    saveState = true
+                }
+                restoreState = true
+                launchSingleTop = true
+            }
+        }
+    }
 
     LaunchedEffect(userId) {
         val hasSeenNotification = UserPreferences.hasSeenProfileNotification(context)
@@ -365,14 +400,18 @@ fun MainScreen(
                             is FeedSideEffect.NavigateToEventDetails -> {
                                 navController.navigate(EventDetails.createRoute(sideEffect.eventId))
                             }
+
                             is FeedSideEffect.NavigateToNotifications -> {
                                 navController.navigate(Notifications)
                             }
+
                             is FeedSideEffect.NavigateToChat -> {
                                 navController.navigate("chat/${sideEffect.chatId}")
                             }
+
                             is FeedSideEffect.ParticipateInEvent -> {
-                                val event = feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
+                                val event =
+                                    feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
                                         message = "Вы успешно записались на '${event?.title ?: "мероприятие"}' ${
@@ -381,13 +420,16 @@ fun MainScreen(
                                     )
                                 }
                             }
+
                             is FeedSideEffect.ShowError -> {
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(message = sideEffect.message)
                                 }
                             }
+
                             is FeedSideEffect.LeaveEventSuccess -> {
-                                val event = feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
+                                val event =
+                                    feedViewModel.container.stateFlow.value.events.find { it.id == sideEffect.eventId }
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
                                         message = "Вы успешно отменили участие в '${event?.title ?: "мероприятии"}'!"
@@ -411,14 +453,27 @@ fun MainScreen(
                     viewModel = koinViewModel(parameters = { parametersOf(userId) })
                 )
             }
-            composable<Profile> {
+//            composable<Profile> {
+//                ProfileScreen(
+//                    viewModel = koinViewModel(parameters = { parametersOf(it.toRoute<Profile>().userId) }),
+//                    onNavigateAuth = onNavigateAuth,
+//                    navController = navController,
+//                    onNavigateEditProfile = { navController.navigate(EditProfile) },
+//                    onNavigateEventStatistics = { navController.navigate(EventStatistics) },
+//                    isOwnProfile = true
+//                )
+//            }
+            composable<Profile> { backStackEntry ->
+                val profile = backStackEntry.toRoute<Profile>()
                 ProfileScreen(
-                    viewModel = koinViewModel(parameters = { parametersOf(it.toRoute<Profile>().userId) }),
-                    onNavigateAuth = onNavigateAuth,
                     navController = navController,
+                    viewModel = koinViewModel(parameters = { parametersOf(if (profile.viewOnly) viewUserId ?: profile.userId else profile.userId) }),
+                    onNavigateAuth = onNavigateAuth,
                     onNavigateEditProfile = { navController.navigate(EditProfile) },
                     onNavigateEventStatistics = { navController.navigate(EventStatistics) },
-                    isOwnProfile = true
+                    isOwnProfile = !profile.viewOnly && profile.userId == userId,
+                    isViewOnly = profile.viewOnly,
+                    onBackToAdmin = { navController.navigate(Admin(userId)) { popUpTo(navController.graph.id) } }
                 )
             }
             composable(

@@ -21,7 +21,8 @@ data class Main(val userId: String)
 data class Admin(val userId: String)
 /** Local Main Screen **/
 // Screen
-@Serializable data class Profile(val userId: String)
+@Serializable
+data class Profile(val userId: String, val viewOnly: Boolean = false)
 @Serializable object Feed
 @Serializable object Chats
 @Serializable object Search
@@ -34,3 +35,5 @@ data class Admin(val userId: String)
 @Serializable object EditProfile
 @Serializable object EventStatistics
 @Serializable object Notifications
+@Serializable object AddUser
+@Serializable object EditUser

@@ -30,7 +30,9 @@ fun UserDto.fromDto(): User = User(
     birthdate = birthdate,
     city = city,
     showReviews = showReviews,
-    isAdmin = isAdmin
+    isAdmin = isAdmin,
+    gender = gender,
+    lastLogin = lastLogin?.let { Instant.parse(it) },
 )
 
 fun User.toDto(): UserDto = UserDto(
@@ -50,7 +52,9 @@ fun User.toDto(): UserDto = UserDto(
     birthdate = birthdate,
     city = city,
     showReviews = showReviews,
-    isAdmin = isAdmin
+    isAdmin = isAdmin,
+    gender = gender,
+    lastLogin = lastLogin?.toString()
 )
 
 fun VKIDUser.toUser(vkId: Long): User = User(
@@ -71,6 +75,8 @@ fun VKIDUser.toUser(vkId: Long): User = User(
     city = null,
     showReviews = false,
     isAdmin = false,
+    gender = null,
+    lastLogin = null
 )
 
 fun UsersUserFullDto.fromVkUser(): User {
@@ -94,6 +100,8 @@ fun UsersUserFullDto.fromVkUser(): User {
         birthdate = bdate,
         city = city.toString(),
         showReviews = false,
-        isAdmin = false
+        isAdmin = false,
+        gender = null,
+        lastLogin = null
     )
 }

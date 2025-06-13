@@ -4,10 +4,12 @@ import android.content.Intent
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import androidx.navigation.toRoute
 import kotlinx.coroutines.flow.first
 import org.koin.androidx.compose.koinViewModel
@@ -17,9 +19,11 @@ import ru.walkAndTalk.data.model.UserDto
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.Table
 import ru.walkAndTalk.domain.repository.LocalDataStoreRepository
+import ru.walkAndTalk.ui.screens.AddUser
 import ru.walkAndTalk.ui.screens.Admin
 import ru.walkAndTalk.ui.screens.Auth
 import ru.walkAndTalk.ui.screens.EditProfile
+import ru.walkAndTalk.ui.screens.EditUser
 import ru.walkAndTalk.ui.screens.Login
 import ru.walkAndTalk.ui.screens.Main
 import ru.walkAndTalk.ui.screens.Onboarding
@@ -28,6 +32,8 @@ import ru.walkAndTalk.ui.screens.Splash
 import ru.walkAndTalk.ui.screens.Welcome
 import ru.walkAndTalk.ui.screens.admin.AdminScreen
 import ru.walkAndTalk.ui.screens.admin.AdminViewModel
+import ru.walkAndTalk.ui.screens.admin.add.AddUserScreen
+import ru.walkAndTalk.ui.screens.admin.edit.EditUserScreen
 import ru.walkAndTalk.ui.screens.auth.login.LoginScreen
 import ru.walkAndTalk.ui.screens.auth.register.RegisterScreen
 import ru.walkAndTalk.ui.screens.main.MainScreen
@@ -145,6 +151,42 @@ fun RootScreen(intent: Intent) {
                 }
             )
         }
+//        composable<Main> { backStackEntry ->
+//            val main = backStackEntry.toRoute<Main>()
+//            MainScreen(
+//                userId = main.userId,
+//                onNavigateAuth = {
+//                    navController.navigate(Auth) {
+//                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
+//                    }
+//                },
+//            )
+//        }
+        composable(
+            route = "Main/{userId}?openProfile={openProfile}&viewOnly={viewOnly}&viewUserId={viewUserId}",
+            arguments = listOf(
+                navArgument("userId") { type = NavType.StringType },
+                navArgument("openProfile") { type = NavType.BoolType; defaultValue = false },
+                navArgument("viewOnly") { type = NavType.BoolType; defaultValue = false },
+                navArgument("viewUserId") { type = NavType.StringType; nullable = true }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            val openProfile = backStackEntry.arguments?.getBoolean("openProfile") ?: false
+            val viewOnly = backStackEntry.arguments?.getBoolean("viewOnly") ?: false
+            val viewUserId = backStackEntry.arguments?.getString("viewUserId")
+            MainScreen(
+                userId = userId,
+                onNavigateAuth = {
+                    navController.navigate(Auth) {
+                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                    }
+                },
+                openProfile = openProfile,
+                viewOnly = viewOnly,
+                viewUserId = viewUserId
+            )
+        }
         composable<Admin> { backStackEntry ->
             val admin = backStackEntry.toRoute<Admin>()
             val adminViewModel: AdminViewModel = koinViewModel()
@@ -152,6 +194,18 @@ fun RootScreen(intent: Intent) {
                 navController = navController,
                 userId = admin.userId,
                 viewModel = adminViewModel
+            )
+        }
+        composable<AddUser> {
+            AddUserScreen(navController = navController)
+        }
+        composable(
+            route = "EditUser/{userId}",
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            EditUserScreen(
+                navController = navController,
+                userId = backStackEntry.arguments?.getString("userId") ?: ""
             )
         }
     }

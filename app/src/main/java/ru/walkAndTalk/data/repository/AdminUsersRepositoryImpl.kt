@@ -29,10 +29,24 @@ class AdminUsersRepositoryImpl(
     }
 
     override suspend fun updateUser(user: User) {
-        supabaseWrapper.postgrest[Table.USERS]
-            .update(user.toDto()) {
-                filter { eq("id", user.id) }
-            }
+        supabaseWrapper.postgrest[Table.USERS].update(
+            mapOf(
+                "name" to user.name,
+                "email" to user.email,
+                "phone" to user.phone,
+                "profile_image_url" to user.profileImageUrl,
+                "bio" to user.bio,
+                "goals" to user.goals,
+                "birthdate" to user.birthdate,
+                "city" to user.city,
+                "show_reviews" to user.showReviews,
+                "is_admin" to user.isAdmin,
+                "gender" to user.gender,
+                "last_login" to user.lastLogin?.toString()
+            ).filterValues { it != null }
+        ) {
+            filter { eq("id", user.id) }
+        }
     }
 
     override suspend fun deleteUser(userId: String) {

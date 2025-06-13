@@ -68,7 +68,9 @@ fun ProfileScreen(
     onNavigateAuth: () -> Unit,
     onNavigateEditProfile: () -> Unit,
     onNavigateEventStatistics: () -> Unit,
-    isOwnProfile: Boolean = true
+    isOwnProfile: Boolean = true,
+    isViewOnly: Boolean = false,
+    onBackToAdmin: () -> Unit = {}
 ) {
     val state by viewModel.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
@@ -83,7 +85,7 @@ fun ProfileScreen(
         when (sideEffect) {
             is ProfileSideEffect.OnNavigateExit -> onNavigateAuth()
             is ProfileSideEffect.LaunchImagePicker -> {}
-            is ProfileSideEffect.RequestLocationPermission -> { }
+            is ProfileSideEffect.RequestLocationPermission -> {}
         }
     }
 
@@ -96,7 +98,6 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Аватарка
             item {
                 Box(
                     modifier = Modifier
@@ -129,7 +130,6 @@ fun ProfileScreen(
                 }
             }
 
-            // Карточка с информацией
             item {
                 Card(
                     modifier = Modifier
@@ -146,7 +146,6 @@ fun ProfileScreen(
                             .padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Имя пользователя
                         Text(
                             text = state.name,
                             fontFamily = montserratFont,
@@ -155,7 +154,6 @@ fun ProfileScreen(
                             color = colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        // Дата рождения (заглушка)
                         Text(
                             text = "Дата рождения: ${state.birthDate?.ifEmpty { "Не указано" } ?: "Не указано"}",
                             fontFamily = montserratFont,
@@ -163,7 +161,6 @@ fun ProfileScreen(
                             color = colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        // Местоположение
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -182,8 +179,6 @@ fun ProfileScreen(
                             )
                         }
                         Spacer(modifier = Modifier.height(16.dp))
-
-                        // Статус в городе (только отображение)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
@@ -203,59 +198,23 @@ fun ProfileScreen(
                             )
                         }
                         Spacer(modifier = Modifier.height(24.dp))
-
-                        // О себе (только отображение)
                         BioSection(
                             bio = state.bio,
                             colorScheme = colorScheme
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-
-                        // Интересы (только отображение)
                         InterestSection(
                             interests = state.interests,
                             colorScheme = colorScheme
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-
-                        // Цели (только отображение)
                         GoalsSection(
                             goals = state.goals,
                             colorScheme = colorScheme
                         )
-
-
                     }
                 }
             }
-//            if (state.showReviews && state.reviews.isNotEmpty()) {
-//                item {
-//                    Spacer(modifier = Modifier.height(16.dp))
-//                    Text(
-//                        text = "Отзывы о мероприятиях",
-//                        fontFamily = montserratFont,
-//                        fontSize = 18.sp,
-//                        fontWeight = FontWeight.Bold,
-//                        color = colorScheme.onSurface,
-//                        modifier = Modifier
-//                            .fillMaxWidth()
-//                            .padding(horizontal = 16.dp)
-//                    )
-//                    Spacer(modifier = Modifier.height(8.dp))
-//                }
-//                items(state.reviews.values.toList()) { review ->
-//                    val event = state.events[review.eventId]
-//                    if (event != null ) {
-//                        ReviewsCard(
-//                            events = state.events,
-//                            reviews = state.reviews,
-//                            formatEventDate = { viewModel.formatEventDate(event.eventDate) },
-//                            colorScheme = colorScheme
-//                        )
-//                        Spacer(modifier = Modifier.height(8.dp))
-//                    }
-//                }
-//            }
             if (state.showReviews && state.reviews.isNotEmpty()) {
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -264,7 +223,7 @@ fun ProfileScreen(
                         fontFamily = montserratFont,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = colorScheme.onSurface,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
@@ -274,7 +233,7 @@ fun ProfileScreen(
                         reviews = state.reviews,
                         events = state.events,
                         formatEventDate = viewModel::formatEventDate,
-                        colorScheme = MaterialTheme.colorScheme
+                        colorScheme = colorScheme
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -282,7 +241,6 @@ fun ProfileScreen(
             item { Spacer(modifier = Modifier.height(80.dp)) }
         }
 
-        // Верхняя панель
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -291,7 +249,7 @@ fun ProfileScreen(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             IconButton(
-                onClick = { navController.popBackStack() },
+                onClick = { if (isViewOnly) onBackToAdmin() else navController.popBackStack() },
                 modifier = Modifier
                     .background(Color.Gray.copy(alpha = 0.2f), shape = RoundedCornerShape(8.dp))
             ) {
@@ -301,7 +259,6 @@ fun ProfileScreen(
                     tint = colorScheme.onSurface
                 )
             }
-//            Spacer(modifier = Modifier.size(48.dp))
             if (isOwnProfile) {
                 Box {
                     var showEditMenu by remember { mutableStateOf(false) }
@@ -371,7 +328,6 @@ fun ProfileScreen(
                             onClick = {
                                 showEditMenu = false
                                 onNavigateEventStatistics()
-//                                navController.navigate("event_statistics")
                             }
                         )
                         DropdownMenuItem(
@@ -404,7 +360,6 @@ fun ProfileScreen(
             }
         }
 
-        // Диалог подтверждения выхода
         if (showLogoutDialog && isOwnProfile) {
             AlertDialog(
                 onDismissRequest = { showLogoutDialog = false },
@@ -456,15 +411,8 @@ fun ProfileScreen(
                 shape = RoundedCornerShape(16.dp)
             )
         }
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize(),
-            contentAlignment = Alignment.BottomCenter
-        ) {}
     }
 }
-
 @Composable
 fun BioSection(
     bio: String?,

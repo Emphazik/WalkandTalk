@@ -19,5 +19,7 @@ data class User(
     val birthdate: String? = null,
     val city: String? = null,
     val showReviews: Boolean = false,
-    val isAdmin: Boolean = false
+    val isAdmin: Boolean = false,
+    val gender: String? = null, // Новое поле: "male", "female", "other"
+    val lastLogin: Instant? = null // Новое поле
 )

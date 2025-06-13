@@ -71,10 +71,14 @@ class LoginViewModel(
                 throw Exception("Не удалось войти: пользователь не найден.")
             }
         } catch (e: RestException) {
+
             val errorMessage = when {
                 e.message?.contains("invalid_grant") == true -> "Неверный email/телефон или пароль."
                 e.message?.contains("email_not_confirmed") == true -> "Email не подтвержден. Проверьте почту."
-                else -> "Произошла ошибка при входе: ${e.message ?: "неизвестная ошибка"}"
+                else -> "Произошла ошибка при входе."
+//                else -> "Произошла ошибка при входе: ${e.message ?: "неизвестная ошибка"}"
+
+
             }
             reduce { state.copy(isLoading = false, error = errorMessage) }
         } catch (e: Exception) {

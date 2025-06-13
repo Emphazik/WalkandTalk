@@ -2,6 +2,8 @@ package ru.walkAndTalk.ui.screens.admin
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
@@ -42,6 +44,75 @@ class AdminViewModel(
             postSideEffect(AdminSideEffect.ShowError(e.message ?: "Ошибка загрузки данных"))
         }
     }
+    fun navigateToProfile(userId: String) = intent {
+        postSideEffect(AdminSideEffect.NavigateToProfile(userId, viewOnly = true))
+    }
+
+    fun navigateToAddUser() = intent{
+        postSideEffect(AdminSideEffect.NavigateToAddUser)
+    }
+
+    fun navigateToEditUser(userId: String) = intent{
+        postSideEffect(AdminSideEffect.NavigateToEditUser(userId))
+    }
+
+    fun addUser(name: String, email: String, password: String) = intent {
+        viewModelScope.launch {
+            try {
+                contentRepository.addUser(name, email, password)
+                loadData() // Обновляем данные
+                postSideEffect(AdminSideEffect.UserSaved)
+            } catch (e: Exception) {
+                postSideEffect(AdminSideEffect.ShowError("Ошибка при создании пользователя: ${e.message}"))
+            }
+        }
+    }
+
+    fun updateUser(userId: String, name: String, email: String, phone: String, isAdmin: Boolean, gender: String?) = intent {
+        viewModelScope.launch {
+            try {
+                val user = usersRepository.fetchUserById(userId) ?: throw Exception("Пользователь не найден")
+                usersRepository.updateUser(
+                    user.copy(
+                        name = name,
+                        email = email,
+                        phone = phone,
+                        isAdmin = isAdmin,
+                        gender = gender
+                    )
+                )
+                loadData() // Обновляем данные
+                postSideEffect(AdminSideEffect.UserSaved)
+            } catch (e: Exception) {
+                postSideEffect(AdminSideEffect.ShowError("Ошибка при обновлении пользователя: ${e.message}"))
+            }
+        }
+    }
+//    fun addUser(name: String, email: String, password: String) = intent{
+//        viewModelScope.launch {
+//            try {
+//                // TODO: Implement to repository call
+//                // Example:
+//                // repository.addUser(name, email, password)
+//                postSideEffect(AdminSideEffect.UserSaved)
+//            } catch (e: Exception) {
+//                postSideEffect(AdminSideEffect.ShowError("Ошибка при создании пользователя: ${e.message}"))
+//            }
+//        }
+//    }
+//
+//    fun updateUser(userId: String, name: String, email: String) = intent{
+//        viewModelScope.launch {
+//            try {
+//                // TODO: Implement to repository call
+//                // Example:
+//                // repository.updateUser(User(id = userId, name = name, email = email))
+//                postSideEffect(AdminSideEffect.UserSaved)
+//            } catch (e: Exception) {
+//                postSideEffect(AdminSideEffect.ShowError("Ошибка при обновлении пользователя: ${e.message}"))
+//            }
+//        }
+//    }
 
     fun onUserClick(userId: String) = intent {
         postSideEffect(AdminSideEffect.NavigateToUserProfile(userId))

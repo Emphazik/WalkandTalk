@@ -199,57 +199,6 @@ class FeedViewModel(
         }
     }
 
-//    fun formatEventDate(isoDate: String?): String? {
-//        if (isoDate == null) return null
-//        return try {
-//            val offsetDateTime = OffsetDateTime.parse(isoDate)
-//            val zoneId = TimeZone.currentSystemDefault().toJavaZoneId()
-//            val now = java.time.LocalDateTime.now(zoneId)
-//            val formatter = when {
-//                offsetDateTime.toLocalDate() == now.toLocalDate() -> SimpleDateFormat("HH:mm", Locale("ru"))
-//                offsetDateTime.year == now.year -> SimpleDateFormat("dd MMM", Locale("ru"))
-//                else -> SimpleDateFormat("dd MMM yyyy", Locale("ru"))
-//            }
-//            formatter.format(offsetDateTime.toInstant().toEpochMilli())
-//        } catch (e: Exception) {
-//            println("FeedViewModel: Error parsing date: $e")
-//            null
-//        }
-//    }
-
-
-//    fun formatEventDate(isoDate: String): String {
-//        val instant = Instant.parse(isoDate)
-//        val timeZone = TimeZone.currentSystemDefault()
-//        val dateTime = instant.toLocalDateTime(timeZone)
-//        val now = kotlinx.datetime.Clock.System.now().toLocalDateTime(timeZone)
-//
-//        val day = dateTime.dayOfMonth
-//        val month = getMonthName(dateTime.monthNumber)
-//        val yearPart = if (dateTime.year != now.year) " ${dateTime.year}" else ""
-//        val time = String.format("%02d:%02d", dateTime.hour, dateTime.minute)
-//
-//        return "$day $month$yearPart, $time"
-//    }
-//
-//    fun getMonthName(month: Int): String {
-//        return when (month) {
-//            1 -> "января"
-//            2 -> "февраля"
-//            3 -> "марта"
-//            4 -> "апреля"
-//            5 -> "мая"
-//            6 -> "июня"
-//            7 -> "июля"
-//            8 -> "августа"
-//            9 -> "сентября"
-//            10 -> "октября"
-//            11 -> "ноября"
-//            12 -> "декабря"
-//            else -> ""
-//        }
-//    }
-
     fun formatEventDate(isoDate: String?): String? {
         if (isoDate == null) return null
         return try {

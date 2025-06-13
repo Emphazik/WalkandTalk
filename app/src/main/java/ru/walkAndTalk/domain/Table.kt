@@ -18,5 +18,4 @@ object Table {
     const val ANNOUNCEMENTS = "announcements"
     const val REPORTS = "reports"
     const val CONTENT_TYPES = "content_types"
-
 }

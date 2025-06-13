@@ -28,7 +28,7 @@ data class UserDto(
     @SerialName("goals")
     val goals: String? = null,
     @SerialName("created_at")
-    val createdAt: String, // Instant будет сериализоваться как строка
+    val createdAt: String,
     @SerialName("updated_at")
     val updatedAt: String? = null,
     @SerialName("birthdate")
@@ -37,5 +37,7 @@ data class UserDto(
     val city: String? = null,
     @SerialName("show_reviews")
     val showReviews: Boolean = false,
-    @SerialName("is_admin") val isAdmin: Boolean = false
+    @SerialName("is_admin") val isAdmin: Boolean = false,
+    @SerialName("gender") val gender: String? = null, // Новое поле
+    @SerialName("last_login") val lastLogin: String? = null // Новое поле
 )

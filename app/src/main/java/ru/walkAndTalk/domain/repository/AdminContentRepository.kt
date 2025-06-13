@@ -3,6 +3,7 @@ package ru.walkAndTalk.domain.repository
 import ru.walkAndTalk.domain.model.Event
 import ru.walkAndTalk.domain.model.Announcement
 import ru.walkAndTalk.domain.model.Report
+import ru.walkAndTalk.domain.model.User
 
 interface AdminContentRepository {
     suspend fun fetchAllEvents(): List<Event>
@@ -16,4 +17,6 @@ interface AdminContentRepository {
     suspend fun fetchAllReports(): List<Report>
     suspend fun fetchReportById(reportId: String): Report?
     suspend fun deleteReport(reportId: String)
+    suspend fun addUser(name: String, email: String, password: String)
+//    suspend fun updateUser(user: User)
 }
