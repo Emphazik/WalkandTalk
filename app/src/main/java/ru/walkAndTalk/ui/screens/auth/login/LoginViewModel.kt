@@ -34,19 +34,82 @@ class LoginViewModel(
         reduce { state.copy(password = newPassword.trim()) }
     }
 
+//    fun onLoginClick() = intent {
+//        reduce { state.copy(isLoading = true, error = null) }
+//        try {
+//            validateInputs()
+//            var email = state.email
+//            if (state.email.matches(Regex.PHONE)) {
+//
+//                val userData = supabaseWrapper.postgrest.from(Table.USERS).select {
+//                    filter { eq("phone", state.email) }
+//                }.decodeSingleOrNull<UserInfo>()
+//                email = userData?.email ?: throw Exception("Телефон не зарегистрирован")
+//            }
+//
+//            supabaseWrapper.auth.signInWith(Email) {
+//                this.email = email
+//                this.password = state.password
+//            }
+//
+//            val user = supabaseWrapper.auth.currentUserOrNull()
+//            if (user != null) {
+//                if (supabaseWrapper.auth.currentSessionOrNull() == null) {
+//                    throw Exception("Сессия не установлена после входа.")
+//                }
+//                val userData = supabaseWrapper.postgrest.from(Table.USERS).select {
+//                    filter { eq("id", user.id) }
+//                }.decodeSingle<UserDto>()
+//                reduce { state.copy(isLoading = false, user = null) }
+//                if (userData.isAdmin) {
+//                    postSideEffect(LoginSideEffect.OnNavigateAdmin(user.id))
+//                } else {
+//                    postSideEffect(LoginSideEffect.OnNavigateMain(user.id))
+//                }
+//            } else {
+//                throw Exception("Не удалось войти: пользователь не найден.")
+//            }
+//        } catch (e: RestException) {
+//
+//            val errorMessage = when {
+//                e.message?.contains("invalid_grant") == true -> "Неверный email/телефон или пароль."
+//                e.message?.contains("email_not_confirmed") == true -> "Email не подтвержден. Проверьте почту."
+//                else -> "Произошла ошибка при входе."
+//            }
+//            reduce { state.copy(isLoading = false, error = errorMessage) }
+//        } catch (e: Exception) {
+//            reduce {
+//                state.copy(
+//                    isLoading = false,
+//                    error = e.message ?: "Произошла ошибка при входе."
+//                )
+//            }
+//        }
+//    }
     fun onLoginClick() = intent {
+        // Лог начала выполнения функции
+        Log.d("LoginViewModel", "onLoginClick: Начало процесса входа")
+
         reduce { state.copy(isLoading = true, error = null) }
         try {
+            // Лог валидации входных данных
+            Log.d("LoginViewModel", "onLoginClick: Выполняется валидация введённых данных")
             validateInputs()
+
             var email = state.email
             if (state.email.matches(Regex.PHONE)) {
-
+                // Лог проверки телефона
+                Log.d("LoginViewModel", "onLoginClick: Ввод распознан как телефон: ${state.email}")
                 val userData = supabaseWrapper.postgrest.from(Table.USERS).select {
                     filter { eq("phone", state.email) }
                 }.decodeSingleOrNull<UserInfo>()
                 email = userData?.email ?: throw Exception("Телефон не зарегистрирован")
+                // Лог успешного получения email
+                Log.d("LoginViewModel", "onLoginClick: Получен email для телефона: $email")
             }
 
+            // Лог попытки входа через Supabase Auth
+            Log.d("LoginViewModel", "onLoginClick: Попытка входа с email: $email")
             supabaseWrapper.auth.signInWith(Email) {
                 this.email = email
                 this.password = state.password
@@ -54,38 +117,46 @@ class LoginViewModel(
 
             val user = supabaseWrapper.auth.currentUserOrNull()
             if (user != null) {
+                // Лог проверки сессии
+                Log.d("LoginViewModel", "onLoginClick: Пользователь найден, проверка сессии")
                 if (supabaseWrapper.auth.currentSessionOrNull() == null) {
                     throw Exception("Сессия не установлена после входа.")
                 }
-                // Проверяем роль пользователя
                 val userData = supabaseWrapper.postgrest.from(Table.USERS).select {
                     filter { eq("id", user.id) }
                 }.decodeSingle<UserDto>()
+                // Лог успешной загрузки данных пользователя
+                Log.d("LoginViewModel", "onLoginClick: Данные пользователя загружены, isAdmin: ${userData.isAdmin}")
                 reduce { state.copy(isLoading = false, user = null) }
                 if (userData.isAdmin) {
                     postSideEffect(LoginSideEffect.OnNavigateAdmin(user.id))
+                    // Лог перехода на админскую панель
+                    Log.d("LoginViewModel", "onLoginClick: Переход на админскую панель для userId: ${user.id}")
                 } else {
                     postSideEffect(LoginSideEffect.OnNavigateMain(user.id))
+                    // Лог перехода на главный экран
+                    Log.d("LoginViewModel", "onLoginClick: Переход на главный экран для userId: ${user.id}")
                 }
             } else {
                 throw Exception("Не удалось войти: пользователь не найден.")
             }
         } catch (e: RestException) {
-
+            // Лог ошибки RestException
+            Log.e("LoginViewModel", "onLoginClick: Ошибка RestException: ${e.message}")
             val errorMessage = when {
                 e.message?.contains("invalid_grant") == true -> "Неверный email/телефон или пароль."
                 e.message?.contains("email_not_confirmed") == true -> "Email не подтвержден. Проверьте почту."
                 else -> "Произошла ошибка при входе."
-//                else -> "Произошла ошибка при входе: ${e.message ?: "неизвестная ошибка"}"
-
-
             }
             reduce { state.copy(isLoading = false, error = errorMessage) }
         } catch (e: Exception) {
+            // Лог общей ошибки
+            Log.e("LoginViewModel", "onLoginClick: Общая ошибка: ${e.message}")
             reduce {
                 state.copy(
                     isLoading = false,
-                    error = e.message ?: "Произошла ошибка при входе."
+                    error = "Произошла ошибка при входе. Попробуйте ещё раз или позже."
+//                    error = e.message ?: "Произошла ошибка при входе."
                 )
             }
         }

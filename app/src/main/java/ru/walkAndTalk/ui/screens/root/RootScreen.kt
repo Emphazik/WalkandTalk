@@ -77,6 +77,12 @@ fun RootScreen(intent: Intent) {
                 is AdminSideEffect.NavigateToProfile -> {
                     navController.navigate(Profile(userId = sideEffect.userId, viewOnly = true))
                 }
+                is AdminSideEffect.UserSaved -> {
+                    navController.navigateUp() // Возвращаемся на AdminScreen
+                }
+                is AdminSideEffect.ShowError -> {
+                    // Уведомления обрабатываются в AdminScreen и AddUserScreen
+                }
                 else -> Unit
             }
         }

@@ -1,5 +1,6 @@
 package ru.walkAndTalk.ui.screens.admin
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -34,6 +35,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +63,366 @@ import ru.walkAndTalk.ui.screens.Main
 import ru.walkAndTalk.ui.screens.Profile
 import ru.walkAndTalk.ui.theme.montserratFont
 
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Composable
+//fun AdminScreen(
+//    userId: String,
+//    viewModel: AdminViewModel = koinViewModel()
+//) {
+//    val state by viewModel.container.stateFlow.collectAsState()
+//    val colorScheme = MaterialTheme.colorScheme
+//    var showLogoutDialog by remember { mutableStateOf(false) }
+//    var showSwitchUserDialog by remember { mutableStateOf(false) }
+//    val snackbarHostState = remember { SnackbarHostState() }
+//    var selectedTab by remember { mutableStateOf(AdminTab.Users) }
+//    var searchQuery by remember { mutableStateOf("") }
+//    val focusRequester = remember { FocusRequester() }
+//
+//    LaunchedEffect(Unit) {
+//        viewModel.container.sideEffectFlow.collect { sideEffect ->
+//            when (sideEffect) {
+//                is AdminSideEffect.NavigateToAuth -> {}
+//                is AdminSideEffect.NavigateToMain -> {}
+//                is AdminSideEffect.NavigateToAddUser -> {}
+//                is AdminSideEffect.NavigateToEditUser -> {}
+//                is AdminSideEffect.NavigateToProfile -> {}
+//                is AdminSideEffect.ShowError -> {
+//                    snackbarHostState.showSnackbar(sideEffect.message)
+//                }
+//                else -> Unit
+//            }
+//        }
+//    }
+//    Scaffold(
+//        snackbarHost = { SnackbarHost(snackbarHostState) },
+//        topBar = {
+//            TopAppBar(
+//                expandedHeight = 56.dp,
+//                title = {
+//                    Text(
+//                        text = "Админ-панель",
+//                        fontFamily = montserratFont,
+//                        fontSize = 20.sp,
+//                        fontWeight = FontWeight.Bold,
+//                        color = colorScheme.onBackground
+//                    )
+//                },
+//                actions = {
+//                    IconButton(onClick = { showSwitchUserDialog = true }) {
+//                        Icon(
+//                            painter = painterResource(id = R.drawable.ic_switch_user),
+//                            contentDescription = "Switch to user mode",
+//                            tint = colorScheme.primary,
+//                            modifier = Modifier.size(24.dp)
+//                        )
+//                    }
+//                    IconButton(onClick = { showLogoutDialog = true }) {
+//                        Icon(
+//                            painter = painterResource(id = R.drawable.ic_leave64),
+//                            contentDescription = "Logout",
+//                            tint = colorScheme.error,
+//                            modifier = Modifier.size(24.dp)
+//                        )
+//                    }
+//                },
+//                colors = TopAppBarDefaults.topAppBarColors(
+//                    containerColor = colorScheme.surface,
+//                    titleContentColor = colorScheme.onSurface
+//                )
+//            )
+//        },
+//        floatingActionButton = {
+//            if (selectedTab == AdminTab.Users) {
+//                FloatingActionButton(
+//                    onClick = { viewModel.navigateToAddUser() },
+//                    containerColor = colorScheme.primary,
+//                    contentColor = colorScheme.onPrimary,
+//                    shape = CircleShape,
+//                    modifier = Modifier
+//                        .padding(16.dp)
+//                        .size(56.dp)
+//                ) {
+//                    Icon(
+//                        imageVector = Icons.Default.Add,
+//                        contentDescription = "Add user",
+//                        modifier = Modifier.size(24.dp)
+//                    )
+//                }
+//            }
+//        }
+//    ) { paddingValues ->
+//        Column(
+//            modifier = Modifier
+//                .fillMaxSize()
+//                .padding(paddingValues)
+//                .background(colorScheme.background)
+//        ) {
+//            // Search Bar
+//            TextField(
+//                value = searchQuery,
+//                onValueChange = { searchQuery = it },
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .height(64.dp)
+//                    .padding(horizontal = 16.dp, vertical = 8.dp)
+//                    .clip(RoundedCornerShape(10.dp))
+//                    .background(colorScheme.surface)
+//                    .border(1.dp, colorScheme.primary.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+//                    .focusRequester(focusRequester),
+//                placeholder = {
+//                    Text(
+//                        text = "Поиск по имени или email...",
+//                        fontFamily = montserratFont,
+//                        fontSize = 14.sp,
+//                        color = colorScheme.onSurface.copy(alpha = 0.5f)
+//                    )
+//                },
+//                leadingIcon = {
+//                    Icon(
+//                        painter = painterResource(id = R.drawable.ic_search64),
+//                        contentDescription = "Search",
+//                        tint = colorScheme.onSurface.copy(alpha = 0.5f),
+//                        modifier = Modifier.size(20.dp)
+//                    )
+//                },
+//                trailingIcon = {
+//                    if (searchQuery.isNotEmpty()) {
+//                        IconButton(onClick = { searchQuery = "" }) {
+//                            Icon(
+//                                painter = painterResource(id = R.drawable.ic_clear128),
+//                                contentDescription = "Clear",
+//                                tint = colorScheme.onSurface.copy(alpha = 0.5f),
+//                                modifier = Modifier.size(20.dp)
+//                            )
+//                        }
+//                    }
+//                },
+//                colors = TextFieldDefaults.colors(
+//                    focusedContainerColor = colorScheme.surface,
+//                    unfocusedContainerColor = colorScheme.surface,
+//                    focusedIndicatorColor = Color.Transparent,
+//                    unfocusedIndicatorColor = Color.Transparent,
+//                    focusedTextColor = colorScheme.onSurface,
+//                    unfocusedTextColor = colorScheme.onSurface
+//                ),
+//                textStyle = LocalTextStyle.current.copy(
+//                    fontFamily = montserratFont,
+//                    fontSize = 14.sp
+//                ),
+//                singleLine = true,
+//                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+//                keyboardActions = KeyboardActions(onSearch = { /* Optional: Handle search action */ })
+//            )
+//
+//            // Tabs
+//            TabRow(
+//                selectedTabIndex = selectedTab.ordinal,
+//                containerColor = colorScheme.surface,
+//                contentColor = colorScheme.primary,
+//                divider = { Divider(color = colorScheme.primary.copy(alpha = 0.2f)) }
+//            ) {
+//                AdminTab.values().forEach { tab ->
+//                    Tab(
+//                        selected = selectedTab == tab,
+//                        onClick = { selectedTab = tab },
+//                        modifier = Modifier
+//                            .padding(vertical = 4.dp)
+//                            .clip(RoundedCornerShape(8.dp))
+//                            .background(
+//                                if (selectedTab == tab) colorScheme.primary.copy(alpha = 0.1f)
+//                                else Color.Transparent
+//                            ),
+//                        text = {
+//                            Text(
+//                                text = tab.title,
+//                                fontFamily = montserratFont,
+//                                fontSize = 14.sp,
+//                                fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Medium,
+//                                color = if (selectedTab == tab) colorScheme.primary else colorScheme.onSurface
+//                            )
+//                        }
+//                    )
+//                }
+//            }
+//
+//            // Content
+//            AnimatedVisibility(
+//                visible = state.isLoading,
+//                enter = fadeIn(),
+//                exit = fadeOut()
+//            ) {
+//                Box(
+//                    modifier = Modifier.fillMaxSize(),
+//                    contentAlignment = Alignment.Center
+//                ) {
+//                    CircularProgressIndicator()
+//                }
+//            }
+//
+//            AnimatedVisibility(
+//                visible = !state.isLoading,
+//                enter = fadeIn(),
+//                exit = fadeOut()
+//            ) {
+//                LazyColumn(
+//                    modifier = Modifier
+//                        .fillMaxSize()
+//                        .padding(horizontal = 16.dp),
+//                    verticalArrangement = Arrangement.spacedBy(12.dp),
+//                    contentPadding = PaddingValues(vertical = 16.dp)
+//                ) {
+//                    when (selectedTab) {
+//                        AdminTab.Users -> {
+//                            val filteredUsers = state.users.filter {
+//                                it.name.contains(searchQuery, ignoreCase = true) ||
+//                                        it.email.contains(searchQuery, ignoreCase = true)
+//                            }
+//                            items(filteredUsers) { user ->
+//                                UserCard(
+//                                    user = user,
+//                                    onClick = { viewModel.onUserClick(user.id) },
+//                                    onDelete = { viewModel.deleteUser(user.id) },
+//                                    onEdit = { viewModel.navigateToEditUser(user.id) },
+//                                    onProfile = { viewModel.navigateToProfile(user.id) }
+//                                )
+//                            }
+//                        }
+//
+//                        AdminTab.Events -> {
+//                            val filteredEvents = state.events.filter {
+//                                it.title.contains(searchQuery, ignoreCase = true) ||
+//                                        it.description.contains(searchQuery, ignoreCase = true)
+//                            }
+//                            items(filteredEvents) { event ->
+//                                EventCard(
+//                                    event = event,
+//                                    onClick = { viewModel.onEventClick(event.id) },
+//                                    onStatusChange = { status ->
+//                                        viewModel.updateEventStatus(
+//                                            event.id,
+//                                            status
+//                                        )
+//                                    }
+//                                )
+//                            }
+//                        }
+//
+//                        AdminTab.Announcements -> {
+//                            val filteredAnnouncements = state.announcements.filter {
+//                                it.title.contains(searchQuery, ignoreCase = true) ||
+//                                        it.description?.contains(
+//                                            searchQuery,
+//                                            ignoreCase = true
+//                                        ) == true
+//                            }
+//                            items(filteredAnnouncements) { announcement ->
+//                                AnnouncementCard(
+//                                    announcement = announcement,
+//                                    onClick = { viewModel.onAnnouncementClick(announcement.id) },
+//                                    onStatusChange = { status ->
+//                                        viewModel.updateAnnouncementStatus(
+//                                            announcement.id,
+//                                            status
+//                                        )
+//                                    }
+//                                )
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    }
+//    if (showLogoutDialog) {
+//        AlertDialog(
+//            onDismissRequest = { showLogoutDialog = false },
+//            title = {
+//                Text(
+//                    text = "Подтверждение выхода",
+//                    fontFamily = montserratFont,
+//                    fontSize = 20.sp,
+//                    fontWeight = FontWeight.Bold
+//                )
+//            },
+//            text = {
+//                Text(
+//                    text = "Вы уверены, что хотите выйти из аккаунта?",
+//                    fontFamily = montserratFont,
+//                    fontSize = 16.sp,
+//                    color = colorScheme.onSurface.copy(alpha = 0.8f)
+//                )
+//            },
+//            confirmButton = {
+//                TextButton(onClick = {
+//                    showLogoutDialog = false
+//                    viewModel.onLogout()
+//                }) {
+//                    Text(
+//                        text = "Выйти",
+//                        fontFamily = montserratFont,
+//                        color = colorScheme.error
+//                    )
+//                }
+//            },
+//            dismissButton = {
+//                TextButton(onClick = { showLogoutDialog = false }) {
+//                    Text(
+//                        text = "Отмена",
+//                        fontFamily = montserratFont,
+//                        color = colorScheme.primary
+//                    )
+//                }
+//            },
+//            containerColor = colorScheme.surface,
+//            shape = RoundedCornerShape(16.dp)
+//        )
+//    }
+//    if (showSwitchUserDialog) {
+//        AlertDialog(
+//            onDismissRequest = { showSwitchUserDialog = false },
+//            title = {
+//                Text(
+//                    text = "Подтверждение перехода",
+//                    fontFamily = montserratFont,
+//                    fontSize = 20.sp,
+//                    fontWeight = FontWeight.Bold
+//                )
+//            },
+//            text = {
+//                Text(
+//                    text = "Вы уверены, что хотите перейти в пользовательский режим?",
+//                    fontFamily = montserratFont,
+//                    fontSize = 16.sp,
+//                    color = colorScheme.onSurface.copy(alpha = 0.8f)
+//                )
+//            },
+//            confirmButton = {
+//                TextButton(onClick = {
+//                    showSwitchUserDialog = false
+//                    viewModel.switchToUserMode(userId)
+//                }) {
+//                    Text(
+//                        text = "Перейти",
+//                        fontFamily = montserratFont,
+//                        color = colorScheme.primary
+//                    )
+//                }
+//            },
+//            dismissButton = {
+//                TextButton(onClick = { showSwitchUserDialog = false }) {
+//                    Text(
+//                        text = "Отмена",
+//                        fontFamily = montserratFont,
+//                        color = colorScheme.error
+//                    )
+//                }
+//            },
+//            containerColor = colorScheme.surface,
+//            shape = RoundedCornerShape(16.dp)
+//        )
+//    }
+//}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminScreen(
@@ -72,63 +434,32 @@ fun AdminScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showSwitchUserDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
-    var selectedTab by remember { mutableStateOf(AdminTab.Users) }
+    var selectedTab by rememberSaveable { mutableStateOf(AdminTab.Users) }
     var searchQuery by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
 
-    LaunchedEffect(Unit) {
-        viewModel.container.sideEffectFlow.collect { sideEffect ->
-            when (sideEffect) {
-                is AdminSideEffect.NavigateToAuth -> {}
-                is AdminSideEffect.NavigateToMain -> {}
-                is AdminSideEffect.NavigateToAddUser -> {}
-                is AdminSideEffect.NavigateToEditUser -> {}
-                is AdminSideEffect.NavigateToProfile -> {}
-                is AdminSideEffect.ShowError -> {
-                    snackbarHostState.showSnackbar(sideEffect.message)
-                }
-                else -> Unit
-            }
-        }
+    // Логирование для диагностики
+    LaunchedEffect(state.users) {
+        Log.d("AdminScreen", "Users updated: ${state.users.size} users")
     }
-//    LaunchedEffect(Unit) {
-//        viewModel.container.sideEffectFlow.collect { sideEffect ->
-//            when (sideEffect) {
-//                is AdminSideEffect.NavigateToAuth -> {
-//                    navController.navigate(Auth) {
-//                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
-//                    }
-//                }
-//                is AdminSideEffect.NavigateToMain -> {
-//                    navController.navigate(Main(sideEffect.userId)) {
-//                        popUpTo("Admin/$userId") { inclusive = true }
-//                        launchSingleTop = true
-//                    }
-//                }
-//                is AdminSideEffect.NavigateToAddUser -> {
-//                    navController.navigate(AddUser)
-//                }
-//                is AdminSideEffect.NavigateToEditUser -> {
-//                    navController.navigate("EditUser/${sideEffect.userId}")
-//                }
-//                is AdminSideEffect.NavigateToProfile -> {
-//                    navController.navigate(Profile(userId = sideEffect.userId, viewOnly = true)) {
-//                        launchSingleTop = true
-//                    }
-//                }
-//                is AdminSideEffect.ShowError -> {
-//                    snackbarHostState.showSnackbar(sideEffect.message)
-//                }
-//                else -> Unit
-//            }
-//        }
-//    }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    modifier = Modifier.padding(16.dp),
+                    containerColor = if (data.visuals.message.contains("Ошибка", ignoreCase = true))
+                        colorScheme.errorContainer else colorScheme.primaryContainer,
+                    contentColor = if (data.visuals.message.contains("Ошибка", ignoreCase = true))
+                        colorScheme.onErrorContainer else colorScheme.onPrimaryContainer,
+                    actionColor = colorScheme.primary,
+                    shape = RoundedCornerShape(8.dp)
+                )
+            }
+        },
         topBar = {
             TopAppBar(
-                expandedHeight = 56.dp,
                 title = {
                     Text(
                         text = "Админ-панель",
@@ -308,13 +639,13 @@ fun AdminScreen(
                                 it.name.contains(searchQuery, ignoreCase = true) ||
                                         it.email.contains(searchQuery, ignoreCase = true)
                             }
-                            items(filteredUsers) { user ->
+                            items(filteredUsers.size) { index ->
                                 UserCard(
-                                    user = user,
-                                    onClick = { viewModel.onUserClick(user.id) },
-                                    onDelete = { viewModel.deleteUser(user.id) },
-                                    onEdit = { viewModel.navigateToEditUser(user.id) },
-                                    onProfile = { viewModel.navigateToProfile(user.id) }
+                                    user = filteredUsers[index],
+                                    onClick = { viewModel.onUserClick(filteredUsers[index].id) },
+                                    onDelete = { viewModel.deleteUser(filteredUsers[index].id) },
+                                    onEdit = { viewModel.navigateToEditUser(filteredUsers[index].id) },
+                                    onProfile = { viewModel.navigateToProfile(filteredUsers[index].id) }
                                 )
                             }
                         }
@@ -324,13 +655,13 @@ fun AdminScreen(
                                 it.title.contains(searchQuery, ignoreCase = true) ||
                                         it.description.contains(searchQuery, ignoreCase = true)
                             }
-                            items(filteredEvents) { event ->
+                            items(filteredEvents.size) { index ->
                                 EventCard(
-                                    event = event,
-                                    onClick = { viewModel.onEventClick(event.id) },
+                                    event = filteredEvents[index],
+                                    onClick = { viewModel.onEventClick(filteredEvents[index].id) },
                                     onStatusChange = { status ->
                                         viewModel.updateEventStatus(
-                                            event.id,
+                                            filteredEvents[index].id,
                                             status
                                         )
                                     }
@@ -346,13 +677,13 @@ fun AdminScreen(
                                             ignoreCase = true
                                         ) == true
                             }
-                            items(filteredAnnouncements) { announcement ->
+                            items(filteredAnnouncements.size) { index ->
                                 AnnouncementCard(
-                                    announcement = announcement,
-                                    onClick = { viewModel.onAnnouncementClick(announcement.id) },
+                                    announcement = filteredAnnouncements[index],
+                                    onClick = { viewModel.onAnnouncementClick(filteredAnnouncements[index].id) },
                                     onStatusChange = { status ->
                                         viewModel.updateAnnouncementStatus(
-                                            announcement.id,
+                                            filteredAnnouncements[index].id,
                                             status
                                         )
                                     }
@@ -364,6 +695,7 @@ fun AdminScreen(
             }
         }
     }
+
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -408,6 +740,7 @@ fun AdminScreen(
             shape = RoundedCornerShape(16.dp)
         )
     }
+
     if (showSwitchUserDialog) {
         AlertDialog(
             onDismissRequest = { showSwitchUserDialog = false },

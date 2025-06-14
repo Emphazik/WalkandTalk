@@ -3,9 +3,7 @@ package ru.walkAndTalk.ui.screens.auth.register
 import android.net.Uri
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.exceptions.RestException
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Clock.System
-import kotlinx.datetime.Instant
 import org.orbitmvi.orbit.annotation.OrbitExperimental
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.Bucket

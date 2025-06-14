@@ -1,8 +1,14 @@
 package ru.walkAndTalk.ui.screens.admin.add
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -13,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -20,7 +27,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
+import android.net.Uri
+import android.util.Log
+import coil3.compose.rememberAsyncImagePainter
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import ru.walkAndTalk.ui.screens.admin.AdminSideEffect
 import ru.walkAndTalk.ui.screens.admin.AdminViewModel
@@ -41,23 +53,48 @@ fun AddUserScreen(
     var phone by remember { mutableStateOf("") }
     var isAdmin by remember { mutableStateOf(false) }
     var gender by remember { mutableStateOf<String?>(null) }
-    var nameError by remember { mutableStateOf(false) }
+    var nameError by remember { mutableStateOf<String?>(null) }
     var emailError by remember { mutableStateOf(false) }
     var passwordError by remember { mutableStateOf(false) }
     var phoneError by remember { mutableStateOf(false) }
+    var profileImageUri by remember { mutableStateOf<Uri?>(null) }
 
+    // Обработка AdminSideEffect для уведомлений
     LaunchedEffect(Unit) {
-        viewModel.container.sideEffectFlow.collect { sideEffect ->
+        viewModel.container.sideEffectFlow.collectLatest { sideEffect ->
             when (sideEffect) {
-                is AdminSideEffect.ShowError -> snackbarHostState.showSnackbar(sideEffect.message)
-                is AdminSideEffect.UserSaved -> onBackClick()
-                else -> Unit
+                is AdminSideEffect.ShowError -> {
+                    snackbarHostState.showSnackbar(sideEffect.message)
+                }
+                is AdminSideEffect.UserSaved -> {
+                    snackbarHostState.showSnackbar("Пользователь успешно добавлен")
+                }
+                else -> {}
             }
         }
     }
 
+    // Лаунчер для выбора изображения
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { viewModel.onProfileImageSelected(it) }
+        profileImageUri = uri
+    }
+
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    modifier = Modifier.padding(16.dp),
+                    containerColor = if (data.visuals.message.contains("Ошибка", ignoreCase = true))
+                        colorScheme.errorContainer else colorScheme.primaryContainer,
+                    contentColor = if (data.visuals.message.contains("Ошибка", ignoreCase = true))
+                        colorScheme.onErrorContainer else colorScheme.onPrimaryContainer,
+                    actionColor = colorScheme.primary,
+                    shape = RoundedCornerShape(8.dp)
+                )
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -97,19 +134,53 @@ fun AddUserScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Profile Image Selection
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, colorScheme.primary.copy(alpha = 0.3f), CircleShape)
+                        .clickable { launcher.launch("image/*") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    val painter = profileImageUri?.let {
+                        rememberAsyncImagePainter(
+                            model = it,
+                            contentScale = ContentScale.Crop
+                        )
+                    } ?: painterResource(id = R.drawable.preview_profile)
+                    Image(
+                        painter = painter,
+                        contentDescription = "Фото профиля",
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+
             // Name Field
             OutlinedTextField(
                 value = name,
                 onValueChange = {
                     name = it
-                    nameError = it.isEmpty()
+                    nameError = when {
+                        it.isEmpty() -> "Имя обязательно"
+                        !it.matches(Regex("^[А-Яа-яA-Za-z\\s]+$")) -> "Имя не должно содержать цифры или специальные символы"
+                        else -> null
+                    }
                 },
                 label = { Text("Имя", fontFamily = montserratFont, fontSize = 14.sp) },
-                isError = nameError,
+                isError = nameError != null,
                 supportingText = {
-                    if (nameError) {
+                    if (nameError != null) {
                         Text(
-                            text = "Имя обязательно",
+                            text = nameError!!,
                             color = colorScheme.error,
                             fontFamily = montserratFont,
                             fontSize = 12.sp
@@ -156,10 +227,10 @@ fun AddUserScreen(
                 textStyle = TextStyle(fontFamily = montserratFont, fontSize = 14.sp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = colorScheme.surface,
-                    unfocusedContainerColor = colorScheme.surface,
+                    focusedContainerColor = colorScheme.background,
+                    unfocusedContainerColor = colorScheme.background,
                     focusedIndicatorColor = colorScheme.primary,
-                    unfocusedIndicatorColor = colorScheme.onSurface.copy(alpha = 0.3f),
+                    unfocusedIndicatorColor = colorScheme.onSurface.copy(alpha= 0.3f),
                     errorIndicatorColor = colorScheme.error,
                     focusedTextColor = colorScheme.onSurface,
                     unfocusedTextColor = colorScheme.onSurface
@@ -192,10 +263,10 @@ fun AddUserScreen(
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = colorScheme.surface,
-                    unfocusedContainerColor = colorScheme.surface,
+                    focusedContainerColor = colorScheme.background,
+                    unfocusedContainerColor = colorScheme.background,
                     focusedIndicatorColor = colorScheme.primary,
-                    unfocusedIndicatorColor = colorScheme.onSurface.copy(alpha = 0.3f),
+                    unfocusedIndicatorColor = colorScheme.onSurface.copy(alpha= 0.3f),
                     errorIndicatorColor = colorScheme.error,
                     focusedTextColor = colorScheme.onSurface,
                     unfocusedTextColor = colorScheme.onSurface
@@ -227,10 +298,10 @@ fun AddUserScreen(
                 textStyle = TextStyle(fontFamily = montserratFont, fontSize = 14.sp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = colorScheme.surface,
-                    unfocusedContainerColor = colorScheme.surface,
+                    focusedContainerColor = colorScheme.background,
+                    unfocusedContainerColor = colorScheme.background,
                     focusedIndicatorColor = colorScheme.primary,
-                    unfocusedIndicatorColor = colorScheme.onSurface.copy(alpha = 0.3f),
+                    unfocusedIndicatorColor = colorScheme.onSurface.copy(alpha= 0.3f),
                     errorIndicatorColor = colorScheme.error,
                     focusedTextColor = colorScheme.onSurface,
                     unfocusedTextColor = colorScheme.onSurface
@@ -241,7 +312,13 @@ fun AddUserScreen(
             var genderExpanded by remember { mutableStateOf(false) }
             Box {
                 OutlinedTextField(
-                    value = gender ?: "",
+                    value = gender?.let {
+                        when (it) {
+                            "male" -> "Мужской"
+                            "female" -> "Женский"
+                            else -> ""
+                        }
+                    } ?: "",
                     onValueChange = {},
                     label = { Text("Пол", fontFamily = montserratFont, fontSize = 14.sp) },
                     readOnly = true,
@@ -253,17 +330,16 @@ fun AddUserScreen(
                         IconButton(onClick = { genderExpanded = true }) {
                             Icon(
                                 imageVector = Icons.Default.ArrowDropDown,
-//                                painter = painterResource(id = R.drawable.ic_dropdown),
                                 contentDescription = "Select Gender",
                                 tint = colorScheme.onSurface
                             )
                         }
                     },
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = colorScheme.surface,
-                        unfocusedContainerColor = colorScheme.surface,
+                        focusedContainerColor = colorScheme.background,
+                        unfocusedContainerColor = colorScheme.background,
                         focusedIndicatorColor = colorScheme.primary,
-                        unfocusedIndicatorColor = colorScheme.onSurface.copy(alpha = 0.3f),
+                        unfocusedIndicatorColor = colorScheme.onSurface.copy(alpha= 0.3f),
                         focusedTextColor = colorScheme.onSurface,
                         unfocusedTextColor = colorScheme.onSurface
                     )
@@ -271,16 +347,16 @@ fun AddUserScreen(
                 DropdownMenu(
                     expanded = genderExpanded,
                     onDismissRequest = { genderExpanded = false },
-                    modifier = Modifier.background(colorScheme.surface)
+                    modifier = Modifier.background(colorScheme.background)
                 ) {
-                    listOf("male", "female", "other").forEach { option ->
+                    listOf("male", "female").forEach { option ->
                         DropdownMenuItem(
                             text = {
                                 Text(
                                     text = when (option) {
                                         "male" -> "Мужской"
                                         "female" -> "Женский"
-                                        else -> "Другой"
+                                        else -> ""
                                     },
                                     fontFamily = montserratFont,
                                     fontSize = 14.sp
@@ -338,16 +414,26 @@ fun AddUserScreen(
                 }
                 Button(
                     onClick = {
-                        nameError = name.isEmpty()
+                        nameError = when {
+                            name.isEmpty() -> "Имя обязательно"
+                            !name.matches(Regex("^[А-Яа-яA-Za-z\\s]+$")) -> "Имя не должно содержать цифры или специальные символы"
+                            else -> null
+                        }
                         emailError = !isValidEmail(email)
                         passwordError = password.length < 6
                         phoneError = phone.isNotEmpty() && !isValidPhone(phone)
 
-                        if (!nameError && !emailError && !passwordError && !phoneError) {
+                        if (!nameError.isNullOrEmpty() || emailError || passwordError || phoneError) {
+                            Log.d("AddUserScreen", "Validation failed: nameError=$nameError, emailError=$emailError, passwordError=$passwordError, phoneError=$phoneError")
+                        } else {
                             viewModel.addUser(
                                 name = name,
                                 email = email,
-                                password = password
+                                password = password,
+                                phone = phone,
+                                isAdmin = isAdmin,
+                                gender = gender,
+                                profileImageUri = profileImageUri
                             )
                         }
                     },
@@ -371,13 +457,10 @@ fun AddUserScreen(
     }
 }
 
-
 private fun isValidPhone(phone: String): Boolean {
     return phone.matches(Regex("^\\+?[1-9]\\d{1,14}\$"))
 }
 
-private fun isValidEmail(
-    email: String
-): Boolean {
+private fun isValidEmail(email: String): Boolean {
     return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
 }
