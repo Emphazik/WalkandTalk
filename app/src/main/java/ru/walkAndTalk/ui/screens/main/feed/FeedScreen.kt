@@ -84,6 +84,7 @@ import ru.walkAndTalk.R
 import ru.walkAndTalk.domain.model.Announcement
 import ru.walkAndTalk.domain.model.Event
 import ru.walkAndTalk.domain.model.FeedItemType
+import ru.walkAndTalk.ui.screens.AnnouncementDetails
 import ru.walkAndTalk.ui.screens.EventDetails
 import ru.walkAndTalk.ui.theme.montserratFont
 import java.io.File
@@ -110,10 +111,11 @@ fun FeedScreen(
     feedViewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
             is FeedSideEffect.NavigateToEventDetails -> {
-                navController.navigate(EventDetails.createRoute(sideEffect.eventId))
+                navController.navigate(EventDetails(sideEffect.eventId))
             }
             is FeedSideEffect.NavigateToAnnouncementDetails -> {
-                navController.navigate("announcement_details/${sideEffect.announcementId}")
+//                navController.navigate("announcement_details/${sideEffect.announcementId}")
+                navController.navigate(AnnouncementDetails(sideEffect.announcementId))
             }
             is FeedSideEffect.NavigateToChat -> {
                 navController.navigate("chat/${sideEffect.chatId}")

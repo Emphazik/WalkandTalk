@@ -33,11 +33,17 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil3.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import ru.walkAndTalk.ui.screens.admin.AdminSideEffect
 import ru.walkAndTalk.ui.screens.admin.AdminViewModel
 import ru.walkAndTalk.ui.theme.montserratFont
 import ru.walkAndTalk.R
+import ru.walkAndTalk.ui.screens.main.profile.edit.InterestItem
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,25 +55,31 @@ fun EditUserScreen(
     val state by viewModel.container.stateFlow.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var vkId by remember { mutableStateOf("") }
-    var interestIds by remember { mutableStateOf("") }
-    var cityKnowledgeLevelId by remember { mutableStateOf("") }
     var bio by remember { mutableStateOf("") }
     var goals by remember { mutableStateOf("") }
+    var birthdate by remember { mutableStateOf("") }
+    var city by remember { mutableStateOf("") }
     var isAdmin by remember { mutableStateOf(false) }
     var gender by remember { mutableStateOf<String?>(null) }
     var profileImageUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedInterests by remember { mutableStateOf<List<String>>(emptyList()) }
+    var selectedCityKnowledgeLevel by remember { mutableStateOf<String?>(null) }
+    var showInterestSelection by remember { mutableStateOf(false) }
+    var showCityKnowledgeMenu by remember { mutableStateOf(false) }
     var nameError by remember { mutableStateOf<String?>(null) }
     var emailError by remember { mutableStateOf(false) }
     var passwordError by remember { mutableStateOf(false) }
     var phoneError by remember { mutableStateOf(false) }
     var vkIdError by remember { mutableStateOf(false) }
-    var interestIdsError by remember { mutableStateOf(false) }
-    var cityKnowledgeLevelIdError by remember { mutableStateOf(false) }
+    var birthdateError by remember { mutableStateOf<String?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState(yearRange = IntRange(1900, 2025))
 
     // Load user data
     LaunchedEffect(userId) {
@@ -78,12 +90,18 @@ fun EditUserScreen(
             password = it.password
             phone = it.phone
             vkId = (it.vkId ?: "").toString()
-            interestIds = it.interestIds.joinToString(",")
-            cityKnowledgeLevelId = it.cityKnowledgeLevelId ?: ""
             bio = it.bio ?: ""
             goals = it.goals ?: ""
+            birthdate = it.birthdate?.let { convertToDisplayFormat(it) } ?: ""
+            city = it.city ?: ""
             isAdmin = it.isAdmin
             gender = it.gender
+            selectedInterests = it.interestIds.mapNotNull { id ->
+                state.availableInterests.find { it.second == id }?.first
+            }
+            selectedCityKnowledgeLevel = it.cityKnowledgeLevelId?.let { id ->
+                state.cityKnowledgeLevels.find { it.second == id }?.first
+            }
         } ?: run {
             snackbarHostState.showSnackbar("Пользователь не найден")
             onBackClick()
@@ -93,11 +111,8 @@ fun EditUserScreen(
     // Handle side effects
     LaunchedEffect(Unit) {
         viewModel.container.sideEffectFlow.collectLatest { sideEffect ->
-            Log.d("EditUserScreen", "Received sideEffect: $sideEffect")
             when (sideEffect) {
-                is AdminSideEffect.ShowError -> {
-                    snackbarHostState.showSnackbar(sideEffect.message)
-                }
+                is AdminSideEffect.ShowError -> snackbarHostState.showSnackbar(sideEffect.message)
                 is AdminSideEffect.UserSaved -> {
                     snackbarHostState.showSnackbar("Пользователь успешно обновлен")
                     onBackClick()
@@ -181,22 +196,14 @@ fun EditUserScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     val painter = profileImageUri?.let {
-                        rememberAsyncImagePainter(
-                            model = it,
-                            contentScale = ContentScale.Crop
-                        )
+                        rememberAsyncImagePainter(model = it, contentScale = ContentScale.Crop)
                     } ?: state.users.find { it.id == userId }?.profileImageUrl?.let {
-                        rememberAsyncImagePainter(
-                            model = it,
-                            contentScale = ContentScale.Crop
-                        )
+                        rememberAsyncImagePainter(model = it, contentScale = ContentScale.Crop)
                     } ?: painterResource(id = R.drawable.preview_profile)
                     Image(
                         painter = painter,
                         contentDescription = "Фото профиля",
-                        modifier = Modifier
-                            .size(120.dp)
-                            .clip(CircleShape),
+                        modifier = Modifier.size(120.dp).clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
                 }
@@ -207,27 +214,21 @@ fun EditUserScreen(
                 value = name,
                 onValueChange = {
                     name = it
-                    nameError = when {
-                        it.isEmpty() -> "Имя обязательно"
-                        !it.matches(Regex("^[А-Яа-яA-Za-z\\s]+$")) -> "Имя не должно содержать цифры или специальные символы"
-                        else -> null
-                    }
+                    nameError = validateName(it)
                 },
                 label = { Text("Имя", fontFamily = montserratFont, fontSize = 14.sp) },
                 isError = nameError != null,
                 supportingText = {
-                    if (nameError != null) {
+                    nameError?.let {
                         Text(
-                            text = nameError!!,
+                            text = it,
                             color = colorScheme.error,
                             fontFamily = montserratFont,
                             fontSize = 12.sp
                         )
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp)),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)),
                 textStyle = TextStyle(fontFamily = montserratFont, fontSize = 14.sp),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = colorScheme.surface,
@@ -259,9 +260,7 @@ fun EditUserScreen(
                         )
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp)),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)),
                 textStyle = TextStyle(fontFamily = montserratFont, fontSize = 14.sp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 colors = TextFieldDefaults.colors(
@@ -294,9 +293,7 @@ fun EditUserScreen(
                         )
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp)),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)),
                 textStyle = TextStyle(fontFamily = montserratFont, fontSize = 14.sp),
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -330,11 +327,60 @@ fun EditUserScreen(
                         )
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp)),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)),
                 textStyle = TextStyle(fontFamily = montserratFont, fontSize = 14.sp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = colorScheme.surface,
+                    unfocusedContainerColor = colorScheme.surface,
+                    focusedIndicatorColor = colorScheme.primary,
+                    unfocusedIndicatorColor = colorScheme.onSurface.copy(alpha = 0.3f),
+                    errorIndicatorColor = colorScheme.error,
+                    focusedTextColor = colorScheme.onSurface,
+                    unfocusedTextColor = colorScheme.onSurface
+                )
+            )
+
+            // Birthdate Field
+            OutlinedTextField(
+                value = birthdate,
+                onValueChange = { /* Блокируем прямой ввод */ },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable { showDatePicker = true },
+                label = { Text("День рождения (ДД.ММ.ГГГГ)", fontFamily = montserratFont, fontSize = 14.sp) },
+                isError = birthdateError != null,
+                supportingText = {
+                    birthdateError?.let {
+                        Text(
+                            text = it,
+                            color = colorScheme.error,
+                            fontFamily = montserratFont,
+                            fontSize = 12.sp
+                        )
+                    }
+                },
+                textStyle = TextStyle(fontFamily = montserratFont, fontSize = 14.sp),
+                enabled = false,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = colorScheme.surface,
+                    unfocusedContainerColor = colorScheme.surface,
+                    focusedIndicatorColor = colorScheme.primary,
+                    unfocusedIndicatorColor = colorScheme.onSurface.copy(alpha = 0.3f),
+                    errorIndicatorColor = colorScheme.error,
+                    focusedTextColor = colorScheme.onSurface,
+                    unfocusedTextColor = colorScheme.onSurface
+                )
+            )
+
+            // City Field
+            OutlinedTextField(
+                value = city,
+                onValueChange = { city = it },
+                label = { Text("Город", fontFamily = montserratFont, fontSize = 14.sp) },
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)),
+                textStyle = TextStyle(fontFamily = montserratFont, fontSize = 14.sp),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = colorScheme.surface,
                     unfocusedContainerColor = colorScheme.surface,
@@ -365,9 +411,7 @@ fun EditUserScreen(
                         )
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp)),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)),
                 textStyle = TextStyle(fontFamily = montserratFont, fontSize = 14.sp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 colors = TextFieldDefaults.colors(
@@ -381,83 +425,221 @@ fun EditUserScreen(
                 )
             )
 
-            // Interest IDs Field
-            OutlinedTextField(
-                value = interestIds,
-                onValueChange = {
-                    interestIds = it
-                    interestIdsError = it.isNotEmpty() && !it.matches(Regex("^([0-9a-fA-F-]+,)*[0-9a-fA-F-]+$"))
-                },
-                label = { Text("ID интересов (через запятую)", fontFamily = montserratFont, fontSize = 14.sp) },
-                isError = interestIdsError,
-                supportingText = {
-                    if (interestIdsError) {
-                        Text(
-                            text = "ID интересов должны быть UUID, разделенные запятыми",
-                            color = colorScheme.error,
-                            fontFamily = montserratFont,
-                            fontSize = 12.sp
-                        )
-                    }
-                },
+            // Interests Section
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp)),
-                textStyle = TextStyle(fontFamily = montserratFont, fontSize = 14.sp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = colorScheme.surface,
-                    unfocusedContainerColor = colorScheme.surface,
-                    focusedIndicatorColor = colorScheme.primary,
-                    unfocusedIndicatorColor = colorScheme.onSurface.copy(alpha = 0.3f),
-                    errorIndicatorColor = colorScheme.error,
-                    focusedTextColor = colorScheme.onSurface,
-                    unfocusedTextColor = colorScheme.onSurface
-                )
-            )
+                    .border(1.dp, colorScheme.outline, RoundedCornerShape(8.dp)),
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(containerColor = colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Интересы",
+                            fontFamily = montserratFont,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Изменить",
+                            fontFamily = montserratFont,
+                            fontSize = 14.sp,
+                            color = colorScheme.primary,
+                            modifier = Modifier
+                                .clickable { showInterestSelection = true }
+                                .padding(8.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (selectedInterests.isNotEmpty()) {
+                        val rows = selectedInterests.chunked(4)
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            rows.forEach { rowInterests ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    rowInterests.forEach { interest ->
+                                        InterestItem(
+                                            interest = interest,
+                                            colorScheme = colorScheme
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = "Не указано",
+                            fontFamily = montserratFont,
+                            fontSize = 14.sp,
+                            color = colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+            }
 
-            // City Knowledge Level ID Field
-            OutlinedTextField(
-                value = cityKnowledgeLevelId,
-                onValueChange = {
-                    cityKnowledgeLevelId = it
-                    cityKnowledgeLevelIdError = it.isNotEmpty() && !it.matches(Regex("^[0-9a-fA-F-]+$"))
-                },
-                label = { Text("ID уровня знаний о городе", fontFamily = montserratFont, fontSize = 14.sp) },
-                isError = cityKnowledgeLevelIdError,
-                supportingText = {
-                    if (cityKnowledgeLevelIdError) {
+// Interest Selection Dialog
+            if (showInterestSelection) {
+                AlertDialog(
+                    onDismissRequest = { showInterestSelection = false },
+                    title = {
                         Text(
-                            text = "ID должен быть в формате UUID",
-                            color = colorScheme.error,
+                            text = "Выберите интересы",
                             fontFamily = montserratFont,
-                            fontSize = 12.sp
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorScheme.onSurface
                         )
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp)),
-                textStyle = TextStyle(fontFamily = montserratFont, fontSize = 14.sp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = colorScheme.surface,
-                    unfocusedContainerColor = colorScheme.surface,
-                    focusedIndicatorColor = colorScheme.primary,
-                    unfocusedIndicatorColor = colorScheme.onSurface.copy(alpha = 0.3f),
-                    errorIndicatorColor = colorScheme.error,
-                    focusedTextColor = colorScheme.onSurface,
-                    unfocusedTextColor = colorScheme.onSurface
+                    },
+                    text = {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                                .padding(vertical = 8.dp)
+                        ) {
+                            state.availableInterests.forEach { (interest, _) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            selectedInterests = if (selectedInterests.contains(interest)) {
+                                                selectedInterests - interest
+                                            } else {
+                                                selectedInterests + interest
+                                            }
+                                        }
+                                        .padding(vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = selectedInterests.contains(interest),
+                                        onCheckedChange = {
+                                            selectedInterests = if (it) {
+                                                selectedInterests + interest
+                                            } else {
+                                                selectedInterests - interest
+                                            }
+                                        },
+                                        colors = CheckboxDefaults.colors(
+                                            checkedColor = colorScheme.primary,
+                                            uncheckedColor = colorScheme.onSurface.copy(alpha = 0.3f)
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = interest,
+                                        fontFamily = montserratFont,
+                                        fontSize = 16.sp,
+                                        color = colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = { showInterestSelection = false }
+                        ) {
+                            Text(
+                                text = "Готово",
+                                fontFamily = montserratFont,
+                                fontSize = 14.sp,
+                                color = colorScheme.primary
+                            )
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showInterestSelection = false }
+                        ) {
+                            Text(
+                                text = "Отмена",
+                                fontFamily = montserratFont,
+                                fontSize = 14.sp,
+                                color = colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    },
+                    containerColor = colorScheme.surface,
+                    shape = RoundedCornerShape(16.dp)
                 )
-            )
+            }
+
+            // City Knowledge Level Section
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Уровень знаний о городе:",
+                    fontFamily = montserratFont,
+                    fontSize = 16.sp,
+                    color = colorScheme.onBackground.copy(alpha = 0.8f)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Box {
+                    Text(
+                        text = selectedCityKnowledgeLevel?.ifEmpty { "Не указано" } ?: "Не указано",
+                        fontFamily = montserratFont,
+                        fontSize = 16.sp,
+                        color = colorScheme.primary,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(colorScheme.primary.copy(alpha = 0.1f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .clickable { showCityKnowledgeMenu = true }
+                    )
+                    DropdownMenu(
+                        expanded = showCityKnowledgeMenu,
+                        onDismissRequest = { showCityKnowledgeMenu = false },
+                        modifier = Modifier.background(colorScheme.surface)
+                    ) {
+                        state.cityKnowledgeLevels.forEach { (name, _) ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = name,
+                                        fontFamily = montserratFont,
+                                        fontSize = 16.sp,
+                                        color = colorScheme.onSurface
+                                    )
+                                },
+                                onClick = {
+                                    selectedCityKnowledgeLevel = name
+                                    showCityKnowledgeMenu = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
 
             // Bio Field
             OutlinedTextField(
                 value = bio,
-                onValueChange = { bio = it },
+                onValueChange = {
+                    bio = it
+                    // Добавим валидацию bio
+                    if (it.length > 500) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Биография не может быть длиннее 500 символов")
+                        }
+                    }
+                },
                 label = { Text("Биография", fontFamily = montserratFont, fontSize = 14.sp) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .clip(RoundedCornerShape(10.dp)),
+                modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(10.dp)),
                 textStyle = TextStyle(fontFamily = montserratFont, fontSize = 14.sp),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = colorScheme.surface,
@@ -473,12 +655,17 @@ fun EditUserScreen(
             // Goals Field
             OutlinedTextField(
                 value = goals,
-                onValueChange = { goals = it },
+                onValueChange = {
+                    goals = it
+                    // Добавим валидацию goals
+                    if (it.length > 300) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Цели не могут быть длиннее 300 символов")
+                        }
+                    }
+                },
                 label = { Text("Цели", fontFamily = montserratFont, fontSize = 14.sp) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .clip(RoundedCornerShape(10.dp)),
+                modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(10.dp)),
                 textStyle = TextStyle(fontFamily = montserratFont, fontSize = 14.sp),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = colorScheme.surface,
@@ -506,9 +693,7 @@ fun EditUserScreen(
                     onValueChange = {},
                     label = { Text("Пол", fontFamily = montserratFont, fontSize = 14.sp) },
                     readOnly = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp)),
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)),
                     textStyle = TextStyle(fontFamily = montserratFont, fontSize = 14.sp),
                     trailingIcon = {
                         IconButton(onClick = { genderExpanded = true }) {
@@ -596,57 +781,183 @@ fun EditUserScreen(
                         color = colorScheme.primary
                     )
                 }
-                Button(
-                    onClick = {
-                        nameError = when {
-                            name.isEmpty() -> "Имя обязательно"
-                            !name.matches(Regex("^[А-Яа-яA-Za-z\\s]+$")) -> "Имя не должно содержать цифры или специальные символы"
-                            else -> null
-                        }
-                        emailError = !isValidEmail(email)
-                        passwordError = password.isNotEmpty() && password.length < 6
-                        phoneError = phone.isNotEmpty() && !isValidPhone(phone)
-                        vkIdError = vkId.isNotEmpty() && !vkId.matches(Regex("^[0-9]+$"))
-                        interestIdsError = interestIds.isNotEmpty() && !interestIds.matches(Regex("^([0-9a-fA-F-]+,)*[0-9a-fA-F-]+$"))
-                        cityKnowledgeLevelIdError = cityKnowledgeLevelId.isNotEmpty() && !cityKnowledgeLevelId.matches(Regex("^[0-9a-fA-F-]+$"))
+                // Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = onBackClick,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "Отмена",
+                            fontFamily = montserratFont,
+                            fontSize = 14.sp,
+                            color = colorScheme.primary
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            nameError = validateName(name)
+                            emailError = !isValidEmail(email)
+                            passwordError = password.isNotEmpty() && password.length < 6
+                            phoneError = phone.isNotEmpty() && !isValidPhone(phone)
+                            vkIdError = vkId.isNotEmpty() && !vkId.matches(Regex("^[0-9]+$"))
+                            birthdateError = validateBirthDate(birthdate)
 
-                        if (!nameError.isNullOrEmpty() || emailError || passwordError || phoneError || vkIdError || interestIdsError || cityKnowledgeLevelIdError) {
-                            Log.d("EditUserScreen", "Validation failed: nameError=$nameError, emailError=$emailError, passwordError=$passwordError, phoneError=$phoneError, vkIdError=$vkIdError, interestIdsError=$interestIdsError, cityKnowledgeLevelIdError=$cityKnowledgeLevelIdError")
-                        } else {
-                            viewModel.updateUser(
-                                userId = userId,
-                                name = name,
-                                email = email,
-                                password = if (password.isNotEmpty()) password else null,
-                                phone = phone,
-                                isAdmin = isAdmin,
-                                gender = gender,
-                                profileImageUri = profileImageUri,
-                                vkId = vkId.takeIf { it.isNotEmpty() },
-                                interestIds = interestIds.takeIf { it.isNotEmpty() }?.split(",")?.map { it.trim() } ?: emptyList(),
-                                cityKnowledgeLevelId = cityKnowledgeLevelId.takeIf { it.isNotEmpty() },
-                                bio = bio.takeIf { it.isNotEmpty() },
-                                goals = goals.takeIf { it.isNotEmpty() }
-                            )
+                            if (nameError == null && !emailError && !passwordError && !phoneError && !vkIdError && birthdateError == null) {
+                                val interestIds = selectedInterests.mapNotNull { name ->
+                                    state.availableInterests.find { it.first == name }?.second
+                                }
+                                val cityKnowledgeLevelId = selectedCityKnowledgeLevel?.let { name ->
+                                    state.cityKnowledgeLevels.find { it.first == name }?.second
+                                }
+                                viewModel.updateUser(
+                                    userId = userId,
+                                    name = name,
+                                    email = email,
+                                    password = if (password.isNotEmpty()) password else null,
+                                    phone = phone,
+                                    isAdmin = isAdmin,
+                                    gender = gender,
+                                    profileImageUri = profileImageUri,
+                                    vkId = vkId.takeIf { it.isNotEmpty() },
+                                    interestIds = interestIds,
+                                    cityKnowledgeLevelId = cityKnowledgeLevelId,
+                                    bio = bio.takeIf { it.isNotEmpty() },
+                                    goals = goals.takeIf { it.isNotEmpty() },
+                                    birthdate = birthdate.takeIf { it.isNotEmpty() }
+                                        ?.let { convertToDbFormat(it) },
+                                    city = city.takeIf { it.isNotEmpty() }
+                                )
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colorScheme.primary,
+                            contentColor = colorScheme.onPrimary
+                        )
+                    ) {
+                        Text(
+                            text = "Сохранить",
+                            fontFamily = montserratFont,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val date = Date(millis)
+                            val currentDate = Date()
+                            val minAgeDate = Calendar.getInstance().apply {
+                                add(Calendar.YEAR, -13)
+                            }.time
+                            if (date.before(currentDate) && date.before(minAgeDate)) {
+                                val sdf = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+                                birthdate = sdf.format(date)
+                                birthdateError = validateBirthDate(birthdate)
+                            } else {
+                                birthdateError = "Дата рождения недопустима"
+                            }
                         }
-                    },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colorScheme.primary,
-                        contentColor = colorScheme.onPrimary
-                    )
+                        showDatePicker = false
+                    }
                 ) {
                     Text(
-                        text = "Сохранить",
+                        "OK",
                         fontFamily = montserratFont,
-                        fontSize = 14.sp
+                        color = colorScheme.primary
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDatePicker = false }
+                ) {
+                    Text(
+                        "Отмена",
+                        fontFamily = montserratFont,
+                        color = colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
+        ) {
+            DatePicker(
+                state = datePickerState,
+                title = {
+                    Text(
+                        "Выберите дату рождения",
+                        fontFamily = montserratFont,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            )
         }
+    }
+}
+
+private fun validateName(name: String): String? {
+    return when {
+        name.isBlank() -> "Имя не может быть пустым"
+        name.length > 50 -> "Имя не может быть длиннее 50 символов"
+        !name.matches(Regex("^[a-zA-Zа-яА-ЯёЁ\\s'-]+$")) -> "Имя может содержать только буквы, пробелы, дефисы или апострофы"
+        else -> null
+    }
+}
+
+private fun validateBirthDate(birthDate: String): String? {
+    if (birthDate.isEmpty()) return null
+    return try {
+        val sdf = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+        sdf.isLenient = false
+        val date = sdf.parse(birthDate) ?: return "Неверный формат даты"
+        val currentDate = Date()
+        val minAgeDate = Calendar.getInstance().apply {
+            add(Calendar.YEAR, -13)
+        }.time
+        when {
+            date.after(currentDate) -> "Дата рождения не может быть в будущем"
+            date.after(minAgeDate) -> "Вы должны быть старше 13 лет"
+            else -> null
+        }
+    } catch (e: Exception) {
+        "Неверный формат даты"
+    }
+}
+
+private fun convertToDisplayFormat(dbDate: String): String {
+    return try {
+        val sdfDb = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val date = sdfDb.parse(dbDate)
+        val sdfDisplay = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+        sdfDisplay.format(date)
+    } catch (e: Exception) {
+        dbDate
+    }
+}
+
+private fun convertToDbFormat(displayDate: String): String? {
+    return try {
+        val sdfDisplay = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+        val date = sdfDisplay.parse(displayDate)
+        val sdfDb = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        sdfDb.format(date)
+    } catch (e: Exception) {
+        null
     }
 }
 

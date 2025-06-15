@@ -17,18 +17,12 @@ class EditAnnouncementViewModel(
     override val container: Container<EditAnnouncementViewState, EditAnnouncementSideEffect> = container(
         EditAnnouncementViewState()
     )
-
     fun loadAnnouncement(announcementId: String) = intent {
         reduce { state.copy(isLoading = true, error = null) }
         try {
             val announcement = announcementsRepository.fetchAnnouncementById(announcementId)
             if (announcement != null) {
-                if (announcement.creatorId != currentUserId) {
-                    reduce { state.copy(isLoading = false, error = "Нет прав для редактирования") }
-                    postSideEffect(EditAnnouncementSideEffect.ShowError("Нет прав для редактирования"))
-                } else {
-                    reduce { state.copy(announcement = announcement, isLoading = false) }
-                }
+                reduce { state.copy(announcement = announcement, isLoading = false) }
             } else {
                 reduce { state.copy(isLoading = false, error = "Объявление не найдено") }
                 postSideEffect(EditAnnouncementSideEffect.ShowError("Объявление не найдено"))
@@ -38,6 +32,27 @@ class EditAnnouncementViewModel(
             postSideEffect(EditAnnouncementSideEffect.ShowError(e.message ?: "Ошибка загрузки"))
         }
     }
+
+//    fun loadAnnouncement(announcementId: String) = intent {
+//        reduce { state.copy(isLoading = true, error = null) }
+//        try {
+//            val announcement = announcementsRepository.fetchAnnouncementById(announcementId)
+//            if (announcement != null) {
+//                if (announcement.creatorId != currentUserId) {
+//                    reduce { state.copy(isLoading = false, error = "Нет прав для редактирования") }
+//                    postSideEffect(EditAnnouncementSideEffect.ShowError("Нет прав для редактирования"))
+//                } else {
+//                    reduce { state.copy(announcement = announcement, isLoading = false) }
+//                }
+//            } else {
+//                reduce { state.copy(isLoading = false, error = "Объявление не найдено") }
+//                postSideEffect(EditAnnouncementSideEffect.ShowError("Объявление не найдено"))
+//            }
+//        } catch (e: Exception) {
+//            reduce { state.copy(isLoading = false, error = e.message) }
+//            postSideEffect(EditAnnouncementSideEffect.ShowError(e.message ?: "Ошибка загрузки"))
+//        }
+//    }
 
     fun updateAnnouncement(announcement: Announcement) = intent {
         try {

@@ -9,6 +9,8 @@ import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.exceptions.RestException
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toJavaZoneId
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
 import ru.walkAndTalk.data.network.SupabaseWrapper
@@ -16,9 +18,16 @@ import ru.walkAndTalk.domain.Bucket
 import ru.walkAndTalk.domain.model.User
 import ru.walkAndTalk.domain.repository.AdminContentRepository
 import ru.walkAndTalk.domain.repository.AdminUsersRepository
+import ru.walkAndTalk.domain.repository.AnnouncementsRepository
+import ru.walkAndTalk.domain.repository.CityKnowledgeLevelRepository
+import ru.walkAndTalk.domain.repository.EventsRepository
+import ru.walkAndTalk.domain.repository.InterestsRepository
 import ru.walkAndTalk.domain.repository.LocalDataStoreRepository
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
 import ru.walkAndTalk.domain.repository.StorageRepository
+import java.text.SimpleDateFormat
+import java.time.OffsetDateTime
+import java.util.Locale
 
 class AdminViewModel(
     private val usersRepository: AdminUsersRepository,
@@ -27,18 +36,98 @@ class AdminViewModel(
     private val localDataStoreRepository: LocalDataStoreRepository,
     private val remoteUsersRepository: RemoteUsersRepository,
     private val storageRepository: StorageRepository,
-    private val context: Context // Инжектируем Context для SharedPreferences
-
+    private val interestsRepository: InterestsRepository,
+    private val cityKnowledgeLevelRepository: CityKnowledgeLevelRepository,
+    private val context: Context,
+    private val eventRepository: EventsRepository,
+    private val announcementsRepository: AnnouncementsRepository
 ) : ViewModel(), ContainerHost<AdminViewState, AdminSideEffect> {
     override val container = container<AdminViewState, AdminSideEffect>(AdminViewState())
     private var adminUserId: String? = null
 
     init {
-        // Сохраняем ID администратора при инициализации
         adminUserId = supabaseWrapper.auth.currentUserOrNull()?.id
         Log.d("AdminViewModel", "Saved admin user ID: $adminUserId")
         loadUsers()
         loadData()
+        loadInterests()
+        loadCityKnowledgeLevels()
+        loadEvents()
+        loadAnnouncements()
+    }
+
+    fun loadEvents() = intent {
+        reduce { state.copy(isLoading = true, error = null) }
+        try {
+            val events = eventRepository.fetchAllEventsAdmin()
+            reduce { state.copy(events = events, isLoading = false, error = null) }
+        } catch (e: Exception) {
+            reduce { state.copy(isLoading = false, error = e.message) }
+            postSideEffect(AdminSideEffect.ShowError(e.message ?: "Ошибка загрузки мероприятий"))
+        }
+    }
+
+    fun loadAnnouncements() = intent {
+        reduce { state.copy(isLoading = true, error = null) }
+        try {
+            val announcement = announcementsRepository.fetchAllAnnouncementsAdmin()
+            reduce { state.copy(announcements = announcement, isLoading = false, error = null) }
+        } catch (e: Exception) {
+            reduce { state.copy(isLoading = false, error = e.message) }
+            postSideEffect(AdminSideEffect.ShowError(e.message ?: "Ошибка загрузки мероприятий"))
+        }
+    }
+
+    fun approveEvent(eventId: String) = intent {
+        reduce { state.copy(isLoading = true, error = null) }
+        try {
+            eventRepository.updateEventStatus(eventId, "approved")
+            loadEvents()
+            postSideEffect(AdminSideEffect.ShowSuccess("Мероприятие одобрено"))
+        } catch (e: Exception) {
+            reduce { state.copy(isLoading = false, error = e.message) }
+            postSideEffect(AdminSideEffect.ShowError("Ошибка одобрения: ${e.message}"))
+        }
+    }
+
+    fun rejectEvent(eventId: String) = intent {
+        reduce { state.copy(isLoading = true, error = null) }
+        try {
+            eventRepository.updateEventStatus(eventId, "rejected")
+            loadEvents()
+            postSideEffect(AdminSideEffect.ShowSuccess("Мероприятие отклонено"))
+        } catch (e: Exception) {
+            reduce { state.copy(isLoading = false, error = e.message) }
+            postSideEffect(AdminSideEffect.ShowError("Ошибка отклонения: ${e.message}"))
+        }
+    }
+
+    fun deleteEventAdmin(eventId: String) = intent {
+        reduce { state.copy(isLoading = true, error = null) }
+        try {
+            eventRepository.deleteEventAdmin(eventId).getOrThrow()
+            loadEvents()
+            postSideEffect(AdminSideEffect.ShowSuccess("Мероприятие удалено"))
+        } catch (e: Exception) {
+            reduce { state.copy(isLoading = false, error = e.message) }
+            postSideEffect(AdminSideEffect.ShowError("Ошибка удаления: ${e.message}"))
+        }
+    }
+
+    fun changeEventStatus(eventId: String, newStatus: String) = intent {
+        reduce { state.copy(isLoading = true, error = null) }
+        try {
+            eventRepository.updateEventStatus(eventId, newStatus)
+            loadEvents()
+            postSideEffect(AdminSideEffect.ShowSuccess("Статус изменен"))
+        } catch (e: Exception) {
+            reduce { state.copy(isLoading = false, error = e.message) }
+            postSideEffect(AdminSideEffect.ShowError("Ошибка изменения статуса: ${e.message}"))
+        }
+    }
+
+    fun navigateToEditEvent(eventId: String) = intent {
+        postSideEffect(AdminSideEffect.NavigateToEditEvent(eventId))
     }
 
     private suspend fun restoreAdminSession() {
@@ -71,15 +160,32 @@ class AdminViewModel(
         Log.d("AdminViewModel", "Saved admin credentials: $email")
     }
 
-    fun loadUsers() = intent {
+    private fun loadUsers() = intent {
         reduce { state.copy(isLoading = true, error = null) }
         try {
             val users = usersRepository.fetchAllUsers()
-            Log.d("AdminViewModel", "Loaded ${users.size} users")
-            reduce { state.copy(isLoading = false, users = users, error = null) }
+            reduce { state.copy(users = users, isLoading = false, error = null) }
         } catch (e: Exception) {
             reduce { state.copy(isLoading = false, error = e.message) }
-            postSideEffect(AdminSideEffect.ShowError("Ошибка загрузки пользователей: ${e.message}"))
+            postSideEffect(AdminSideEffect.ShowError(e.message ?: "Ошибка загрузки пользователей"))
+        }
+    }
+
+    private fun loadInterests() = intent {
+        try {
+            val interests = interestsRepository.fetchAll().map { it.name to it.id }
+            reduce { state.copy(availableInterests = interests) }
+        } catch (e: Exception) {
+            postSideEffect(AdminSideEffect.ShowError("Ошибка загрузки интересов"))
+        }
+    }
+
+    private fun loadCityKnowledgeLevels() = intent {
+        try {
+            val levels = cityKnowledgeLevelRepository.fetchAll().map { it.name to it.id }
+            reduce { state.copy(cityKnowledgeLevels = levels) }
+        } catch (e: Exception) {
+            postSideEffect(AdminSideEffect.ShowError("Ошибка загрузки уровней знаний"))
         }
     }
 
@@ -154,7 +260,8 @@ class AdminViewModel(
                     val fileName = "${user.id}/profile.jpg"
                     storageRepository.uploadProfileImage(fileName, uri)
                     storageRepository.createSignedUrl(Bucket.PROFILE_IMAGES, fileName)
-                } ?: "https://tvecrsehuuqrjwjfgljf.supabase.co/storage/v1/object/sign/profile-images/default_profile.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2Y2YjA0NTBiLWVkNDktNGFkNi1iMGM2LWJiYzZmNzM0ZGY2YyJ9.eyJ1cmwiOiJwcm9maWxlLWltYWdlcy9kZWZhdWx0X3Byb2ZpbGUucG5nIiwiaWF0IjoxNzQ1NTI2MjM1LCJleHAiOjE3NzcwNjIyMzV9.RrxpUDm_OaKOOFFBICiPfVYgCdVTKMcyKqq6TKIYTv0"
+                }
+                    ?: "https://tvecrsehuuqrjwjfgljf.supabase.co/storage/v1/object/sign/profile-images/default_profile.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2Y2YjA0NTBiLWVkNDktNGFkNi1iMGM2LWJiYzZmNzM0ZGY2YyJ9.eyJ1cmwiOiJwcm9maWxlLWltYWdlcy9kZWZhdWx0X3Byb2ZpbGUucG5nIiwiaWF0IjoxNzQ1NTI2MjM1LCJleHAiOjE3NzcwNjIyMzV9.RrxpUDm_OaKOOFFBICiPfVYgCdVTKMcyKqq6TKIYTv0"
 
                 // Сохранение данных пользователя
                 remoteUsersRepository.add(
@@ -198,123 +305,120 @@ class AdminViewModel(
         }
     }
 
-//    fun updateUser(userId: String, name: String, email: String, phone: String, isAdmin: Boolean, gender: String?) = intent {
-//        viewModelScope.launch {
-//            try {
-//                val user = usersRepository.fetchUserById(userId) ?: throw Exception("Пользователь не найден")
-//                usersRepository.updateUser(
-//                    user.copy(
-//                        name = name,
-//                        email = email,
-//                        phone = phone,
-//                        isAdmin = isAdmin,
-//                        gender = gender
-//                    )
-//                )
-//                loadData() // Обновляем данные
-//                postSideEffect(AdminSideEffect.UserSaved)
-//            } catch (e: Exception) {
-//                postSideEffect(AdminSideEffect.ShowError("Ошибка при обновлении пользователя: ${e.message}"))
-//            }
-//        }
-//    }
-fun updateUser(
-    userId: String,
-    name: String,
-    email: String,
-    password: String?,
-    phone: String,
-    isAdmin: Boolean,
-    gender: String?,
-    profileImageUri: Uri?,
-    vkId: String?,
-    interestIds: List<String>,
-    cityKnowledgeLevelId: String?,
-    bio: String?,
-    goals: String?
-) = intent {
-    reduce { state.copy(isLoading = true, error = null) }
-    try {
-        // Обновление email и password в Supabase Auth, если они изменились
-        val currentUser = state.users.find { it.id == userId }
-        if (currentUser == null) {
-            throw Exception("Пользователь не найден")
-        }
-        if (email != currentUser.email || password != null) {
-            supabaseWrapper.auth.signOut()
-            supabaseWrapper.auth.signInWith(Email) {
-                this.email = currentUser.email
-                this.password = currentUser.password
+    fun updateUser(
+        userId: String,
+        name: String,
+        email: String,
+        password: String?,
+        phone: String,
+        isAdmin: Boolean,
+        gender: String?,
+        profileImageUri: Uri?,
+        vkId: String?,
+        interestIds: List<String>,
+        cityKnowledgeLevelId: String?,
+        bio: String?,
+        goals: String?,
+        birthdate: String?,
+        city: String?
+    ) = intent {
+        reduce { state.copy(isLoading = true, error = null) }
+        try {
+            val currentUser = state.users.find { it.id == userId }
+            if (currentUser == null) {
+                throw Exception("Пользователь не найден")
             }
-            if (email != currentUser.email) {
-                supabaseWrapper.auth.updateUser {
-                    this.email = email
+            if (email != currentUser.email || password != null) {
+                supabaseWrapper.auth.signOut()
+                supabaseWrapper.auth.signInWith(Email) {
+                    this.email = currentUser.email
+                    this.password = currentUser.password
                 }
-            }
-            if (password != null) {
-                supabaseWrapper.auth.updateUser {
-                    this.password = password
+                if (email != currentUser.email) {
+                    supabaseWrapper.auth.updateUser { this.email = email }
                 }
+                if (password != null) {
+                    supabaseWrapper.auth.updateUser { this.password = password }
+                }
+                restoreAdminSession()
             }
-            restoreAdminSession()
-        }
 
-        // Загрузка нового изображения профиля, если выбрано
-        val imageUrl = profileImageUri?.let { uri ->
-            val fileName = "$userId/profile.jpg"
-            storageRepository.uploadProfileImage(fileName, uri)
-            storageRepository.createSignedUrl(Bucket.PROFILE_IMAGES, fileName)
-        } ?: currentUser.profileImageUrl
+            val imageUrl = profileImageUri?.let { uri ->
+                val fileName = "$userId/profile.jpg"
+                storageRepository.uploadProfileImage(fileName, uri)
+                storageRepository.createSignedUrl(Bucket.PROFILE_IMAGES, fileName)
+            } ?: currentUser.profileImageUrl
 
-        // Обновление данных в таблице users
-        usersRepository.updateUser(
-            User(
-                id = userId,
-                email = email,
-                phone = phone,
-                name = name,
-                password = password ?: currentUser.password,
-                profileImageUrl = imageUrl.toString(),
-                vkId = vkId as Long?,
-                interestIds = interestIds,
-                cityKnowledgeLevelId = cityKnowledgeLevelId,
-                bio = bio,
-                goals = goals,
-                isAdmin = isAdmin,
-                gender = gender,
-                createdAt = currentUser.createdAt,
-                updatedAt = Clock.System.now()
+            usersRepository.updateUser(
+                User(
+                    id = userId,
+                    email = email,
+                    phone = phone,
+                    name = name,
+                    password = password ?: currentUser.password,
+                    profileImageUrl = imageUrl.toString(),
+                    vkId = vkId?.toLongOrNull(),
+                    interestIds = interestIds,
+                    cityKnowledgeLevelId = cityKnowledgeLevelId,
+                    bio = bio,
+                    goals = goals,
+                    isAdmin = isAdmin,
+                    gender = gender,
+                    createdAt = currentUser.createdAt,
+                    updatedAt = Clock.System.now(),
+                    birthdate = birthdate,
+                    city = city
+                )
             )
-        )
 
-        loadUsers()
-        reduce { state.copy(isLoading = false, error = null) }
-        postSideEffect(AdminSideEffect.UserSaved)
-    } catch (e: RestException) {
-        restoreAdminSession()
-        val errorMessage = when {
-            e.message?.contains("user_already_exists") == true -> "Этот email уже зарегистрирован."
-            else -> "Ошибка при обновлении: ${e.message}"
+            loadUsers()
+            reduce { state.copy(isLoading = false, error = null) }
+            postSideEffect(AdminSideEffect.UserSaved)
+        } catch (e: RestException) {
+            restoreAdminSession()
+            val errorMessage = when {
+                e.message?.contains("user_already_exists") == true -> "Этот email уже зарегистрирован."
+                else -> "Ошибка при обновлении: ${e.message}"
+            }
+            reduce { state.copy(isLoading = false, error = errorMessage) }
+            postSideEffect(AdminSideEffect.ShowError(errorMessage))
+        } catch (e: Exception) {
+            restoreAdminSession()
+            val errorMessage = "Ошибка: ${e.message}"
+            reduce { state.copy(isLoading = false, error = errorMessage) }
+            postSideEffect(AdminSideEffect.ShowError(errorMessage))
         }
-        reduce { state.copy(isLoading = false, error = errorMessage) }
-        postSideEffect(AdminSideEffect.ShowError(errorMessage))
-    } catch (e: Exception) {
-        restoreAdminSession()
-        val errorMessage = "Ошибка: ${e.message}"
-        reduce { state.copy(isLoading = false, error = errorMessage) }
-        postSideEffect(AdminSideEffect.ShowError(errorMessage))
     }
-}
+
     fun onUserClick(userId: String) = intent {
         postSideEffect(AdminSideEffect.NavigateToUserProfile(userId))
     }
 
-    fun onEventClick(eventId: String) = intent {
+    fun navigateToEventDetails(eventId: String) = intent {
         postSideEffect(AdminSideEffect.NavigateToEventDetails(eventId))
     }
 
     fun onAnnouncementClick(announcementId: String) = intent {
         postSideEffect(AdminSideEffect.NavigateToAnnouncementDetails(announcementId))
+    }
+
+    fun navigateToAnnouncementDetails(announcementId: String) = intent {
+        postSideEffect(AdminSideEffect.NavigateToAnnouncementDetails(announcementId))
+    }
+
+    fun navigateToEditAnnouncement(announcementId: String) = intent {
+        postSideEffect(AdminSideEffect.NavigateToEditAnnouncement(announcementId))
+    }
+
+    fun deleteAnnouncementAdmin(announcementId: String) = intent {
+        try {
+            announcementsRepository.deleteAnnouncementAdmin(announcementId).getOrThrow()
+            reduce { state.copy(announcements = state.announcements.filter { it.id != announcementId }) }
+            postSideEffect(AdminSideEffect.ShowSuccess("Объявление удалено"))
+        } catch (e: Exception) {
+            Log.e("AdminViewModel", "Ошибка удаления объявления: ${e.message}", e)
+            postSideEffect(AdminSideEffect.ShowError(e.message ?: "Ошибка удаления объявления"))
+        }
     }
 
     fun deleteUser(userId: String) = intent {
@@ -327,18 +431,6 @@ fun updateUser(
             postSideEffect(AdminSideEffect.ShowError("Ошибка удаления пользователя: ${e.message}"))
         }
     }
-//    fun deleteUser(userId: String) = intent {
-//        reduce { state.copy(isLoading = true, error = null) }
-//        try {
-//            usersRepository.deleteUser(userId)
-//            val updatedUsers = state.users.filter { it.id != userId }
-//            reduce { state.copy(users = updatedUsers, isLoading = true, error = null) }
-//            postSideEffect(AdminSideEffect.ShowError("Пользователь успешно удален"))
-//        } catch (e: Exception) {
-//            reduce { state.copy(isLoading = false, error = "Ошибка удаления пользователя: ${e.message}") }
-//            postSideEffect(AdminSideEffect.ShowError("Ошибка удаления пользователя: ${e.message}"))
-//        }
-//    }
 
     fun updateEventStatus(eventId: String, status: String) = intent {
         try {
@@ -392,17 +484,21 @@ fun updateUser(
         }
     }
 
-//    fun onLogout() = intent {
-//        supabaseWrapper.auth.signOut()
-//        adminUserId = null
-//        val prefs = context.getSharedPreferences("admin_credentials", Context.MODE_PRIVATE)
-//        prefs.edit().clear().apply()
-//        postSideEffect(AdminSideEffect.NavigateToAuth)
-//    }
-//
-//    fun switchToUserMode(userId: String) = intent {
-//        Log.d("AdminViewModel", "Switching to user mode with admin ID: $userId")
-//        postSideEffect(AdminSideEffect.NavigateToMain(userId))
-//    }
+    fun formatEventDate(isoDate: String?): String? {
+        if (isoDate == null) return null
+        return try {
+            val offsetDateTime = OffsetDateTime.parse(isoDate)
+            val zoneId = TimeZone.currentSystemDefault().toJavaZoneId()
+            val now = OffsetDateTime.now(zoneId)
+            when {
+                offsetDateTime.toLocalDate() == now.toLocalDate() -> "Сегодня, ${SimpleDateFormat("HH:mm", Locale("ru")).format(offsetDateTime.toInstant().toEpochMilli())}"
+                offsetDateTime.toLocalDate() == now.toLocalDate().minusDays(1) -> "Вчера, ${SimpleDateFormat("HH:mm", Locale("ru")).format(offsetDateTime.toInstant().toEpochMilli())}"
+                else -> SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("ru")).format(offsetDateTime.toInstant().toEpochMilli())
+            }
+        } catch (e: Exception) {
+            println("DateUtils: Error parsing date: $e")
+            null
+        }
+    }
 
 }

@@ -26,32 +26,18 @@ data class Profile(val userId: String, val viewOnly: Boolean = false)
 @Serializable object Feed
 @Serializable object Chats
 @Serializable object Search
-@Serializable data class EventDetails(val eventId: String){
-    companion object {
-        const val ROUTE = "eventDetails/{eventId}"
-        fun createRoute(eventId: String) = "eventDetails/$eventId"
-    }
-}
-@Serializable data class AnnouncementDetails(val announcementId: String) {
-    companion object {
-        const val ROUTE = "announcement_details/{announcementId}"
-        fun createRoute(announcementId: String) = "announcement_details/$announcementId"
-    }
-}
-@Serializable data class EditEvent(val eventId: String) {
-    companion object {
-        const val ROUTE = "edit_event/{eventId}"
-        fun createRoute(eventId: String) = "edit_event/$eventId"
-    }
-}
-@Serializable data class EditAnnouncement(val announcementId: String) {
-    companion object {
-        const val ROUTE = "edit_announcement/{announcementId}"
-        fun createRoute(announcementId: String) = "edit_announcement/$announcementId"
-    }
-}
+@Serializable data class EventDetails(val eventId: String)
+//{
+////    companion object {
+////        const val ROUTE = "eventDetails/{eventId}"
+////        fun createRoute(eventId: String) = "eventDetails/$eventId"
+////    }
+//}
+@Serializable data class AnnouncementDetails(val announcementId: String)
+@Serializable data class EditEvent(val eventId: String)
+@Serializable data class EditAnnouncement(val announcementId: String)
 @Serializable object EditProfile
 @Serializable object EventStatistics
 @Serializable object Notifications
 @Serializable object AddUser
-@Serializable object EditUser
+@Serializable data class EditUser(val userId: String)

@@ -63,7 +63,7 @@ fun NotificationsScreen(
     viewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
             is FeedSideEffect.NavigateToEventDetails -> {
-                navController.navigate(EventDetails.createRoute(sideEffect.eventId))
+                navController.navigate(EventDetails(sideEffect.eventId))
             }
 
             is FeedSideEffect.NavigateToChat -> {

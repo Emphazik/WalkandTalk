@@ -12,4 +12,6 @@ data class AdminViewState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val profileImageUri: Uri? = null,
+    val availableInterests: List<Pair<String, String>> = emptyList(),
+    val cityKnowledgeLevels: List<Pair<String, String>> = emptyList()
 )

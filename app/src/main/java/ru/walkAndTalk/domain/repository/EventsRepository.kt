@@ -6,6 +6,7 @@ import ru.walkAndTalk.domain.model.EventParticipant
 
 interface EventsRepository {
     suspend fun fetchAllEvents(): List<Event>
+    suspend fun fetchAllEventsAdmin(): List<Event>
     suspend fun createEvent(event: Event): Result<Unit>
     suspend fun fetchEventById(id: String): Event?
     suspend fun updateEventImage(eventId: String, imageUrl: String)
@@ -14,5 +15,6 @@ interface EventsRepository {
     suspend fun fetchParticipantStatus(userId: String, eventId: String): EventParticipant?
     suspend fun deleteEvent(eventId: String, creatorId: String): Result<Unit> // Новый метод
     suspend fun updateEvent(event: Event): Result<Unit> // Новый метод
-
+    suspend fun updateEventStatus(eventId: String, status: String): Result<Unit>
+    suspend fun deleteEventAdmin(eventId: String): Result<Unit>
 }

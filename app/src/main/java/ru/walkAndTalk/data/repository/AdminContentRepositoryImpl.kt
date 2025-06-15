@@ -48,7 +48,7 @@ class AdminContentRepositoryImpl(
             .select()
             .decodeList<EventDto>()
         return events.map { eventDto ->
-            eventDto.toDomain() // Убрано statusName, так как toDomain не принимает этот параметр
+            eventDto.toDomain()
         }
     }
 

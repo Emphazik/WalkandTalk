@@ -2,8 +2,16 @@ package ru.walkAndTalk.ui.screens.root
 
 import android.content.Intent
 import android.util.Log
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -11,7 +19,9 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.toRoute
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
@@ -21,9 +31,14 @@ import ru.walkAndTalk.domain.Table
 import ru.walkAndTalk.domain.repository.LocalDataStoreRepository
 import ru.walkAndTalk.ui.screens.AddUser
 import ru.walkAndTalk.ui.screens.Admin
+import ru.walkAndTalk.ui.screens.AnnouncementDetails
 import ru.walkAndTalk.ui.screens.Auth
+import ru.walkAndTalk.ui.screens.Chats
+import ru.walkAndTalk.ui.screens.EditAnnouncement
+import ru.walkAndTalk.ui.screens.EditEvent
 import ru.walkAndTalk.ui.screens.EditProfile
 import ru.walkAndTalk.ui.screens.EditUser
+import ru.walkAndTalk.ui.screens.EventDetails
 import ru.walkAndTalk.ui.screens.EventStatistics
 import ru.walkAndTalk.ui.screens.Login
 import ru.walkAndTalk.ui.screens.Main
@@ -36,11 +51,18 @@ import ru.walkAndTalk.ui.screens.admin.AdminScreen
 import ru.walkAndTalk.ui.screens.admin.AdminSideEffect
 import ru.walkAndTalk.ui.screens.admin.AdminViewModel
 import ru.walkAndTalk.ui.screens.admin.add.AddUserScreen
+import ru.walkAndTalk.ui.screens.admin.edit.AdminEditAnnouncementScreen
 import ru.walkAndTalk.ui.screens.admin.edit.EditUserScreen
 import ru.walkAndTalk.ui.screens.auth.login.LoginScreen
 import ru.walkAndTalk.ui.screens.auth.register.RegisterScreen
 import ru.walkAndTalk.ui.screens.main.MainScreen
+import ru.walkAndTalk.ui.screens.main.feed.FeedViewModel
+import ru.walkAndTalk.ui.screens.main.feed.announcements.AnnouncementDetailsScreen
+import ru.walkAndTalk.ui.screens.main.feed.announcements.editannouncements.EditAnnouncementScreen
+import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsScreen
+import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsSideEffect
 import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsViewModel
+import ru.walkAndTalk.ui.screens.main.feed.events.editevents.EditEventScreen
 import ru.walkAndTalk.ui.screens.main.profile.ProfileScreen
 import ru.walkAndTalk.ui.screens.main.profile.edit.EditProfileScreen
 import ru.walkAndTalk.ui.screens.onboarding.OnboardingScreen
@@ -53,6 +75,8 @@ fun RootScreen(intent: Intent) {
     val supabaseWrapper: SupabaseWrapper = koinInject()
     val localDataStoreRepository: LocalDataStoreRepository = koinInject()
     val adminViewModel: AdminViewModel = koinViewModel()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         adminViewModel.container.sideEffectFlow.collect { sideEffect ->
@@ -72,10 +96,19 @@ fun RootScreen(intent: Intent) {
                     navController.navigate(AddUser)
                 }
                 is AdminSideEffect.NavigateToEditUser -> {
-                    navController.navigate("EditUser/${sideEffect.userId}")
+                    navController.navigate(EditUser(userId = sideEffect.userId))
                 }
                 is AdminSideEffect.NavigateToProfile -> {
                     navController.navigate(Profile(userId = sideEffect.userId, viewOnly = true))
+                }
+                is AdminSideEffect.NavigateToEventDetails -> {
+                    navController.navigate(EventDetails(sideEffect.eventId))
+                }
+                is AdminSideEffect.NavigateToAnnouncementDetails -> {
+                    navController.navigate(AnnouncementDetails(sideEffect.announcementId))
+                }
+                is AdminSideEffect.NavigateToEditAnnouncement -> {
+                    navController.navigate(EditAnnouncement(sideEffect.announcementId))
                 }
                 is AdminSideEffect.UserSaved -> {
                     navController.navigateUp() // Возвращаемся на AdminScreen
@@ -180,61 +213,6 @@ fun RootScreen(intent: Intent) {
                 )
             }
         }
-//        composable<Main> {
-//            MainScreen(
-//                userId = it.toRoute<Main>().userId,
-//                onNavigateAuth = {
-//                    navController.navigate(Auth) {
-//                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
-//                    }
-//                }
-//            )
-//        }
-//        composable<Admin> { backStackEntry ->
-//            val admin = backStackEntry.toRoute<Admin>()
-//            val adminViewModel: AdminViewModel = koinViewModel()
-//            AdminScreen(
-//                navController = navController,
-//                userId = admin.userId,
-//                viewModel = adminViewModel
-//            )
-//        }
-//        composable<AddUser> {
-//            val adminViewModel: AdminViewModel = koinViewModel()
-//            AddUserScreen(
-//                viewModel = adminViewModel,
-//                onBackClick = { navController.navigateUp() }
-//            )
-//        }
-//        composable(
-//            route = "EditUser/{userId}",
-//            arguments = listOf(navArgument("userId") { type = NavType.StringType })
-//        ) { backStackEntry ->
-//            val adminViewModel: AdminViewModel = koinViewModel()
-//            EditUserScreen(
-//                userId = backStackEntry.arguments?.getString("userId") ?: "",
-//                viewModel = adminViewModel,
-//                onBackClick = { navController.navigateUp() }
-//            )
-//        }
-//        composable<Profile> {
-//            val profile = it.toRoute<Profile>()
-//            ProfileScreen(
-//                viewModel = koinViewModel(parameters = { parametersOf(profile.userId) }),
-//                onNavigateAuth = {
-//                    navController.navigate(Auth) {
-//                        popUpTo(Onboarding) { inclusive = true }
-//                    }
-//                },
-//                onNavigateEditProfile = { navController.navigate(EditProfile) },
-//                onNavigateEventStatistics = { navController.navigate(EventStatistics) },
-//                onNavigateAdminScreen = {navController.navigate(Admin(profile.userId))},
-//                isViewOnly = profile.viewOnly,
-//                onBackClick = {
-//                    navController.navigateUp()
-//                }
-//            )
-//        }
         composable<Main> { backStackEntry ->
             val main = backStackEntry.toRoute<Main>()
             MainScreen(
@@ -256,7 +234,105 @@ fun RootScreen(intent: Intent) {
             val admin = backStackEntry.toRoute<Admin>()
             AdminScreen(
                 userId = admin.userId,
-                viewModel = adminViewModel
+                viewModel = adminViewModel,
+                onEventEditClick = { eventId ->
+                    navController.navigate(EditEvent(eventId))
+                },
+                onEventClick = { eventId ->
+                    navController.navigate(EventDetails(eventId))
+                },
+                onAnnouncementEditClick = { announcementId ->
+                    navController.navigate(EditAnnouncement(announcementId))
+                },
+                onAnnouncementClick = {announcementId ->
+                    navController.navigate(AnnouncementDetails(announcementId))
+                }
+            )
+        }
+        composable<EventDetails> { navBackStackEntry ->
+            val eventId = navBackStackEntry.toRoute<EventDetails>().eventId
+            val eventDetailsViewModel: EventDetailsViewModel = koinViewModel()
+            val feedViewModel: FeedViewModel = koinViewModel()
+            EventDetailsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                eventId = eventId,
+                viewModel = eventDetailsViewModel,
+                feedViewModel = feedViewModel,
+                onNavigateToEditEvent = { navController.navigate("edit_event/$it") },
+                onNavigateToChat = { chatId ->
+                    println("MainScreen: Navigating to ChatsScreen and chatId=$chatId")
+                    navController.navigate(Chats) {
+                        popUpTo(navController.graph.startDestinationId) {
+                            saveState = true
+                        }
+                        restoreState = true
+                        launchSingleTop = true
+                    }
+                    navController.navigate("chat/$chatId")
+                }
+            )
+            LaunchedEffect(eventDetailsViewModel) {
+                eventDetailsViewModel.container.sideEffectFlow.collect { sideEffect ->
+                    when (sideEffect) {
+                        is EventDetailsSideEffect.NavigateToChat -> {
+                            // Обработка в onNavigateToChat, здесь не требуется
+                        }
+
+                        is EventDetailsSideEffect.ShowError -> {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(sideEffect.message)
+                            }
+                        }
+
+                        is EventDetailsSideEffect.OnNavigateBack -> {
+                            navController.popBackStack()
+                        }
+
+                        is EventDetailsSideEffect.NavigateToEditEvent -> {
+                            navController.navigate("edit_event/${sideEffect.eventId}")
+                        }
+
+                        is EventDetailsSideEffect.EventDeleted -> {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Мероприятие удалено")
+                            }
+                            navController.popBackStack()
+
+                        }
+                    }
+                }
+            }
+        }
+        composable<EditEvent> { navBackStackEntry ->
+            val eventId = navBackStackEntry.toRoute<EditEvent>().eventId
+            EditEventScreen(
+                eventId = eventId,
+                onNavigateBack = { navController.popBackStack() },
+                onEventUpdated = { navController.popBackStack() }
+            )
+        }
+        composable<AnnouncementDetails> { backStackEntry ->
+            val announcement = backStackEntry.toRoute<AnnouncementDetails>()
+            val feedViewModel: FeedViewModel = koinViewModel()
+            AnnouncementDetailsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                announcementId = announcement.announcementId,
+                feedViewModel = feedViewModel,
+                onNavigateToEditAnnouncement = { id ->
+                    navController.navigate("edit_announcement/$id")
+                },
+                onNavigateToChat = { chatId ->
+                    navController.navigate("chat/$chatId")
+                }
+            )
+        }
+        composable<EditAnnouncement> { backStackEntry ->
+            val editannouncement = backStackEntry.toRoute<EditAnnouncement>()
+            EditAnnouncementScreen(
+                announcementId = editannouncement.announcementId,
+                onNavigateBack = { navController.popBackStack() },
+                onAnnouncementUpdated = { navController.popBackStack() },
+                onAnnouncementDeleted = { navController.popBackStack() }
             )
         }
         composable<AddUser> {
@@ -265,12 +341,11 @@ fun RootScreen(intent: Intent) {
                 onBackClick = { navController.navigateUp() }
             )
         }
-        composable(
-            route = "EditUser/{userId}",
-            arguments = listOf(navArgument("userId") { type = NavType.StringType })
-        ) { backStackEntry ->
+
+        composable<EditUser> { navBackStackEntry ->
+            val editUser = navBackStackEntry.toRoute<EditUser>()
             EditUserScreen(
-                userId = backStackEntry.arguments?.getString("userId") ?: "",
+                userId = editUser.userId,
                 viewModel = adminViewModel,
                 onBackClick = { navController.navigateUp() }
             )
@@ -297,45 +372,6 @@ fun RootScreen(intent: Intent) {
                 onBackClick = { navController.navigateUp() }
             )
         }
-
-
-
-//        composable<Main> { backStackEntry ->
-//            val main = backStackEntry.toRoute<Main>()
-//            MainScreen(
-//                userId = main.userId,
-//                onNavigateAuth = {
-//                    navController.navigate(Auth) {
-//                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
-//                    }
-//                },
-//            )
-//        }
-//        composable(
-//            route = "Main/{userId}?openProfile={openProfile}&viewOnly={viewOnly}&viewUserId={viewUserId}",
-//            arguments = listOf(
-//                navArgument("userId") { type = NavType.StringType },
-//                navArgument("openProfile") { type = NavType.BoolType; defaultValue = false },
-//                navArgument("viewOnly") { type = NavType.BoolType; defaultValue = false },
-//                navArgument("viewUserId") { type = NavType.StringType; nullable = true }
-//            )
-//        ) { backStackEntry ->
-//            val userId = backStackEntry.arguments?.getString("userId") ?: ""
-//            val openProfile = backStackEntry.arguments?.getBoolean("openProfile") ?: false
-//            val viewOnly = backStackEntry.arguments?.getBoolean("viewOnly") ?: false
-//            val viewUserId = backStackEntry.arguments?.getString("viewUserId")
-//            MainScreen(
-//                userId = userId,
-//                onNavigateAuth = {
-//                    navController.navigate(Auth) {
-//                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
-//                    }
-//                },
-//                openProfile = openProfile,
-//                viewOnly = viewOnly,
-//                viewUserId = viewUserId
-//            )
-//        }
     }
 
     LaunchedEffect(intent) {

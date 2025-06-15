@@ -41,6 +41,25 @@ class EventsRepositoryImpl(
         }
     }
 
+    override suspend fun fetchAllEventsAdmin(): List<Event> {
+        return try {
+            val events = supabaseWrapper.postgrest[Table.EVENTS]
+                .select {
+                }
+                .decodeList<EventDto>()
+            val result = events.map { eventDto ->
+                val tagNames = eventInterestsRepository.fetchTagsForEvent(eventDto.id)
+                    .map { it.name }
+                eventDto.toDomain(tagNames)
+            }
+            Log.d("EventsRepository", "Загружено мероприятий: ${result.size}")
+            result
+        } catch (e: Exception) {
+            Log.e("EventsRepository", "Ошибка загрузки мероприятий: ${e.message}", e)
+            emptyList()
+        }
+    }
+
     override suspend fun createEvent(event: Event): Result<Unit> {
         return try {
             val eventDto = event.toDto()
@@ -176,6 +195,40 @@ class EventsRepositoryImpl(
         throw it
     }
 
+    override suspend fun updateEventStatus(eventId: String, status: String): Result<Unit> {
+        return try {
+            val statusId = when (status) {
+                "pending" -> "ac32ffcc-8f69-4b71-8a39-877c1eb95e04"
+                "approved" -> "7513755c-ce44-459f-a071-07080e90f450" // Пример UUID для approved
+                "rejected" -> "a9a0a4ec-b0b3-4684-ae6f-d576c52b9926" // Замените на актуальный UUID для rejected
+                else -> throw IllegalArgumentException("Недопустимый статус: $status")
+            }
+            supabaseWrapper.postgrest[Table.EVENTS].update(
+                mapOf("status_id" to statusId)
+            ) {
+                filter { eq("id", eventId) }
+            }
+            Log.d("EventsRepository", "Статус мероприятия $eventId обновлен на $status")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("EventsRepository", "Ошибка обновления статуса мероприятия $eventId: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun deleteEventAdmin(eventId: String): Result<Unit> {
+        return try {
+            supabaseWrapper.postgrest[Table.EVENTS]
+                .delete {
+                    filter { eq("id", eventId) }
+                }
+            Log.d("EventsRepository", "Мероприятие $eventId успешно удалено админом")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("EventsRepository", "Ошибка удаления мероприятия $eventId админом: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
 }
 
 class RepositoryException(message: String, cause: Throwable? = null) : Exception(message, cause)

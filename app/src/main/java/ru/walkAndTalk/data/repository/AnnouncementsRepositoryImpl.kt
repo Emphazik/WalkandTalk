@@ -4,9 +4,11 @@ import android.util.Log
 import ru.walkAndTalk.data.mapper.toDomain
 import ru.walkAndTalk.data.mapper.toDto
 import ru.walkAndTalk.data.model.AnnouncementDto
+import ru.walkAndTalk.data.model.EventDto
 import ru.walkAndTalk.data.network.SupabaseWrapper
 import ru.walkAndTalk.domain.Table
 import ru.walkAndTalk.domain.model.Announcement
+import ru.walkAndTalk.domain.model.Event
 import ru.walkAndTalk.domain.repository.AnnouncementsRepository
 
 class AnnouncementsRepositoryImpl(
@@ -30,6 +32,20 @@ class AnnouncementsRepositoryImpl(
         }
     }
 
+    override suspend fun fetchAllAnnouncementsAdmin(): List<Announcement> {
+        return try {
+            val announcementDtos = supabaseWrapper.postgrest[Table.ANNOUNCEMENTS]
+                .select {
+                }
+                .decodeList<AnnouncementDto>()
+            val announcements = announcementDtos.map { it.toDomain() }
+            Log.d("AnnouncementsRepository", "Загружены объявления: $announcements")
+            announcements
+        } catch (e: Exception) {
+            Log.e("EventsRepository", "Ошибка загрузки мероприятий: ${e.message}", e)
+            emptyList()
+        }
+    }
     override suspend fun fetchAnnouncementById(announcementId: String): Announcement? {
         return try {
             val announcementDto = supabaseWrapper.postgrest[Table.ANNOUNCEMENTS]
@@ -104,6 +120,35 @@ class AnnouncementsRepositoryImpl(
                     }
                 }
             Log.d("AnnouncementsRepository", "Объявление с id=$announcementId успешно удалено")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("AnnouncementsRepository", "Ошибка удаления объявления с id=$announcementId: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun deleteAnnouncementAdmin(announcementId: String): Result<Unit> {
+        return try {
+            val announcementDto = supabaseWrapper.postgrest[Table.ANNOUNCEMENTS]
+                .select {
+                    filter {
+                        eq("id", announcementId)
+                    }
+                }
+                .decodeSingleOrNull<AnnouncementDto>()
+
+            if (announcementDto == null) {
+                Log.e("AnnouncementsRepository", "Объявление с id=$announcementId не найдено")
+                return Result.failure(IllegalArgumentException("Объявление не найдено"))
+            }
+
+            supabaseWrapper.postgrest[Table.ANNOUNCEMENTS]
+                .delete {
+                    filter {
+                        eq("id", announcementId)
+                    }
+                }
+            Log.d("AnnouncementsRepository", "Объявление с id=$announcementId успешно удалено администратором")
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("AnnouncementsRepository", "Ошибка удаления объявления с id=$announcementId: ${e.message}", e)

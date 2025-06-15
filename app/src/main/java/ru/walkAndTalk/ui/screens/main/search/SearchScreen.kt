@@ -291,7 +291,7 @@ fun SearchScreen(
                 LazyColumn(
                     modifier = Modifier.weight(1f)
                 ) {
-                    items(state.users.filter { it.id != userId }) { user ->
+                    items(state.users.filter { it.id != userId && !it.isAdmin }) { user ->
                         UserCard(
                             user = user,
                             viewModel = viewModel,
