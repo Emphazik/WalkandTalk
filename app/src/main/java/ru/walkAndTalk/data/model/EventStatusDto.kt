@@ -4,6 +4,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class EventStatusDto(
-    val id: Long,
+    val id: String,
     val name: String
 )

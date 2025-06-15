@@ -955,7 +955,7 @@ fun EventCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
-                StatusChip(status = event.status)
+                StatusChip(status = event.statusId)
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -1065,7 +1065,7 @@ fun AnnouncementCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
-                StatusChip(status = announcement.status)
+                StatusChip(status = announcement.statusId)
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(

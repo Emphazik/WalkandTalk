@@ -89,7 +89,10 @@ class RemoteUsersRepositoryImpl(
     }
 
     override suspend fun add(user: User) {
-        Log.d("RemoteUsersRepository", "Adding user: id=${user.id}, email=${user.email}, phone=${user.phone}, vkId=${user.vkId}")
+        Log.d(
+            "RemoteUsersRepository",
+            "Adding user: id=${user.id}, email=${user.email}, phone=${user.phone}, vkId=${user.vkId}"
+        )
         try {
             supabaseWrapper.postgrest[Table.USERS].insert(user.toDto())
             Log.d("RemoteUsersRepository", "User added successfully: ${user.email}")
@@ -100,7 +103,10 @@ class RemoteUsersRepositoryImpl(
     }
 
     override suspend fun registerNewUser(vkUser: User): User {
-        Log.d("RemoteUsersRepository", "Registering new user: ${vkUser.email}, vkId: ${vkUser.vkId}, id: ${vkUser.id}")
+        Log.d(
+            "RemoteUsersRepository",
+            "Registering new user: ${vkUser.email}, vkId: ${vkUser.vkId}, id: ${vkUser.id}"
+        )
         add(vkUser)
         val createdUser = fetchByEmail(vkUser.email)
             ?: throw IllegalStateException("Failed to fetch created user: ${vkUser.email}")
@@ -169,17 +175,27 @@ class RemoteUsersRepositoryImpl(
                     .decodeSingleOrNull<InterestDto>()
                     ?.name
                     .also { name ->
-                        Log.d("RemoteUsersRepository", "Fetched name for interestId=$interestId: $name")
+                        Log.d(
+                            "RemoteUsersRepository",
+                            "Fetched name for interestId=$interestId: $name"
+                        )
                     }
             } catch (e: Exception) {
-                Log.e("RemoteUsersRepository", "Error fetching name for interestId=$interestId: ${e.message}", e)
+                Log.e(
+                    "RemoteUsersRepository",
+                    "Error fetching name for interestId=$interestId: ${e.message}",
+                    e
+                )
                 null
             }
         }
     }
 
     override suspend fun updateCityKnowledgeLevel(userId: String, levelId: String) {
-        Log.d("RemoteUsersRepository", "Обновление city_knowledge_level_id для userId: $userId, levelId: $levelId")
+        Log.d(
+            "RemoteUsersRepository",
+            "Обновление city_knowledge_level_id для userId: $userId, levelId: $levelId"
+        )
         supabaseWrapper.postgrest[Table.USERS]
             .update(
                 mapOf("city_knowledge_level_id" to levelId)
@@ -208,19 +224,40 @@ class RemoteUsersRepositoryImpl(
             }
     }
 
+    //    override suspend fun uploadProfileImage(userId: String, imageUri: Uri, fileName: String) {
+//        Log.d("RemoteUsersRepository", "Загрузка изображения для userId: $userId, fileName: $fileName")
+//        storageRepository.upload(Bucket.PROFILE_IMAGES, fileName, imageUri)
+//    }
+//
+//    override suspend fun getProfileImageUrl(userId: String, fileName: String): String {
+//        Log.d("RemoteUsersRepository", "Получение URL для userId: $userId, fileName: $fileName")
+//        return storageRepository.createSignedUrl(Bucket.PROFILE_IMAGES, fileName)
+//            //?: "https://tvecrsehuuqrjwjfgljf.supabase.co/storage/v1/object/sign/profile-images/default_profile.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2Y2YjA0NTBiLWVkNDktNGFkNi1iMGM2LWJiYzZmNzM0ZGY2YyJ9.eyJ1cmwiOiJwcm9maWxlLWltYWdlcy9kZWZhdWx0X3Byb2ZpbGUucG5nIiwiaWF0IjoxNzQ1NTI2MjM1LCJleHAiOjE3NzcwNjIyMzV9.RrxpUDm_OaKOOFFBICiPfVYgCdVTKMcyKqq6TKIYTv0"
+//    }
     override suspend fun uploadProfileImage(userId: String, imageUri: Uri, fileName: String) {
-        Log.d("RemoteUsersRepository", "Загрузка изображения для userId: $userId, fileName: $fileName")
-        storageRepository.upload(Bucket.PROFILE_IMAGES, fileName, imageUri)
+        Log.d(
+            "RemoteUsersRepository",
+            "Загрузка изображения для userId: $userId, fileName: $fileName"
+        )
+        storageRepository.uploadProfileImage(path = fileName, uri = imageUri)
+            .onSuccess { Log.d("RemoteUsersRepository", "Изображение загружено: $it") }
+            .onFailure { Log.e("RemoteUsersRepository", "Ошибка загрузки: ${it.message}") }
     }
 
     override suspend fun getProfileImageUrl(userId: String, fileName: String): String {
         Log.d("RemoteUsersRepository", "Получение URL для userId: $userId, fileName: $fileName")
         return storageRepository.createSignedUrl(Bucket.PROFILE_IMAGES, fileName)
-            //?: "https://tvecrsehuuqrjwjfgljf.supabase.co/storage/v1/object/sign/profile-images/default_profile.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2Y2YjA0NTBiLWVkNDktNGFkNi1iMGM2LWJiYzZmNzM0ZGY2YyJ9.eyJ1cmwiOiJwcm9maWxlLWltYWdlcy9kZWZhdWx0X3Byb2ZpbGUucG5nIiwiaWF0IjoxNzQ1NTI2MjM1LCJleHAiOjE3NzcwNjIyMzV9.RrxpUDm_OaKOOFFBICiPfVYgCdVTKMcyKqq6TKIYTv0"
+            .getOrElse {
+                Log.e("RemoteUsersRepository", "Ошибка получения URL: ${it.message}")
+                "https://tvecrsehuuqrjwjfgljf.supabase.co/storage/v1/object/sign/profile-images/default_profile.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2Y2YjA0NTBiLWVkNDktNGFkNi1iMGM2LWJiYzZmNzM0ZGY2YyJ9.eyJ1cmwiOiJwcm9maWxlLWltYWdlcy9kZWZhdWx0X3Byb2ZpbGUucG5nIiwiaWF0IjoxNzQ1NTI2MjM1LCJleHAiOjE3NzcwNjIyMzV9.RrxpUDm_OaKOOFFBICiPfVYgCdVTKMcyKqq6TKIYTv0"
+            }
     }
 
     override suspend fun updateProfileImageUrl(userId: String, imageUrl: String) {
-        Log.d("RemoteUsersRepository", "Обновление profile_image_url для userId: $userId, url: $imageUrl")
+        Log.d(
+            "RemoteUsersRepository",
+            "Обновление profile_image_url для userId: $userId, url: $imageUrl"
+        )
         supabaseWrapper.postgrest[Table.USERS]
             .update(
                 mapOf("profile_image_url" to imageUrl)
@@ -251,7 +288,8 @@ class RemoteUsersRepositoryImpl(
             try {
                 val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 sdf.isLenient = false
-                val date = sdf.parse(birthDate) ?: throw IllegalArgumentException("Неверный формат даты")
+                val date =
+                    sdf.parse(birthDate) ?: throw IllegalArgumentException("Неверный формат даты")
                 val currentDate = Date()
                 val minAgeDate = Calendar.getInstance().apply { add(Calendar.YEAR, -13) }.time
                 require(date.before(currentDate)) { "Дата рождения не может быть в будущем" }
@@ -298,7 +336,10 @@ class RemoteUsersRepositoryImpl(
     }
 
     override suspend fun updateShowReviews(userId: String, showReviews: Boolean): Boolean {
-        Log.d("RemoteUsersRepository", "Updating show_reviews for userId: $userId, showReviews: $showReviews")
+        Log.d(
+            "RemoteUsersRepository",
+            "Updating show_reviews for userId: $userId, showReviews: $showReviews"
+        )
         return try {
             supabaseWrapper.postgrest[Table.USERS]
                 .update(mapOf("show_reviews" to showReviews)) {

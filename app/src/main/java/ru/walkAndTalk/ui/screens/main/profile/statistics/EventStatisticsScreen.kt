@@ -271,7 +271,7 @@ fun EventCardPreview() {
             eventImageUrl = "https://example.com/event.jpg",
             organizerName = "Sample Organizer",
             tagIds = emptyList(),
-            status = "pending"
+            statusId = "pending"
         ),
         reviewInput = ReviewInput(rating = 3, comment = "Отличное мероприятие!", isSubmitted = true),
         onRatingChanged = {},

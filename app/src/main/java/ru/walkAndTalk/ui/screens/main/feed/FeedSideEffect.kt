@@ -7,4 +7,6 @@ sealed class FeedSideEffect {
     data class ShowError(val message: String) : FeedSideEffect()
     data class LeaveEventSuccess(val eventId: String) : FeedSideEffect()
     data class NavigateToChat(val chatId: String) : FeedSideEffect()
+    data class ShowMessage(val message: String) : FeedSideEffect()
+    data class NavigateToAnnouncementDetails(val announcementId: String) : FeedSideEffect()
 }

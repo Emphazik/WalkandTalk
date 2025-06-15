@@ -6,5 +6,7 @@ data class EventDetailsState(
     val event: Event? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val participantsCount: Int = 0 // Добавляем количество участников
+    val participantsCount: Int = 0, // Добавляем количество участников
+    val isCurrentUserOrganizer: Boolean = false, // Новое поле
+    val tagNames: List<String> = emptyList() // Добавлено для названий тегов
 )

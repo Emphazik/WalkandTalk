@@ -6,7 +6,7 @@ import kotlinx.datetime.Instant
 import ru.walkAndTalk.data.model.EventDto
 import ru.walkAndTalk.domain.model.Event
 
-fun EventDto.toDomain(tagNames: List<String> = emptyList(), statusName: String = "pending"): Event {
+fun EventDto.toDomain(tagNames: List<String> = emptyList()): Event {
     return Event(
         id = id,
         creatorId = creatorId,
@@ -16,12 +16,13 @@ fun EventDto.toDomain(tagNames: List<String> = emptyList(), statusName: String =
         eventDate = eventDate,
         createdAt = createdAt ?: Clock.System.now().toString(),
         eventImageUrl = eventImageUrl,
-        tagIds = tagNames,
-        status = statusName
+        tagIds = tagIds,
+        statusId = statusId, // Сохраняем UUID
+        maxParticipants = maxParticipants
     )
 }
 
-fun Event.toDto(statusId: Int): EventDto {
+fun Event.toDto(): EventDto {
     return EventDto(
         id = id,
         creatorId = creatorId,
@@ -32,6 +33,7 @@ fun Event.toDto(statusId: Int): EventDto {
         createdAt = createdAt,
         eventImageUrl = eventImageUrl,
         tagIds = tagIds,
-        statusId = statusId
+        statusId = statusId, // Используем statusId из Event
+        maxParticipants = maxParticipants,
     )
 }

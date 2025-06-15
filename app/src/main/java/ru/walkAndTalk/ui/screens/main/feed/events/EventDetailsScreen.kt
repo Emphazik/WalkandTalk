@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberBasicTooltipState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +22,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -46,7 +49,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
 import coil3.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -67,7 +69,8 @@ fun EventDetailsScreen(
     eventId: String,
     viewModel: EventDetailsViewModel = koinViewModel(),
     feedViewModel: FeedViewModel,
-    navController: NavController
+    onNavigateToEditEvent: (String) -> Unit,
+    onNavigateToChat: (String) -> Unit // Новый callback
 ) {
     val state by viewModel.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
@@ -76,12 +79,6 @@ fun EventDetailsScreen(
     val isParticipating = feedViewModel.participationState
         .map { it[eventId] ?: false }
         .collectAsState(initial = false).value
-
-    var isSnackbarVisible by remember { mutableStateOf(false) }
-
-    LaunchedEffect(snackbarHostState.currentSnackbarData) {
-        isSnackbarVisible = snackbarHostState.currentSnackbarData != null
-    }
 
     viewModel.loadEvent(eventId)
 
@@ -94,10 +91,41 @@ fun EventDetailsScreen(
                 }
             }
             is EventDetailsSideEffect.NavigateToChat -> {
-                navController.navigate("chat/${sideEffect.chatId}")
+                onNavigateToChat(sideEffect.chatId)
+            }
+            is EventDetailsSideEffect.NavigateToEditEvent -> {
+                onNavigateToEditEvent(sideEffect.eventId)
+            }
+            is EventDetailsSideEffect.EventDeleted -> {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Мероприятие удалено")
+                }
+                onNavigateBack()
             }
         }
     }
+//    viewModel.collectSideEffect { sideEffect ->
+//        when (sideEffect) {
+//            is EventDetailsSideEffect.OnNavigateBack -> onNavigateBack()
+//            is EventDetailsSideEffect.ShowError -> {
+//                coroutineScope.launch {
+//                    snackbarHostState.showSnackbar(sideEffect.message)
+//                }
+//            }
+//            is EventDetailsSideEffect.NavigateToChat -> {
+//                navController.navigate("chat/${sideEffect.chatId}")
+//            }
+//            is EventDetailsSideEffect.NavigateToEditEvent -> {
+//                navController.navigate("edit_event/${sideEffect.eventId}")
+//            }
+//            is EventDetailsSideEffect.EventDeleted -> {
+//                coroutineScope.launch {
+//                    snackbarHostState.showSnackbar("Мероприятие удалено")
+//                }
+//                onNavigateBack()
+//            }
+//        }
+//    }
 
     LaunchedEffect(feedViewModel) {
         feedViewModel.container.sideEffectFlow.collect { sideEffect ->
@@ -113,9 +141,7 @@ fun EventDetailsScreen(
                 }
                 is FeedSideEffect.ShowError -> {
                     coroutineScope.launch {
-                        snackbarHostState.showSnackbar(
-                            message = sideEffect.message
-                        )
+                        snackbarHostState.showSnackbar(sideEffect.message)
                     }
                 }
                 is FeedSideEffect.LeaveEventSuccess -> {
@@ -158,15 +184,33 @@ fun EventDetailsScreen(
                 color = colorScheme.error
             )
         } else if (state.event != null) {
+//            EventDetailsContent(
+//                event = state.event!!,
+//                participantsCount = state.participantsCount,
+//                isCurrentUserOrganizer = state.isCurrentUserOrganizer,
+//                onNavigateBack = onNavigateBack,
+//                onParticipateClick = { feedViewModel.onParticipateClick(eventId) },
+//                isParticipating = isParticipating,
+//                onLeaveClick = { feedViewModel.onLeaveEventClick(eventId) },
+//                onJoinChatClick = { viewModel.onJoinChatClick(eventId) },
+//                onEditEventClick = { viewModel.onEditEventClick(eventId) },
+//                onDeleteEventClick = { viewModel.onDeleteEventClick(eventId) },
+//                colorScheme = colorScheme,
+//                viewModel = viewModel
+//            )
             EventDetailsContent(
                 event = state.event!!,
                 participantsCount = state.participantsCount,
+                isCurrentUserOrganizer = state.isCurrentUserOrganizer,
                 onNavigateBack = onNavigateBack,
                 onParticipateClick = { feedViewModel.onParticipateClick(eventId) },
                 isParticipating = isParticipating,
                 onLeaveClick = { feedViewModel.onLeaveEventClick(eventId) },
-                onJoinChatClick = { viewModel.onJoinChatClick(eventId) }, // Обновляем вызов
+                onJoinChatClick = { viewModel.onJoinChatClick(eventId) },
+                onEditEventClick = { viewModel.onEditEventClick(eventId) },
+                onDeleteEventClick = { viewModel.onDeleteEventClick(eventId) },
                 colorScheme = colorScheme,
+                tagNames = state.tagNames,
                 viewModel = viewModel
             )
         }
@@ -177,24 +221,30 @@ fun EventDetailsScreen(
 fun EventDetailsContent(
     event: Event,
     participantsCount: Int,
+    isCurrentUserOrganizer: Boolean,
     onNavigateBack: () -> Unit,
     onParticipateClick: () -> Unit,
     isParticipating: Boolean,
     onLeaveClick: () -> Unit,
-    onJoinChatClick: () -> Unit, // Упрощаем сигнатуру
+    onJoinChatClick: () -> Unit,
+    onEditEventClick: () -> Unit,
+    onDeleteEventClick: () -> Unit,
     colorScheme: ColorScheme,
-    viewModel: EventDetailsViewModel = koinViewModel()
+    viewModel: EventDetailsViewModel,
+    tagNames: List<String> // Добавлено
 ) {
     var showLeaveConfirmation by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var menuExpanded by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // Изображение с затемнением и текстом
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -210,15 +260,14 @@ fun EventDetailsContent(
                 } ?: errorPainter,
                 contentDescription = event.title,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
+                modifier = Modifier.fillMaxSize()
             )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         brush = Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.2f)), // Уменьшена прозрачность
                             startY = 0f,
                             endY = 250.dp.value
                         )
@@ -235,6 +284,46 @@ fun EventDetailsContent(
                     contentDescription = "Back",
                     tint = Color.White
                 )
+            }
+            if (isCurrentUserOrganizer) {
+                var menuExpanded by remember { mutableStateOf(false) }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                ) {
+                    IconButton(
+                        onClick = { menuExpanded = true }
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_more128),
+                            contentDescription = "Menu",
+                            tint = Color.White
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                        modifier = Modifier
+                            .background(colorScheme.surface)
+                            .align(Alignment.TopEnd) // Выравнивание под кнопкой
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Редактировать", fontFamily = montserratFont, color = colorScheme.onSurface) },
+                            onClick = {
+                                menuExpanded = false
+                                onEditEventClick()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Удалить", fontFamily = montserratFont, color = colorScheme.error) },
+                            onClick = {
+                                menuExpanded = false
+                                showDeleteConfirmation = true
+                            }
+                        )
+                    }
+                }
             }
             Column(
                 modifier = Modifier
@@ -258,7 +347,6 @@ fun EventDetailsContent(
             }
         }
 
-        // Карточка с деталями
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -272,7 +360,6 @@ fun EventDetailsContent(
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
-                // Место
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -290,10 +377,7 @@ fun EventDetailsContent(
                         color = colorScheme.onSurface
                     )
                 }
-
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // Описание
                 Text(
                     text = "Описание",
                     fontFamily = montserratFont,
@@ -308,18 +392,15 @@ fun EventDetailsContent(
                     fontSize = 14.sp,
                     color = colorScheme.onSurface.copy(alpha = 0.8f)
                 )
-
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // Теги
-                if (event.tagIds.isNotEmpty()) {
+                if (tagNames.isNotEmpty()) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Tags:",
+                            text = "Теги:",
                             fontFamily = montserratFont,
                             fontSize = 14.sp,
                             color = colorScheme.onSurface.copy(alpha = 0.6f),
@@ -329,14 +410,14 @@ fun EventDetailsContent(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            event.tagIds.forEach { tag ->
+                            tagNames.forEach { tagName ->
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
                                     color = colorScheme.primaryContainer,
                                     modifier = Modifier.padding(vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = tag,
+                                        text = tagName,
                                         fontFamily = montserratFont,
                                         fontSize = 12.sp,
                                         color = colorScheme.onPrimaryContainer,
@@ -348,8 +429,6 @@ fun EventDetailsContent(
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
-
-                // Кол-во участников
                 Text(
                     text = if (participantsCount > 0) "Кол-во участников: $participantsCount"
                     else "Кол-во участников: Станьте первым!",
@@ -357,10 +436,7 @@ fun EventDetailsContent(
                     fontSize = 14.sp,
                     color = colorScheme.onSurface.copy(alpha = 0.6f)
                 )
-
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // Организатор
                 Text(
                     text = "Организатор: ${event.organizerName ?: "Неизвестно"}",
                     fontFamily = montserratFont,
@@ -409,11 +485,9 @@ fun EventDetailsContent(
                 .fillMaxWidth()
                 .height(50.dp)
                 .padding(horizontal = 16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = colorScheme.secondaryContainer
-            ),
+            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.secondaryContainer),
             shape = RoundedCornerShape(8.dp),
-            enabled = isParticipating // Disable button if not participating
+            enabled = isParticipating
         ) {
             Text(
                 text = "Присоединиться к чату",
@@ -425,32 +499,43 @@ fun EventDetailsContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // SnackbarHost for error messages
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
-
         if (showLeaveConfirmation) {
             AlertDialog(
                 onDismissRequest = { showLeaveConfirmation = false },
-                title = { Text("Подтверждение") },
-                text = { Text("Вы уверены, что хотите отменить участие в '${event.title}'?") },
+                title = { Text("Подтверждение", fontFamily = montserratFont) },
+                text = { Text("Вы уверены, что хотите отменить участие в '${event.title}'?", fontFamily = montserratFont) },
                 confirmButton = {
-                    TextButton(
-                        onClick = {
-                            onLeaveClick()
-                            showLeaveConfirmation = false
-                        }
-                    ) {
-                        Text("Да")
+                    TextButton(onClick = {
+                        onLeaveClick()
+                        showLeaveConfirmation = false
+                    }) {
+                        Text("Да", fontFamily = montserratFont)
                     }
                 },
                 dismissButton = {
-                    TextButton(
-                        onClick = { showLeaveConfirmation = false }
-                    ) {
-                        Text("Нет")
+                    TextButton(onClick = { showLeaveConfirmation = false }) {
+                        Text("Нет", fontFamily = montserratFont)
+                    }
+                }
+            )
+        }
+
+        if (showDeleteConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmation = false },
+                title = { Text("Подтверждение удаления", fontFamily = montserratFont) },
+                text = { Text("Вы уверены, что хотите удалить мероприятие '${event.title}'?", fontFamily = montserratFont) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        onDeleteEventClick()
+                        showDeleteConfirmation = false
+                    }) {
+                        Text("Удалить", fontFamily = montserratFont, color = colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirmation = false }) {
+                        Text("Отмена", fontFamily = montserratFont)
                     }
                 }
             )

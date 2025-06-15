@@ -152,7 +152,7 @@ class AdminViewModel(
                 // Загрузка изображения, если выбрано
                 val imageUrl = profileImageUri?.let { uri ->
                     val fileName = "${user.id}/profile.jpg"
-                    storageRepository.upload(Bucket.PROFILE_IMAGES, fileName, uri)
+                    storageRepository.uploadProfileImage(fileName, uri)
                     storageRepository.createSignedUrl(Bucket.PROFILE_IMAGES, fileName)
                 } ?: "https://tvecrsehuuqrjwjfgljf.supabase.co/storage/v1/object/sign/profile-images/default_profile.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2Y2YjA0NTBiLWVkNDktNGFkNi1iMGM2LWJiYzZmNzM0ZGY2YyJ9.eyJ1cmwiOiJwcm9maWxlLWltYWdlcy9kZWZhdWx0X3Byb2ZpbGUucG5nIiwiaWF0IjoxNzQ1NTI2MjM1LCJleHAiOjE3NzcwNjIyMzV9.RrxpUDm_OaKOOFFBICiPfVYgCdVTKMcyKqq6TKIYTv0"
 
@@ -164,7 +164,7 @@ class AdminViewModel(
                         phone = phone,
                         name = name,
                         password = password,
-                        profileImageUrl = imageUrl,
+                        profileImageUrl = imageUrl.toString(),
                         vkId = null,
                         interestIds = emptyList(),
                         cityKnowledgeLevelId = null,
@@ -262,7 +262,7 @@ fun updateUser(
         // Загрузка нового изображения профиля, если выбрано
         val imageUrl = profileImageUri?.let { uri ->
             val fileName = "$userId/profile.jpg"
-            storageRepository.upload(Bucket.PROFILE_IMAGES, fileName, uri)
+            storageRepository.uploadProfileImage(fileName, uri)
             storageRepository.createSignedUrl(Bucket.PROFILE_IMAGES, fileName)
         } ?: currentUser.profileImageUrl
 
@@ -274,7 +274,7 @@ fun updateUser(
                 phone = phone,
                 name = name,
                 password = password ?: currentUser.password,
-                profileImageUrl = imageUrl,
+                profileImageUrl = imageUrl.toString(),
                 vkId = vkId as Long?,
                 interestIds = interestIds,
                 cityKnowledgeLevelId = cityKnowledgeLevelId,
@@ -343,9 +343,9 @@ fun updateUser(
     fun updateEventStatus(eventId: String, status: String) = intent {
         try {
             val event = contentRepository.fetchEventById(eventId) ?: return@intent
-            contentRepository.updateEvent(event.copy(status = status))
+            contentRepository.updateEvent(event.copy(statusId = status))
             val updatedEvents = state.events.map {
-                if (it.id == eventId) it.copy(status = status) else it
+                if (it.id == eventId) it.copy(statusId = status) else it
             }
             reduce { state.copy(events = updatedEvents) }
         } catch (e: Exception) {
@@ -358,9 +358,9 @@ fun updateUser(
         try {
             val announcement =
                 contentRepository.fetchAnnouncementById(announcementId) ?: return@intent
-            contentRepository.updateAnnouncement(announcement.copy(status = status))
+            contentRepository.updateAnnouncement(announcement.copy(statusId = status))
             val updatedAnnouncements = state.announcements.map {
-                if (it.id == announcementId) it.copy(status = status) else it
+                if (it.id == announcementId) it.copy(statusId = status) else it
             }
             reduce { state.copy(announcements = updatedAnnouncements) }
         } catch (e: Exception) {

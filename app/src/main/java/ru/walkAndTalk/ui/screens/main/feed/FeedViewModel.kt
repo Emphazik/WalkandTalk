@@ -1,5 +1,7 @@
 package ru.walkAndTalk.ui.screens.main.feed
 
+import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -8,124 +10,228 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toJavaZoneId
-import kotlinx.datetime.toLocalDateTime
 import org.orbitmvi.orbit.Container
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
-import ru.walkAndTalk.data.mapper.toDomain
+import ru.walkAndTalk.data.usecase.CreateAnnouncementUseCase
+import ru.walkAndTalk.data.usecase.CreateEventUseCase
+import ru.walkAndTalk.data.usecase.FetchFeedItemsUseCase
+import ru.walkAndTalk.domain.model.ActivityType
+import ru.walkAndTalk.domain.model.Announcement
 import ru.walkAndTalk.domain.model.Event
-import ru.walkAndTalk.domain.model.Notification
-import ru.walkAndTalk.domain.model.NotificationType
+import ru.walkAndTalk.domain.model.FeedItem
+import ru.walkAndTalk.domain.model.FeedItemType
+import ru.walkAndTalk.domain.model.Interest
+import ru.walkAndTalk.domain.repository.ActivityTypesRepository
 import ru.walkAndTalk.domain.repository.ChatsRepository
 import ru.walkAndTalk.domain.repository.EventParticipantsRepository
-import ru.walkAndTalk.domain.repository.EventsRepository
-import ru.walkAndTalk.domain.repository.NotificationsRepository
+import ru.walkAndTalk.domain.repository.InterestsRepository
 import ru.walkAndTalk.domain.repository.RemoteUsersRepository
+import ru.walkAndTalk.domain.repository.StorageRepository
+import java.io.File
 import java.text.SimpleDateFormat
 import java.time.OffsetDateTime
 import java.util.Locale
+import kotlin.collections.set
 
 class FeedViewModel(
-    private val eventsRepository: EventsRepository,
+    private val fetchFeedItemsUseCase: FetchFeedItemsUseCase,
+    private val createEventUseCase: CreateEventUseCase,
+    private val createAnnouncementUseCase: CreateAnnouncementUseCase,
     private val eventParticipantsRepository: EventParticipantsRepository,
+    private val chatsRepository: ChatsRepository,
+    private val interestsRepository: InterestsRepository,
+    private val storageRepository: StorageRepository,
     private val remoteUsersRepository: RemoteUsersRepository,
-    private val chatsRepository: ChatsRepository, // Add ChatsRepository
-    private val currentUserId: String,
-    private val notificationsRepository: NotificationsRepository,
-    ) : ViewModel(), ContainerHost<FeedViewState, FeedSideEffect> {
+    private val activityTypesRepository: ActivityTypesRepository,
+    val currentUserId: String
+) : ViewModel(), ContainerHost<FeedViewState, FeedSideEffect> {
 
     override val container: Container<FeedViewState, FeedSideEffect> = container(FeedViewState())
 
     private val _participationState = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     val participationState = _participationState.asStateFlow()
 
-    private var allEvents: List<Event> = emptyList()
+    private val _interests = MutableStateFlow<List<Interest>>(emptyList())
+    val interests = _interests.asStateFlow()
+
+    private val _activityTypes = MutableStateFlow<List<ActivityType>>(emptyList())
+    val activityTypes = _activityTypes.asStateFlow()
+
+    private var allFeedItems: List<FeedItem> = emptyList()
 
     init {
-        refreshEvents()
+        refreshFeed()
+        loadInterests()
+        loadActivityTypes()
     }
 
-    fun refreshEvents() = intent {
-        loadEvents()
+    private fun loadInterests() = intent {
+        viewModelScope.launch {
+            try {
+                _interests.value = interestsRepository.fetchAll()
+            } catch (e: Exception) {
+                postSideEffect(FeedSideEffect.ShowError("Ошибка загрузки тегов"))
+            }
+        }
     }
 
-    private fun loadEvents() = intent {
+    private fun loadActivityTypes() = intent {
+        viewModelScope.launch {
+            try {
+                _activityTypes.value = activityTypesRepository.fetchAll()
+            } catch (e: Exception) {
+                postSideEffect(FeedSideEffect.ShowError("Ошибка загрузки типов активностей"))
+            }
+        }
+    }
+
+    suspend fun uploadEventImage(imageUri: Uri): Result<String> {
+        return try {
+            val eventId = "event-${System.currentTimeMillis()}"
+            val fileName = "events/$eventId/${eventId}.jpg"
+            Log.d("FeedViewModel", "Загрузка изображения для event, fileName: $fileName")
+            val uploadResult = storageRepository.uploadEventImage(fileName, imageUri)
+            uploadResult.onSuccess { Log.d("FeedViewModel", "Изображение загружено: $it") }
+                .onFailure { Log.e("FeedViewModel", "Ошибка загрузки изображения: ${it.message}") }
+            val imageUrl = storageRepository.createSignedUrl("events-images", fileName)
+                .getOrElse {
+                    Log.e("FeedViewModel", "Ошибка получения URL: ${it.message}")
+                    throw it
+                }
+            Log.d("FeedViewModel", "URL изображения: $imageUrl")
+            Result.success(imageUrl)
+        } catch (e: Exception) {
+            Log.e("FeedViewModel", "Исключение при загрузке изображения: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    fun refreshFeed() = intent {
+        loadFeedItems()
+    }
+
+    suspend fun getEventStatusId(statusName: String): String? {
+        return eventParticipantsRepository.getStatusIdByName(statusName)
+    }
+
+    private fun loadFeedItems() = intent {
         reduce { state.copy(isLoading = true, error = null) }
         try {
-            allEvents = eventsRepository.fetchAllEvents()
-            println("FeedViewModel: Loaded ${allEvents.size} events")
-            val sortedEvents = applySort(state.sortType, allEvents)
-            reduce { state.copy(events = sortedEvents, isLoading = false) }
+            val interests = interestsRepository.fetchAll().associate { interest ->
+                interest.id to interest.name
+            }
+            Log.d("FeedViewModel", "Загрузка элементов с city: ${state.selectedCity}, type: ${state.selectedType}")
+            allFeedItems = fetchFeedItemsUseCase(state.selectedCity, state.selectedType)
+            Log.d("FeedViewModel", "Загружено элементов: ${allFeedItems.size}, объявления: ${allFeedItems.filterIsInstance<Announcement>().size}")
+            val sortedItems = applySort(state.sortType, allFeedItems)
+            reduce { state.copy(items = sortedItems, tagNames = interests, isLoading = false) }
             loadParticipationStates()
         } catch (e: Exception) {
-            println("FeedViewModel: LoadEvents error=${e.message}")
+            Log.e("FeedViewModel", "Ошибка загрузки ленты: ${e.message}", e)
             reduce { state.copy(isLoading = false, error = e.message) }
         }
     }
 
+    fun onSearchQueryChange(query: String) = intent {
+        reduce { state.copy(searchQuery = query) }
+        val filteredItems = if (query.startsWith("#") && query.length > 1) {
+            val tagQuery = query.drop(1).trim()
+            allFeedItems.filter { item ->
+                (item as? Event)?.tagIds?.any { tag -> tag.contains(tagQuery, ignoreCase = true) } == true
+            }
+        } else {
+            allFeedItems.filter { item ->
+                item.title.contains(query, ignoreCase = true) ||
+                        item.description?.contains(query, ignoreCase = true) == true
+            }
+        }
+        val sortedItems = applySort(state.sortType, filteredItems)
+        reduce { state.copy(items = sortedItems) }
+    }
 
+    fun onSortSelected(sortType: SortType?) = intent {
+        val sortedItems = applySort(sortType, if (state.searchQuery.isEmpty()) allFeedItems else state.items)
+        reduce { state.copy(sortType = sortType, items = sortedItems) }
+    }
+
+    fun onCitySelected(city: String?) = intent {
+        reduce { state.copy(selectedCity = city) }
+        loadFeedItems()
+    }
+
+    fun onTypeSelected(type: FeedItemType?) = intent {
+        reduce { state.copy(selectedType = type) }
+        loadFeedItems()
+    }
+
+    private fun applySort(sortType: SortType?, items: List<FeedItem>): List<FeedItem> {
+        return when (sortType) {
+            SortType.DateNewestFirst -> items.sortedByDescending { Instant.parse(it.createdAt) }
+            SortType.DateOldestFirst -> items.sortedBy { Instant.parse(it.createdAt) }
+            SortType.City -> items.sortedBy { it.location ?: "" }
+            null -> items
+        }
+    }
+
+    fun onCreateEvent(event: Event) = intent{
+        try {
+            Log.d("FeedViewModel", "Создание мероприятия: $event")
+            val user = remoteUsersRepository.fetchById(currentUserId)
+            Log.d("FeedViewModel", "Пользователь: $user")
+            val modifiedEvent = event.copy(organizerName = user?.name)
+            Log.d("FeedViewModel", "Модифицированное событие: $modifiedEvent")
+            val result = createEventUseCase(modifiedEvent)
+            result.onSuccess {
+                Log.d("FeedViewModel", "Мероприятие успешно создано")
+                postSideEffect(FeedSideEffect.ShowMessage("Мероприятие создано и ожидает модерации"))
+                refreshFeed()
+            }.onFailure { error ->
+                Log.e("FeedViewModel", "Ошибка создания мероприятия: ${error.message}", error)
+                postSideEffect(FeedSideEffect.ShowError("Ошибка создания мероприятия: ${error.message}"))
+            }
+        } catch (e: Exception) {
+            Log.e("FeedViewModel", "Исключение при создании мероприятия: ${e.message}", e)
+            postSideEffect(FeedSideEffect.ShowError("Ошибка: ${e.message}"))
+        }
+    }
+
+    fun onCreateAnnouncement(announcement: Announcement) = intent{
+        try {
+            Log.d("FeedViewModel", "Создание объявления: $announcement")
+            val user = remoteUsersRepository.fetchById(currentUserId)
+            Log.d("FeedViewModel", "Пользователь: $user")
+            val modifiedAnnouncement = announcement.copy() // Можно добавить модификации, если нужно
+            Log.d("FeedViewModel", "Модифицированное объявление: $modifiedAnnouncement")
+            val result = createAnnouncementUseCase(modifiedAnnouncement)
+            result.onSuccess {
+                Log.d("FeedViewModel", "Объявление успешно создано")
+                postSideEffect(FeedSideEffect.ShowMessage("Объявление создано и ожидает модерации"))
+                refreshFeed()
+            }.onFailure { error ->
+                Log.e("FeedViewModel", "Ошибка создания объявления: ${error.message}", error)
+                postSideEffect(FeedSideEffect.ShowError("Ошибка создания объявления: ${error.message}"))
+            }
+        } catch (e: Exception) {
+            Log.e("FeedViewModel", "Исключение при создании объявления: ${e.message}", e)
+            postSideEffect(FeedSideEffect.ShowError("Ошибка: ${e.message}"))
+        }
+    }
 
     private fun loadParticipationStates() {
         viewModelScope.launch {
-            val eventIds = allEvents.map { it.id }
+            val eventIds = allFeedItems.filterIsInstance<Event>().map { it.id }
             val states = eventIds.associateWith { eventId ->
                 eventParticipantsRepository.isUserParticipating(eventId, currentUserId)
             }
-            println("FeedViewModel: Loaded participation states for ${states.size} events")
             _participationState.value = states
         }
     }
 
-    fun onSearchQueryChange(query: String) = intent {
-        println("FeedViewModel: SearchQuery=$query")
-        reduce { state.copy(searchQuery = query) }
-        try {
-            val filteredEvents = if (query.startsWith("#") && query.length > 1) {
-                val tagQuery = query.drop(1).trim()
-                allEvents.filter { event ->
-                    event.tagIds.any { tag ->
-                        tag.contains(tagQuery, ignoreCase = true)
-                    }
-                }
-            } else {
-                allEvents.filter { event ->
-                    event.title.contains(query, ignoreCase = true) ||
-                            event.description.contains(query, ignoreCase = true)
-                }
-            }
-            println("FeedViewModel: Filtered ${filteredEvents.size} events for query=$query")
-            val sortedEvents = applySort(state.sortType, filteredEvents)
-            reduce { state.copy(events = sortedEvents) }
-        } catch (e: Exception) {
-            println("FeedViewModel: Search error=${e.message}")
-            reduce { state.copy(error = e.message) }
-        }
-    }
-
     fun onClearQuery() = intent {
-        println("FeedViewModel: ClearQuery")
         reduce { state.copy(searchQuery = "") }
-        val sortedEvents = applySort(state.sortType, allEvents)
-        reduce { state.copy(events = sortedEvents, error = null) }
-    }
-
-    fun onSortSelected(sortType: SortType) = intent {
-        println("FeedViewModel: SortType=$sortType")
-        val sortedEvents =
-            applySort(sortType, if (state.searchQuery.isEmpty()) allEvents else state.events)
-        reduce { state.copy(events = sortedEvents, sortType = sortType) }
-    }
-
-    private fun applySort(sortType: SortType?, events: List<Event>): List<Event> {
-        return when (sortType) {
-            SortType.DateNewestFirst -> events.sortedByDescending {
-                Instant.parse(it.eventDate).toEpochMilliseconds()
-            }
-            SortType.DateOldestFirst -> events.sortedBy {
-                Instant.parse(it.eventDate).toEpochMilliseconds()
-            }
-            null -> events
-        }
+        val sortedItems = applySort(state.sortType, allFeedItems)
+        reduce { state.copy(items = sortedItems, error = null) }
     }
 
     fun onEventClick(eventId: String) = intent {
@@ -138,12 +244,6 @@ class FeedViewModel(
 
     fun onParticipateClick(eventId: String) = intent {
         try {
-            val isParticipating =
-                eventParticipantsRepository.isUserParticipating(eventId, currentUserId)
-            if (isParticipating) {
-                postSideEffect(FeedSideEffect.ShowError("Вы уже участвуете в этом мероприятии"))
-                return@intent
-            }
             val result = eventParticipantsRepository.joinEvent(eventId, currentUserId)
             result.onSuccess {
                 viewModelScope.launch {
@@ -153,7 +253,7 @@ class FeedViewModel(
                     _participationState.value = updatedStates
                 }
                 postSideEffect(FeedSideEffect.ParticipateInEvent(eventId))
-                refreshEvents()
+                refreshFeed()
             }.onFailure { error ->
                 postSideEffect(FeedSideEffect.ShowError(error.message ?: "Ошибка при регистрации"))
             }
@@ -177,7 +277,7 @@ class FeedViewModel(
                     }
                 }
                 postSideEffect(FeedSideEffect.LeaveEventSuccess(eventId))
-                refreshEvents()
+                refreshFeed()
             }.onFailure { error ->
                 postSideEffect(FeedSideEffect.ShowError(error.message ?: "Ошибка при отмене участия"))
             }
@@ -190,12 +290,17 @@ class FeedViewModel(
         return _participationState.value[eventId] ?: false
     }
 
-    fun updateEventImage(eventId: String, imageUrl: String) = intent {
+    fun onAnnouncementClick(announcementId: String) = intent {
+        postSideEffect(FeedSideEffect.NavigateToAnnouncementDetails(announcementId))
+    }
+
+    fun onMessageClick(userId: String) = intent {
         try {
-            eventsRepository.updateEventImage(eventId, imageUrl)
-            refreshEvents()
+            val chatId = chatsRepository.findOrCreatePrivateChat(currentUserId, userId)
+            postSideEffect(FeedSideEffect.NavigateToChat(chatId.toString()))
         } catch (e: Exception) {
-            reduce { state.copy(error = "Ошибка при обновлении изображения: ${e.message}") }
+            Log.e("FeedViewModel", "Ошибка создания чата: ${e.message}", e)
+            postSideEffect(FeedSideEffect.ShowError("Ошибка создания чата"))
         }
     }
 

@@ -3,7 +3,7 @@ package ru.walkAndTalk.domain.repository
 import android.net.Uri
 
 interface StorageRepository {
-    suspend fun uploadProfileImage(path: String, uri: Uri)
-    suspend fun upload(bucket: String, path: String, uri: Uri)
-    suspend fun createSignedUrl(bucket: String, path: String): String
+    suspend fun uploadProfileImage(path: String, uri: Uri): Result<String>
+    suspend fun uploadEventImage(path: String, uri: Uri): Result<String>
+    suspend fun createSignedUrl(bucket: String, path: String): Result<String>
 }

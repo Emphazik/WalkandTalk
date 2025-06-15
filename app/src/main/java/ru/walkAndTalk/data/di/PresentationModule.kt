@@ -12,6 +12,7 @@ import ru.walkAndTalk.ui.screens.main.chats.ChatsViewModel
 import ru.walkAndTalk.ui.screens.main.chats.detailchat.ChatViewModel
 import ru.walkAndTalk.ui.screens.main.feed.FeedViewModel
 import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsViewModel
+import ru.walkAndTalk.ui.screens.main.feed.events.editevents.EditEventViewModel
 import ru.walkAndTalk.ui.screens.main.feed.notifications.NotificationsViewModel
 import ru.walkAndTalk.ui.screens.main.profile.ProfileViewModel
 import ru.walkAndTalk.ui.screens.main.profile.statistics.EventStatisticsViewModel
@@ -30,7 +31,22 @@ private val viewModelModule = module {
 
     viewModelOf(::MainViewModel)
     viewModelOf(::ProfileViewModel)
-    viewModelOf(::FeedViewModel)
+//    viewModelOf(::FeedViewModel)
+    viewModel {
+        FeedViewModel(
+            fetchFeedItemsUseCase = get(),
+            createEventUseCase = get(),
+            createAnnouncementUseCase = get(),
+            eventParticipantsRepository = get(),
+            chatsRepository = get(),
+            currentUserId = get<SupabaseWrapper>().auth.currentUserOrNull()?.id
+                ?: throw IllegalStateException("User not authenticated"),
+            interestsRepository = get(),
+            storageRepository = get(),
+            remoteUsersRepository = get(),
+            activityTypesRepository = get(),
+        )
+    }
     viewModelOf(::ChatsViewModel)
     viewModelOf(::SearchViewModel)
     //viewModelOf(::EventDetailsViewModel)
@@ -54,6 +70,7 @@ private val viewModelModule = module {
             currentUserId = get<SupabaseWrapper>().auth.currentUserOrNull()?.id
                 ?: throw IllegalStateException("User not authenticated"),
             usersRepository = get(),
+            interestsRepository = get(),
         )
     }
 //    viewModelOf(::NotificationsViewModel)
@@ -64,6 +81,7 @@ private val viewModelModule = module {
         )
     }
     viewModelOf(::AdminViewModel)
+    viewModelOf(::EditEventViewModel)
 
 }
 

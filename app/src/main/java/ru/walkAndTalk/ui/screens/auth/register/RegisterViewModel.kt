@@ -93,7 +93,7 @@ class RegisterViewModel(
                 val imageUrl = state.profileImageUri?.let { uri ->
                     println("Register: Загрузка изображения профиля...")
                     val fileName = "${user.id}/profile.jpg"
-                    storageRepository.upload(Bucket.PROFILE_IMAGES, fileName, uri)
+                    storageRepository.uploadProfileImage(fileName, uri)
                     storageRepository.createSignedUrl(Bucket.PROFILE_IMAGES, fileName)
                 }
                     ?: "https://tvecrsehuuqrjwjfgljf.supabase.co/storage/v1/object/sign/profile-images/default_profile.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2Y2YjA0NTBiLWVkNDktNGFkNi1iMGM2LWJiYzZmNzM0ZGY2YyJ9.eyJ1cmwiOiJwcm9maWxlLWltYWdlcy9kZWZhdWx0X3Byb2ZpbGUucG5nIiwiaWF0IjoxNzQ1NTI2MjM1LCJleHAiOjE3NzcwNjIyMzV9.RrxpUDm_OaKOOFFBICiPfVYgCdVTKMcyKqq6TKIYTv0"
@@ -106,7 +106,7 @@ class RegisterViewModel(
                         phone = state.phone,
                         name = "${state.name} ${state.surname}",
                         password = state.password,
-                        profileImageUrl = imageUrl,
+                        profileImageUrl = imageUrl.toString(),
                         vkId = null,
                         interestIds = emptyList(),
                         cityKnowledgeLevelId = null,

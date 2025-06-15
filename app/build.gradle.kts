@@ -20,6 +20,7 @@ android {
 
         buildConfigField("String", "SUPABASE_URL", "\"${properties["supabaseUrl"]}\"")
         buildConfigField("String", "SUPABASE_KEY", "\"${properties["supabaseKey"]}\"")
+//        buildConfigField("String", "MAPKIT_API_KEY", "\"$mapkitApiKey\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         addManifestPlaceholders(mapOf(
             "VKIDRedirectHost" to "${properties["VKIDRedirectHost"]}",
@@ -64,6 +65,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.work.manager)
+    implementation(libs.accompanist.permissions)
     /** Compose **/
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
@@ -124,4 +126,7 @@ dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     /** Google GPS **/
     implementation(libs.play.services.location)
+    /** Yandex Maps **/
+//    implementation(libs.maps.mobile)
+//    implementation("com.yandex.android:maps.mobile:4.17.0-lite")
 }

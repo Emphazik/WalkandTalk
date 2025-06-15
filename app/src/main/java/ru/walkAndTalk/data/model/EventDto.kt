@@ -20,5 +20,6 @@ data class EventDto(
     @SerialName("route_id") val routeId: String? = null,
     @SerialName("event_image_url") val eventImageUrl: String? = null,
     @SerialName("tag_ids") val tagIds: List<String> = emptyList(),
-    @SerialName("status_id") val statusId: Int
+    @SerialName("status_id") val statusId: String,
+    @SerialName("max_participants") val maxParticipants: Int? = null
 )

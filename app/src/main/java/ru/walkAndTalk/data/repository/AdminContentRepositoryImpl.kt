@@ -21,15 +21,34 @@ class AdminContentRepositoryImpl(
     private val supabaseWrapper: SupabaseWrapper
 ) : AdminContentRepository {
 
+//    override suspend fun fetchAllEvents(): List<Event> {
+//        val events = supabaseWrapper.postgrest[Table.EVENTS]
+//            .select()
+//            .decodeList<EventDto>()
+//        return events.map { eventDto ->
+//            val status = supabaseWrapper.postgrest[Table.EVENT_STATUSES]
+//                .select { filter { eq("id", eventDto.statusId) } }
+//                .decodeSingle<EventStatusDto>()
+//            eventDto.toDomain(statusName = status.name)
+//        }
+//    }
+//
+//    override suspend fun fetchEventById(eventId: String): Event? {
+//        val eventDto = supabaseWrapper.postgrest[Table.EVENTS]
+//            .select { filter { eq("id", eventId) } }
+//            .decodeSingleOrNull<EventDto>() ?: return null
+//        val statusName = supabaseWrapper.postgrest[Table.EVENT_STATUSES]
+//            .select { filter { eq("id", eventDto.statusId.toInt()) } }
+//            .decodeSingle<EventStatusDto>().name
+//        return eventDto.toDomain(statusName = statusName)
+//    }
+
     override suspend fun fetchAllEvents(): List<Event> {
         val events = supabaseWrapper.postgrest[Table.EVENTS]
             .select()
             .decodeList<EventDto>()
         return events.map { eventDto ->
-            val status = supabaseWrapper.postgrest[Table.EVENT_STATUSES]
-                .select { filter { eq("id", eventDto.statusId) } }
-                .decodeSingle<EventStatusDto>()
-            eventDto.toDomain(statusName = status.name)
+            eventDto.toDomain() // Убрано statusName, так как toDomain не принимает этот параметр
         }
     }
 
@@ -37,15 +56,12 @@ class AdminContentRepositoryImpl(
         val eventDto = supabaseWrapper.postgrest[Table.EVENTS]
             .select { filter { eq("id", eventId) } }
             .decodeSingleOrNull<EventDto>() ?: return null
-        val statusName = supabaseWrapper.postgrest[Table.EVENT_STATUSES]
-            .select { filter { eq("id", eventDto.statusId.toInt()) } }
-            .decodeSingle<EventStatusDto>().name
-        return eventDto.toDomain(statusName = statusName)
+        return eventDto.toDomain() // Убрано statusName и toInt()
     }
 
     override suspend fun updateEvent(event: Event) {
         val statusId = supabaseWrapper.postgrest[Table.EVENT_STATUSES]
-            .select { filter { eq("name", event.status) } }
+            .select { filter { eq("name", event.statusId) } }
             .decodeSingle<EventStatusDto>().id
         supabaseWrapper.postgrest[Table.EVENTS]
             .update(
@@ -78,8 +94,8 @@ class AdminContentRepositoryImpl(
         return announcements.map { announcementDto ->
             val statusName = supabaseWrapper.postgrest[Table.EVENT_STATUSES]
                 .select { filter { eq("id", announcementDto.statusId.toInt()) } }
-                .decodeSingle<EventStatusDto>().name
-            announcementDto.toDomain(statusName = statusName)
+                .decodeSingle<EventStatusDto>()
+            announcementDto.toDomain()
         }
     }
 
@@ -89,14 +105,13 @@ class AdminContentRepositoryImpl(
             .decodeSingleOrNull<AnnouncementDto>() ?: return null
         val statusName = supabaseWrapper.postgrest[Table.EVENT_STATUSES]
             .select { filter { eq("id", announcementDto.statusId.toInt()) } }
-            .decodeSingle<EventStatusDto>().name
-
-        return announcementDto.toDomain(statusName = statusName)
+            .decodeSingle<EventStatusDto>()
+        return announcementDto.toDomain()
     }
 
     override suspend fun updateAnnouncement(announcement: Announcement) {
         val statusId = supabaseWrapper.postgrest[Table.EVENT_STATUSES]
-            .select { filter { eq("name", announcement.status) } }
+            .select { filter { eq("name", announcement.statusId) } }
             .decodeSingle<EventStatusDto>().id
         supabaseWrapper.postgrest[Table.ANNOUNCEMENTS]
             .update(
@@ -105,7 +120,7 @@ class AdminContentRepositoryImpl(
                     "title" to announcement.title,
                     "description" to announcement.description,
                     "creator_id" to announcement.creatorId,
-                    "activity_type" to announcement.activityType,
+                    "activity_type" to announcement.activityTypeId,
                     "status_id" to statusId,
                     "created_at" to announcement.createdAt,
                     "updated_at" to announcement.updatedAt
