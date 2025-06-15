@@ -11,6 +11,8 @@ import ru.walkAndTalk.ui.screens.main.MainViewModel
 import ru.walkAndTalk.ui.screens.main.chats.ChatsViewModel
 import ru.walkAndTalk.ui.screens.main.chats.detailchat.ChatViewModel
 import ru.walkAndTalk.ui.screens.main.feed.FeedViewModel
+import ru.walkAndTalk.ui.screens.main.feed.announcements.AnnouncementDetailsViewModel
+import ru.walkAndTalk.ui.screens.main.feed.announcements.editannouncements.EditAnnouncementViewModel
 import ru.walkAndTalk.ui.screens.main.feed.events.EventDetailsViewModel
 import ru.walkAndTalk.ui.screens.main.feed.events.editevents.EditEventViewModel
 import ru.walkAndTalk.ui.screens.main.feed.notifications.NotificationsViewModel
@@ -82,6 +84,24 @@ private val viewModelModule = module {
     }
     viewModelOf(::AdminViewModel)
     viewModelOf(::EditEventViewModel)
+    viewModel {
+        AnnouncementDetailsViewModel(
+            announcementsRepository = get(),
+            usersRepository = get(),
+            activityTypesRepository = get(),
+            interestsRepository = get(),
+            currentUserId = get<SupabaseWrapper>().auth.currentUserOrNull()?.id
+                ?: throw IllegalStateException("User not authenticated"),
+        )
+    }
+    viewModel {
+        EditAnnouncementViewModel(
+            announcementsRepository = get(),
+            feedViewModel = get(),
+            currentUserId = get<SupabaseWrapper>().auth.currentUserOrNull()?.id
+                ?: throw IllegalStateException("User not authenticated")
+        )
+    }
 
 }
 

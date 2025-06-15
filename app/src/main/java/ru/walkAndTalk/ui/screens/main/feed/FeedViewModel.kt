@@ -294,10 +294,25 @@ class FeedViewModel(
         postSideEffect(FeedSideEffect.NavigateToAnnouncementDetails(announcementId))
     }
 
+//    fun onMessageClick(userId: String) = intent {
+//        try {
+//            val chat = chatsRepository.findOrCreatePrivateChat(currentUserId, userId)
+//            postSideEffect(FeedSideEffect.NavigateToChat(chat.id)) // Используем chat.id
+//        } catch (e: Exception) {
+//            Log.e("FeedViewModel", "Ошибка создания чата: ${e.message}", e)
+//            postSideEffect(FeedSideEffect.ShowError("Ошибка создания чата"))
+//        }
+//    }
+
     fun onMessageClick(userId: String) = intent {
         try {
-            val chatId = chatsRepository.findOrCreatePrivateChat(currentUserId, userId)
-            postSideEffect(FeedSideEffect.NavigateToChat(chatId.toString()))
+            if (userId == currentUserId) {
+                postSideEffect(FeedSideEffect.ShowError("Нельзя отправить сообщение самому себе"))
+                Log.w("FeedViewModel", "Попытка отправить сообщение самому себе: userId=$userId")
+                return@intent
+            }
+            val chat = chatsRepository.findOrCreatePrivateChat(currentUserId, userId)
+            postSideEffect(FeedSideEffect.NavigateToChat(chat.id))
         } catch (e: Exception) {
             Log.e("FeedViewModel", "Ошибка создания чата: ${e.message}", e)
             postSideEffect(FeedSideEffect.ShowError("Ошибка создания чата"))

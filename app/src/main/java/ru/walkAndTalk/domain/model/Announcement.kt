@@ -9,6 +9,7 @@ data class Announcement(
     override val statusId: String,
     override val createdAt: String,
     val updatedAt: String?,
+    val organizerName: String? = null,
     override val location: String,
     val imageUrl: String? = null
 ) : FeedItem {

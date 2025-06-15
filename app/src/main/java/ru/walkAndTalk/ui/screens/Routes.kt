@@ -32,6 +32,24 @@ data class Profile(val userId: String, val viewOnly: Boolean = false)
         fun createRoute(eventId: String) = "eventDetails/$eventId"
     }
 }
+@Serializable data class AnnouncementDetails(val announcementId: String) {
+    companion object {
+        const val ROUTE = "announcement_details/{announcementId}"
+        fun createRoute(announcementId: String) = "announcement_details/$announcementId"
+    }
+}
+@Serializable data class EditEvent(val eventId: String) {
+    companion object {
+        const val ROUTE = "edit_event/{eventId}"
+        fun createRoute(eventId: String) = "edit_event/$eventId"
+    }
+}
+@Serializable data class EditAnnouncement(val announcementId: String) {
+    companion object {
+        const val ROUTE = "edit_announcement/{announcementId}"
+        fun createRoute(announcementId: String) = "edit_announcement/$announcementId"
+    }
+}
 @Serializable object EditProfile
 @Serializable object EventStatistics
 @Serializable object Notifications

@@ -1,6 +1,5 @@
 package ru.walkAndTalk.ui.screens.main.feed
 
-import android.app.TimePickerDialog
 import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -77,12 +76,9 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil3.compose.rememberAsyncImagePainter
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
-import kotlinx.datetime.LocalDateTime
 import org.koin.androidx.compose.koinViewModel
-import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import ru.walkAndTalk.R
 import ru.walkAndTalk.domain.model.Announcement
@@ -92,7 +88,6 @@ import ru.walkAndTalk.ui.screens.EventDetails
 import ru.walkAndTalk.ui.theme.montserratFont
 import java.io.File
 import java.time.Instant
-//import java.time.LocalDateTime.ofInstant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
@@ -833,6 +828,9 @@ fun CreateContentDialog(
                                         onCreateEvent(event)
                                     }
                                     FeedItemType.ANNOUNCEMENT -> {
+                                        val tagUuids = selectedTags.mapNotNull { tagName ->
+                                            interests.find { it.name == tagName }?.id
+                                        }
                                         val pendingStatusId = feedViewModel.getEventStatusId("pending")
                                             ?: "ac32ffcc-8f69-4b71-8a39-877c1eb95e04"
                                         Log.d("CreateContentDialog", "pendingStatusId для объявления: $pendingStatusId")
@@ -915,10 +913,14 @@ fun CreateContentDialog(
 }
 
 @Composable
-fun AnnouncementCard(announcement: Announcement, viewModel: FeedViewModel) {
+fun AnnouncementCard(
+    announcement: Announcement,
+    viewModel: FeedViewModel
+) {
     val colorScheme = MaterialTheme.colorScheme
     val activityTypes by viewModel.activityTypes.collectAsState(initial = emptyList())
     val activityTypeName = activityTypes.find { it.id == announcement.activityTypeId }?.name ?: "Неизвестно"
+    val isOwnAnnouncement = announcement.creatorId == viewModel.currentUserId
 
     Card(
         modifier = Modifier
@@ -932,22 +934,29 @@ fun AnnouncementCard(announcement: Announcement, viewModel: FeedViewModel) {
         Column {
             announcement.imageUrl?.let { url ->
                 Image(
-                    painter = rememberAsyncImagePainter(url),
+                    painter = rememberAsyncImagePainter(
+                        model = url,
+                        error = painterResource(id = R.drawable.default_event_image)
+                    ),
                     contentDescription = announcement.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(140.dp)
-                        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                        .height(150.dp)
                 )
             }
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
                 Text(
                     text = announcement.title,
                     fontFamily = montserratFont,
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colorScheme.onSurface
+                    color = colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
 //                announcement.description?.let {
 //                    Spacer(modifier = Modifier.height(4.dp))
@@ -965,39 +974,32 @@ fun AnnouncementCard(announcement: Announcement, viewModel: FeedViewModel) {
                     fontSize = 14.sp,
                     color = colorScheme.onSurface.copy(alpha = 0.6f)
                 )
+                Spacer(modifier = Modifier.height(8.dp))
                 announcement.location?.let {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_location),
-                            contentDescription = "Место",
-                            tint = colorScheme.onSurface.copy(alpha = 0.6f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = it,
-                            fontFamily = montserratFont,
-                            fontSize = 14.sp,
-                            color = colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = { viewModel.onMessageClick(announcement.creatorId) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primaryContainer),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
                     Text(
-                        text = "Написать сообщение",
+                        text = "Локация: $it",
                         fontFamily = montserratFont,
                         fontSize = 14.sp,
-                        color = colorScheme.onPrimaryContainer
+                        color = colorScheme.onSurface.copy(alpha = 0.6f)
                     )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                if (!isOwnAnnouncement) {
+                    Button(
+                        onClick = { viewModel.onMessageClick(announcement.creatorId) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primaryContainer),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "Написать сообщение",
+                            fontFamily = montserratFont,
+                            fontSize = 14.sp,
+                            color = colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
             }
         }
@@ -1088,7 +1090,46 @@ fun EventCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                if (event.tagIds.isNotEmpty()) {
+//                if (event.tagIds.isNotEmpty()) {
+//                    Spacer(modifier = Modifier.height(8.dp))
+//                    Row(
+//                        modifier = Modifier.fillMaxWidth(),
+//                        verticalAlignment = Alignment.CenterVertically,
+//                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+//                    ) {
+//                        Text(
+//                            text = "Теги:",
+//                            fontFamily = montserratFont,
+//                            fontSize = 14.sp,
+//                            color = colorScheme.onSurface.copy(alpha = 0.6f),
+//                            fontWeight = FontWeight.Bold
+//                        )
+//                        FlowRow(
+//                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+//                            modifier = Modifier.weight(1f)
+//                        ) {
+//                            tagNames.forEach { tagName ->
+//                                Surface(
+//                                    shape = RoundedCornerShape(12.dp),
+//                                    color = colorScheme.primaryContainer,
+//                                    modifier = Modifier.padding(vertical = 2.dp)
+//                                ) {
+//                                    Text(
+//                                        text = tagName,
+//                                        fontFamily = montserratFont,
+//                                        fontSize = 12.sp,
+//                                        color = colorScheme.onPrimaryContainer,
+//                                        modifier = Modifier.padding(
+//                                            horizontal = 8.dp,
+//                                            vertical = 4.dp
+//                                        )
+//                                    )
+//                                }
+//                            }
+//                        }
+//                    }
+//                }
+                if (tagNames.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1106,7 +1147,9 @@ fun EventCard(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            tagNames.forEach { tagName ->
+                            val maxTags = 3
+                            val displayedTags = tagNames.take(maxTags)
+                            displayedTags.forEach { tagName ->
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
                                     color = colorScheme.primaryContainer,
@@ -1114,6 +1157,24 @@ fun EventCard(
                                 ) {
                                     Text(
                                         text = tagName,
+                                        fontFamily = montserratFont,
+                                        fontSize = 12.sp,
+                                        color = colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(
+                                            horizontal = 8.dp,
+                                            vertical = 4.dp
+                                        )
+                                    )
+                                }
+                            }
+                            if (tagNames.size > maxTags) {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = colorScheme.primaryContainer,
+                                    modifier = Modifier.padding(vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "+${tagNames.size - maxTags}",
                                         fontFamily = montserratFont,
                                         fontSize = 12.sp,
                                         color = colorScheme.onPrimaryContainer,
