@@ -402,12 +402,12 @@ fun AdminScreen(
                             items(filteredAnnouncements) { announcement ->
                                 AdminAnnouncementCard(
                                     announcement = announcement,
-                                    onApprove = { viewModel.updateAnnouncementStatus(announcement.id, "approved") },
-                                    onReject = { viewModel.updateAnnouncementStatus(announcement.id, "rejected") },
+                                    onApprove = { viewModel.changeAnnouncementStatus(announcement.id, "approved") },
+                                    onReject = { viewModel.changeAnnouncementStatus(announcement.id, "rejected") },
                                     onEdit = { viewModel.navigateToEditAnnouncement(announcement.id) },
                                     onDelete = { viewModel.deleteAnnouncementAdmin(announcement.id) },
                                     onChangeStatus = { status ->
-                                        viewModel.updateAnnouncementStatus(announcement.id, status)
+                                        viewModel.changeAnnouncementStatus(announcement.id, status)
                                     },
                                     onClick = { viewModel.navigateToAnnouncementDetails(announcement.id) },
                                     formatEventDate = { isoDate -> viewModel.formatEventDate(isoDate) }

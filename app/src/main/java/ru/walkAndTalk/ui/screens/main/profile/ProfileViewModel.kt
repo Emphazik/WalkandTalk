@@ -72,6 +72,7 @@ class ProfileViewModel(
             state.copy(
                 name = user.name,
                 birthDate = user.birthdate?.let { convertToDisplayFormat(it) } ?: "",
+                gender = user.gender, // Добавлено
                 city = user.city ?: "",
                 selectedCityStatus = cityStatus,
                 bio = user.bio ?: "",
@@ -83,13 +84,14 @@ class ProfileViewModel(
                 tempSelectedInterests = interests,
                 newName = user.name,
                 newBirthDate = user.birthdate?.let { convertToDisplayFormat(it) } ?: "",
+                newGender = user.gender, // Добавлено
                 newBio = user.bio ?: "",
                 newGoals = user.goals ?: "",
                 newCity = user.city ?: state.newCity,
                 showReviews = user.showReviews,
                 reviews = reviews.associateBy { it.eventId },
                 events = events,
-                isAdmin = user.isAdmin,
+                isAdmin = user.isAdmin
             )
         }
     }
@@ -188,6 +190,10 @@ class ProfileViewModel(
         }
     }
 
+    fun onGenderChanged(gender: String?) = intent {
+        reduce { state.copy(newGender = gender) }
+    }
+
     fun onSavePersonalInfo() = intent {
         val nameError = validateName(state.newName)
         val birthDateError = validateBirthDate(state.newBirthDate)
@@ -198,6 +204,7 @@ class ProfileViewModel(
                     userId = userId,
                     fullName = state.newName,
                     birthDate = dbBirthDate,
+                    gender = state.newGender, // Добавлено
                     photoURL = state.photoURL,
                     city = state.newCity.takeIf { it.isNotEmpty() }
                 )
@@ -205,6 +212,7 @@ class ProfileViewModel(
                     state.copy(
                         name = state.newName,
                         birthDate = state.newBirthDate,
+                        gender = state.newGender, // Добавлено
                         city = state.newCity,
                         isEditingPersonalInfo = false,
                         nameError = null,
@@ -236,6 +244,7 @@ class ProfileViewModel(
                 isEditingPersonalInfo = true,
                 newName = state.name,
                 newBirthDate = state.birthDate ?: "",
+                newGender = state.gender, // Добавлено
                 newCity = state.city ?: "",
                 nameError = null,
                 birthDateError = null
@@ -248,7 +257,8 @@ class ProfileViewModel(
             state.copy(
                 isEditingPersonalInfo = false,
                 newName = state.name,
-                newBirthDate = state.birthDate ?: ""
+                newBirthDate = state.birthDate ?: "",
+                newGender = state.gender // Добавлено
             )
         }
     }
@@ -286,6 +296,8 @@ class ProfileViewModel(
                     fullName = state.name,
                     birthDate = convertToDbFormat(state.birthDate ?: ""),
                     photoURL = state.photoURL,
+                    gender = state.gender,
+                    city = state.city,
                     bio = state.newBio.takeIf { it.isNotEmpty() } // Отправляем null, если пусто
                 )
                 reduce {
@@ -348,6 +360,8 @@ class ProfileViewModel(
                     fullName = state.name,
                     birthDate = convertToDbFormat(state.birthDate ?: ""),
                     photoURL = state.photoURL,
+                    gender = state.gender,
+                    city = state.city,
                     goals = state.newGoals.takeIf { it.isNotEmpty() } // Отправляем null, если пусто
                 )
                 reduce {
@@ -381,6 +395,8 @@ class ProfileViewModel(
         remoteUsersRepository.updateUserProfile(
             userId = userId,
             fullName = state.name,
+            gender = state.gender,
+            city = state.city,
             birthDate = state.birthDate?.let { convertToDbFormat(it) },
             photoURL = "https://tvecrsehuuqrjwjfgljf.supabase.co/storage/v1/object/sign/profile-images/default_profile.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2Y2YjA0NTBiLWVkNDktNGFkNi1iMGM2LWJiYzZmNzM0ZGY2YyJ9.eyJ1cmwiOiJwcm9maWxlLWltYWdlcy9kZWZhdWx0X3Byb2ZpbGUucG5nIiwiaWF0IjoxNzQ1NTI2MjM1LCJleHAiOjE3NzcwNjIyMzV9.RrxpUDm_OaKOOFFBICiPfVYgCdVTKMcyKqq6TKIYTv0"
         )
@@ -456,20 +472,6 @@ class ProfileViewModel(
         reduce { state.copy(tempSelectedInterests = newTempSelectedInterests) }
     }
 
-//    fun onInterestRemoved(interestName: String) = intent {
-//        val interest = interestsRepository.fetchAll().find { it.name == interestName }
-//        interest?.id?.let { interestId ->
-//            userInterestsRepository.removeInterest(userId, interestId)
-//            val updatedInterests = state.interests - interestName
-//            reduce {
-//                state.copy(
-//                    interests = updatedInterests,
-//                    tempSelectedInterests = updatedInterests
-//                )
-//            }
-//        }
-//    }
-
     fun onImageSelected(imageUri: Uri) = intent {
         try {
             Log.d("ProfileViewModel", "Загрузка изображения для userId: $userId")
@@ -486,31 +488,6 @@ class ProfileViewModel(
         }
     }
 
-    //    fun formatEventDate(isoDate: String?): String? {
-//        if (isoDate == null) return null
-//        return try {
-//            val instant = Instant.parse(isoDate)
-//            val dateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
-//            val month = when (dateTime.monthNumber) {
-//                1 -> "января"
-//                2 -> "февраля"
-//                3 -> "марта"
-//                4 -> "апреля"
-//                5 -> "мая"
-//                6 -> "июня"
-//                7 -> "июля"
-//                8 -> "августа"
-//                9 -> "сентября"
-//                10 -> "октября"
-//                11 -> "ноября"
-//                12 -> "декабря"
-//                else -> ""
-//            }
-//            "${dateTime.dayOfMonth} $month ${dateTime.year}, ${dateTime.hour}:${dateTime.minute.toString().padStart(2, '0')}"
-//        } catch (e: Exception) {
-//            null // Возвращаем null при ошибке парсинга
-//        }
-//    }
     fun formatEventDate(isoDate: String?): String? {
         if (isoDate == null) return null
         return try {

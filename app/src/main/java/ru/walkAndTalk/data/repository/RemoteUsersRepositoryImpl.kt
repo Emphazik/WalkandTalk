@@ -268,12 +268,13 @@ class RemoteUsersRepositoryImpl(
 
     override suspend fun updateUserProfile(
         userId: String,
-        fullName: String?,
+        fullName: String,
         birthDate: String?,
+        gender: String?,
         photoURL: String?,
-        bio: String?,
-        goals: String?,
         city: String?,
+        bio: String?,
+        goals: String?
     ) {
         // Валидация
         require(userId.isNotBlank()) { "ID пользователя не может быть пустым" }
@@ -326,6 +327,7 @@ class RemoteUsersRepositoryImpl(
             name = fullName,
             birthDate = birthDate,
             profileImageUrl = photoURL,
+            gender = gender,
             bio = bio,
             goals = goals,
             city = city,

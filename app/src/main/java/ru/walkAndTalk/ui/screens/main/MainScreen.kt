@@ -439,7 +439,7 @@ fun MainScreen(
                             }
 
                             is FeedSideEffect.NavigateToAnnouncementDetails -> {
-                                navController.navigate("announcement_details/${sideEffect.announcementId}")
+                                navController.navigate(AnnouncementDetails(sideEffect.announcementId))
                             }
                         }
                     }
@@ -642,7 +642,7 @@ fun MainScreen(
                 )
             }
             composable<EditProfile> { navBackStackEntry ->
-                val userId = navBackStackEntry.toRoute<EditProfile>()
+//                val userId = navBackStackEntry.toRoute<EditProfile>()
                 EditProfileScreen(
                     navController = navController,
                     viewModel = koinViewModel(parameters = { parametersOf(userId) })

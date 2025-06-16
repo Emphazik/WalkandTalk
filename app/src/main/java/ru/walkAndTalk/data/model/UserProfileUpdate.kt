@@ -11,6 +11,8 @@ data class UserProfileUpdate(
     val birthDate: String? = null,
     @SerialName("profile_image_url")
     val profileImageUrl: String? = null,
+    @SerialName("gender")
+    val gender: String? = null,
     @SerialName("bio")
     val bio: String? = null,
     @SerialName("goals")

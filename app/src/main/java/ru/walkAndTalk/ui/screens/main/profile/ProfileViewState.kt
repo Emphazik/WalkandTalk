@@ -36,5 +36,6 @@ data class ProfileViewState(
     val events: Map<String, Event> = emptyMap(), // Новое
     val isAdmin: Boolean = false,
     val gender: String? = null, // Новое поле: "male", "female", "other"
+    val newGender: String? = "",
     val lastLogin: Instant? = null // Новое поле
     )

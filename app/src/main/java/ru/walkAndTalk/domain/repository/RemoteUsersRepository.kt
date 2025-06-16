@@ -20,12 +20,13 @@ interface RemoteUsersRepository {
     suspend fun updateProfileImageUrl(userId: String, imageUrl: String)
     suspend fun updateUserProfile(
         userId: String,
-        fullName: String? = null,
-        birthDate: String? = null,
-        photoURL: String? = null,
+        fullName: String,
+        birthDate: String?,
+        gender: String?,
+        photoURL: String?,
+        city: String?,
         bio: String? = null,
-        goals: String? = null,
-        city: String? = null
+        goals: String? = null
     )
     suspend fun updateShowReviews(userId: String, showReviews: Boolean): Boolean
     suspend fun updateUserCity(userId: String, city: String): PostgrestResult

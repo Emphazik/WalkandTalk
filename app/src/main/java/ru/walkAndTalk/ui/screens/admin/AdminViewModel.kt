@@ -126,6 +126,42 @@ class AdminViewModel(
         }
     }
 
+    fun approveAnnouncement(announcementId: String) = intent {
+        reduce { state.copy(isLoading = true, error = null) }
+        try {
+            announcementsRepository.updateAnnouncementStatus(announcementId, "approved")
+            loadAnnouncements()
+            postSideEffect(AdminSideEffect.ShowSuccess("Объявление одобрено"))
+        } catch (e: Exception) {
+            reduce { state.copy(isLoading = false, error = e.message) }
+            postSideEffect(AdminSideEffect.ShowError("Ошибка одобрения: ${e.message}"))
+        }
+    }
+
+    fun rejectAnnouncement(announcementId: String) = intent {
+        reduce { state.copy(isLoading = true, error = null) }
+        try {
+            announcementsRepository.updateAnnouncementStatus(announcementId, "rejected")
+            loadAnnouncements()
+            postSideEffect(AdminSideEffect.ShowSuccess("Объявление отклонено"))
+        } catch (e: Exception) {
+            reduce { state.copy(isLoading = false, error = e.message) }
+            postSideEffect(AdminSideEffect.ShowError("Ошибка отклонения: ${e.message}"))
+        }
+    }
+
+    fun changeAnnouncementStatus(announcementId: String, newStatus: String) = intent {
+        reduce { state.copy(isLoading = true, error = null) }
+        try {
+            announcementsRepository.updateAnnouncementStatus(announcementId, newStatus)
+            loadAnnouncements()
+            postSideEffect(AdminSideEffect.ShowSuccess("Статус изменен"))
+        } catch (e: Exception) {
+            reduce { state.copy(isLoading = false, error = e.message) }
+            postSideEffect(AdminSideEffect.ShowError("Ошибка изменения статуса: ${e.message}"))
+        }
+    }
+
     fun navigateToEditEvent(eventId: String) = intent {
         postSideEffect(AdminSideEffect.NavigateToEditEvent(eventId))
     }
@@ -446,20 +482,20 @@ class AdminViewModel(
         }
     }
 
-    fun updateAnnouncementStatus(announcementId: String, status: String) = intent {
-        try {
-            val announcement =
-                contentRepository.fetchAnnouncementById(announcementId) ?: return@intent
-            contentRepository.updateAnnouncement(announcement.copy(statusId = status))
-            val updatedAnnouncements = state.announcements.map {
-                if (it.id == announcementId) it.copy(statusId = status) else it
-            }
-            reduce { state.copy(announcements = updatedAnnouncements) }
-        } catch (e: Exception) {
-            Log.e("AdminViewModel", "Update announcement status error", e)
-            postSideEffect(AdminSideEffect.ShowError("Ошибка обновления статуса объявления: ${e.message}"))
-        }
-    }
+//    fun updateAnnouncementStatus(announcementId: String, status: String) = intent {
+//        try {
+//            val announcement =
+//                contentRepository.fetchAnnouncementById(announcementId) ?: return@intent
+//            contentRepository.updateAnnouncement(announcement.copy(statusId = status))
+//            val updatedAnnouncements = state.announcements.map {
+//                if (it.id == announcementId) it.copy(statusId = status) else it
+//            }
+//            reduce { state.copy(announcements = updatedAnnouncements) }
+//        } catch (e: Exception) {
+//            Log.e("AdminViewModel", "Update announcement status error", e)
+//            postSideEffect(AdminSideEffect.ShowError("Ошибка обновления статуса объявления: ${e.message}"))
+//        }
+//    }
 
     fun onLogout() = intent {
         try {

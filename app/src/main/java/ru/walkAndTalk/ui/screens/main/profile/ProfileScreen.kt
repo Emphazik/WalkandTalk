@@ -36,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,6 +73,9 @@ fun ProfileScreen(
     val colorScheme = MaterialTheme.colorScheme
     var showLogoutDialog by remember { mutableStateOf(false) }
 
+    LaunchedEffect(Unit) {
+        viewModel.refreshData()
+    }
     viewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
             is ProfileSideEffect.OnNavigateExit -> onNavigateAuth()
@@ -145,12 +149,23 @@ fun ProfileScreen(
                             color = colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Дата рождения: ${state.birthDate?.ifEmpty { "Не указано" } ?: "Не указано"}",
-                            fontFamily = montserratFont,
-                            fontSize = 14.sp,
-                            color = colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Дата рождения: ${state.birthDate?.ifEmpty { "xx.xx.xxxx" } ?: "Не указано"}",
+                                fontFamily = montserratFont,
+                                fontSize = 14.sp,
+                                color = colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Пол: ${state.gender?.capitalize() ?: "М ? Ж"}",
+                                fontFamily = montserratFont,
+                                fontSize = 14.sp,
+                                color = colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically

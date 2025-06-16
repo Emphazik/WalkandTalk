@@ -12,5 +12,5 @@ interface AnnouncementsRepository {
     suspend fun updateAnnouncement(announcement: Announcement): Result<Unit>
     suspend fun deleteAnnouncement(announcementId: String, userId: String): Result<Unit>
     suspend fun deleteAnnouncementAdmin(announcementId: String): Result<Unit>
-
+    suspend fun updateAnnouncementStatus(announcementId: String, status: String): Result<Unit> // Добавлено
 }

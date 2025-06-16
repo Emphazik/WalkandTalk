@@ -44,7 +44,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -275,14 +274,17 @@ fun EditProfileScreen(
                     EditPersonalInfoSection(
                         name = state.name,
                         birthDate = state.birthDate ?: "",
+                        gender = state.gender,
                         city = state.newCity,
                         isEditing = state.isEditingPersonalInfo,
                         newName = state.newName,
                         newBirthDate = state.newBirthDate,
+                        newGender = state.newGender,
                         newCity = state.newCity,
                         onEditClick = viewModel::onEditPersonalInfo,
                         onNameChanged = viewModel::onNameChanged,
                         onBirthDateChanged = viewModel::onBirthDateChanged,
+                        onGenderChanged = viewModel::onGenderChanged,
                         onCityUpdateClick = viewModel::onUpdateCity,
                         onSaveClick = viewModel::onSavePersonalInfo,
                         onCancelClick = viewModel::onCancelPersonalInfo,
@@ -402,20 +404,24 @@ fun EditProfileScreen(
 fun EditPersonalInfoSection(
     name: String,
     birthDate: String,
+    gender: String?,
     city: String,
     isEditing: Boolean,
     newName: String,
     newBirthDate: String,
+    newGender: String?,
     newCity: String,
     onEditClick: () -> Unit,
     onNameChanged: (String) -> Unit,
     onBirthDateChanged: (String) -> Unit,
+    onGenderChanged: (String?) -> Unit,
     onCityUpdateClick: () -> Unit,
     onSaveClick: () -> Unit,
     onCancelClick: () -> Unit,
     colorScheme: ColorScheme
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
+    var showGenderMenu by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState(
         yearRange = IntRange(1900, 2025)
     )
@@ -497,6 +503,49 @@ fun EditPersonalInfoSection(
                     ),
                     enabled = false
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                Box {
+                    OutlinedTextField(
+                        value = when (newGender) {
+                            "Мужской" -> "Мужской"
+                            "Женский" -> "Женский"
+                            else -> "Не указано"
+                        },
+                        onValueChange = { /* Блокируем прямой ввод */ },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showGenderMenu = true },
+                        label = { Text("Пол") },
+                        textStyle = TextStyle(
+                            fontFamily = montserratFont,
+                            fontSize = 14.sp,
+                            color = colorScheme.onSurface.copy(alpha = 0.8f)
+                        ),
+                        enabled = false
+                    )
+                    DropdownMenu(
+                        expanded = showGenderMenu,
+                        onDismissRequest = { showGenderMenu = false },
+                        modifier = Modifier.background(colorScheme.surface)
+                    ) {
+                        listOf("Мужской" to "Мужской", "Женский" to "Женский", "Не указано" to null).forEach { (display, value) ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = display,
+                                        fontFamily = montserratFont,
+                                        fontSize = 16.sp,
+                                        color = colorScheme.onSurface
+                                    )
+                                },
+                                onClick = {
+                                    onGenderChanged(value)
+                                    showGenderMenu = false
+                                }
+                            )
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),

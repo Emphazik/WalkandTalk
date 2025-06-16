@@ -155,4 +155,26 @@ class AnnouncementsRepositoryImpl(
             Result.failure(e)
         }
     }
+
+    override suspend fun updateAnnouncementStatus(announcementId: String, status: String): Result<Unit> {
+        return try {
+            val statusId = when (status) {
+                "pending" -> "ac32ffcc-8f69-4b71-8a39-877c1eb95e04"
+                "approved" -> "7513755c-ce44-459f-a071-07080e90f450"
+                "rejected" -> "a9a0a4ec-b0b3-4684-ae6f-d576c52b9926"
+                "reported" -> "3c8536f0-753c-4d51-9106-c56d5e0ec7ff"
+                else -> throw IllegalArgumentException("Недопустимый статус: $status")
+            }
+            supabaseWrapper.postgrest[Table.ANNOUNCEMENTS].update(
+                mapOf("status_id" to statusId)
+            ) {
+                filter { eq("id", announcementId) }
+            }
+            Log.d("AnnouncementsRepository", "Статус объявления $announcementId обновлен на $status")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("AnnouncementsRepository", "Ошибка обновления статуса объявления $announcementId: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
 }

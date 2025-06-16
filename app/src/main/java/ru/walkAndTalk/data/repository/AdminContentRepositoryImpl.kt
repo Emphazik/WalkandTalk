@@ -21,28 +21,6 @@ class AdminContentRepositoryImpl(
     private val supabaseWrapper: SupabaseWrapper
 ) : AdminContentRepository {
 
-//    override suspend fun fetchAllEvents(): List<Event> {
-//        val events = supabaseWrapper.postgrest[Table.EVENTS]
-//            .select()
-//            .decodeList<EventDto>()
-//        return events.map { eventDto ->
-//            val status = supabaseWrapper.postgrest[Table.EVENT_STATUSES]
-//                .select { filter { eq("id", eventDto.statusId) } }
-//                .decodeSingle<EventStatusDto>()
-//            eventDto.toDomain(statusName = status.name)
-//        }
-//    }
-//
-//    override suspend fun fetchEventById(eventId: String): Event? {
-//        val eventDto = supabaseWrapper.postgrest[Table.EVENTS]
-//            .select { filter { eq("id", eventId) } }
-//            .decodeSingleOrNull<EventDto>() ?: return null
-//        val statusName = supabaseWrapper.postgrest[Table.EVENT_STATUSES]
-//            .select { filter { eq("id", eventDto.statusId.toInt()) } }
-//            .decodeSingle<EventStatusDto>().name
-//        return eventDto.toDomain(statusName = statusName)
-//    }
-
     override suspend fun fetchAllEvents(): List<Event> {
         val events = supabaseWrapper.postgrest[Table.EVENTS]
             .select()
@@ -129,6 +107,8 @@ class AdminContentRepositoryImpl(
                 filter { eq("id", announcement.id) }
             }
     }
+
+
 
     override suspend fun deleteAnnouncement(announcementId: String) {
         supabaseWrapper.postgrest[Table.ANNOUNCEMENTS]
