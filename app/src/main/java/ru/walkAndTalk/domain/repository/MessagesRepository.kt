@@ -10,4 +10,5 @@ interface MessagesRepository {
     suspend fun editMessage(messageId: String, newContent: String): Message // Новый метод для редактирования
 
     suspend fun getMessageById(messageId: String): Message?
+    suspend fun getMessagesByChatId(chatId: String): List<Message>
 }

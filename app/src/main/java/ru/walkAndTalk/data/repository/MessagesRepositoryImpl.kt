@@ -155,4 +155,33 @@ class MessagesRepositoryImpl(
             null
         }
     }
+
+    override suspend fun getMessagesByChatId(chatId: String): List<Message> {
+        return try {
+            val response = supabaseWrapper.postgrest.from("messages")
+                .select { filter { eq("chat_id", chatId) } }
+                .decodeList<Map<String, JsonElement>>()
+            response.mapNotNull { record ->
+                val messageId = record["id"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                val senderId = record["sender_id"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                val content = record["content"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                Message(
+                    id = messageId,
+                    chatId = record["chat_id"]?.jsonPrimitive?.content ?: return@mapNotNull null,
+                    senderId = senderId,
+                    content = content,
+                    createdAt = record["created_at"]?.jsonPrimitive?.content ?: return@mapNotNull null,
+                    isRead = record["is_read"]?.jsonPrimitive?.boolean ?: false,
+                    tempId = null,
+                    deletedBy = record["deleted_by"]?.let { element ->
+                        if (element is JsonArray) element.mapNotNull { it.jsonPrimitive.contentOrNull } else emptyList()
+                    } ?: emptyList(),
+                    senderName = null // Будет заполнено в ChatViewModel, если нужно
+                )
+            }
+        } catch (e: Exception) {
+            println("MessagesRepository: Error fetching messages for chatId=$chatId: ${e.message}")
+            emptyList()
+        }
+    }
 }

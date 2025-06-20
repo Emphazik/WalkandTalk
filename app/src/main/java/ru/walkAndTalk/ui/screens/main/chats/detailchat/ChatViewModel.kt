@@ -221,6 +221,60 @@ class ChatViewModel(
                 filter("chat_id", FilterOperator.EQ, chatId)
             }
 
+//            viewModelScope.launch {
+//                insertFlow.collect { payload ->
+//                    println("ChatViewModel: Received insert payload: $payload")
+//                    val record = payload.record as Map<String, JsonElement>
+//                    val messageId = record["id"]?.jsonPrimitive?.content ?: ""
+//                    val messageChatId = record["chat_id"]?.jsonPrimitive?.content ?: ""
+//                    val senderId = record["sender_id"]?.jsonPrimitive?.content ?: ""
+//                    val content = record["content"]?.jsonPrimitive?.content ?: ""
+//                    val createdAt = record["created_at"]?.jsonPrimitive?.content ?: ""
+//                    val isRead = record["is_read"]?.jsonPrimitive?.boolean ?: false
+//                    val deletedBy = record["deleted_by"]?.let { element ->
+//                        if (element is JsonArray) element.mapNotNull { it.jsonPrimitive.contentOrNull } else emptyList()
+//                    } ?: emptyList()
+//
+//                    if (messageId.isEmpty() || content.isEmpty() || senderId.isEmpty()) {
+//                        println("ChatViewModel: Received invalid message from Realtime, id=$messageId, senderId=$senderId")
+//                        return@collect
+//                    }
+//
+//                    val senderName = if (isGroupChat && senderId != userId) {
+//                        usersRepository.fetchById(senderId)?.name ?: "Unknown"
+//                    } else {
+//                        null
+//                    }
+//
+//                    val message = Message(
+//                        id = messageId,
+//                        chatId = messageChatId,
+//                        senderId = senderId,
+//                        content = content,
+//                        createdAt = createdAt,
+//                        isRead = isRead,
+//                        tempId = null,
+//                        deletedBy = deletedBy,
+//                        senderName = senderName
+//                    )
+//
+//                    if (state.messages.any { it.id == messageId || (it.tempId != null && it.senderId == senderId && it.content == content) }) {
+//                        println("ChatViewModel: Ignoring duplicate message from Realtime, id=$messageId")
+//                        return@collect
+//                    }
+//
+//                    reduce {
+//                        val updatedMessages = (state.messages + message).sortedBy {
+//                            OffsetDateTime.parse(it.createdAt).toInstant().toEpochMilli()
+//                        }
+//                        state.copy(messages = updatedMessages)
+//                    }
+//                    println("ChatViewModel: Received new message for chatId=$chatId, message=$message")
+//                    if (senderId != userId) {
+//                        markMessageAsRead(message)
+//                    }
+//                }
+//            }
             viewModelScope.launch {
                 insertFlow.collect { payload ->
                     println("ChatViewModel: Received insert payload: $payload")
@@ -237,6 +291,11 @@ class ChatViewModel(
 
                     if (messageId.isEmpty() || content.isEmpty() || senderId.isEmpty()) {
                         println("ChatViewModel: Received invalid message from Realtime, id=$messageId, senderId=$senderId")
+                        return@collect
+                    }
+
+                    if (state.messages.any { it.id == messageId }) {
+                        println("ChatViewModel: Ignoring duplicate message from Realtime, id=$messageId")
                         return@collect
                     }
 
@@ -258,15 +317,10 @@ class ChatViewModel(
                         senderName = senderName
                     )
 
-                    if (state.messages.any { it.id == messageId || (it.tempId != null && it.senderId == senderId && it.content == content) }) {
-                        println("ChatViewModel: Ignoring duplicate message from Realtime, id=$messageId")
-                        return@collect
-                    }
-
                     reduce {
                         val updatedMessages = (state.messages + message).sortedBy {
                             OffsetDateTime.parse(it.createdAt).toInstant().toEpochMilli()
-                        }
+                        }.toList()
                         state.copy(messages = updatedMessages)
                     }
                     println("ChatViewModel: Received new message for chatId=$chatId, message=$message")
@@ -315,9 +369,12 @@ class ChatViewModel(
                         println("ChatViewModel: Invalid delete from Realtime, id=$messageId")
                         return@collect
                     }
-                    val updatedMessages = state.messages.filter { it.id != messageId }
+                    val updatedMessages = state.messages
+                        .filter { it.id != messageId }
+                        .sortedBy { OffsetDateTime.parse(it.createdAt).toInstant().toEpochMilli() }
+                        .toList()
                     reduce { state.copy(messages = updatedMessages) }
-                    println("ChatViewModel: Deleted message id=$messageId from state")
+                    println("ChatViewModel: Deleted message id=$messageId from state, messagesCount=${updatedMessages.size}, lastMessageId=${updatedMessages.lastOrNull()?.id}")
                 }
             }
 
@@ -366,74 +423,140 @@ class ChatViewModel(
         }
     }
 
-    fun onSendMessageClick(chatId: String) = intent {
-        try {
-            val trimmedContent = state.inputText.trim()
-            if (trimmedContent.isEmpty()) {
-                postSideEffect(ChatSideEffect.ShowError("Сообщение не может быть пустым"))
-                println("ChatViewModel: Attempted to send empty message")
-                return@intent
-            }
-
-            val tempId = UUID.randomUUID().toString()
-            val tempMessage = Message(
-                id = tempId,
-                chatId = chatId,
-                senderId = userId,
-                content = trimmedContent,
-                createdAt = OffsetDateTime.now().toString(),
-                isRead = false,
-                tempId = tempId
-            )
-
-            reduce { state.copy(messages = state.messages + tempMessage, inputText = "") }
-            println("ChatViewModel: Locally added temp message: $tempMessage")
-
-            val serverMessage = messagesRepository.sendMessage(chatId, userId, trimmedContent)
-            println("ChatViewModel: Sent message to chatId=$chatId, server response: $serverMessage")
-
-            // Fetch chat to determine type and participants
-            val chat = chatsRepository.fetchChatById(chatId) ?: throw IllegalStateException("Chat not found")
-            val participants = chatsRepository.getChatParticipants(chatId)
-            val recipientIds = participants
-                .filter { it.userId != userId && it.userId.isNotBlank() }
-                .map { it.userId }
-
-            // Create notifications for recipients
-            if (recipientIds.isNotEmpty()) {
-                val senderName = usersRepository.fetchById(userId)?.name ?: "Пользователь"
-                val notificationContent = if (chat.type == "group") {
-                    "Новое сообщение в чате \"${chat.eventName ?: "группе"}\" от $senderName: $trimmedContent"
-                } else {
-                    "Новое сообщение от $senderName: $trimmedContent"
-                }
-                try {
-                    notificationsRepository.createNotifications(
-                        userIds = recipientIds,
-                        type = NotificationType.NewMessage.name,
-                        content = notificationContent,
-                        relatedId = chatId
-                    )
-                    println("ChatViewModel: Created notifications for ${recipientIds.size} recipients")
-                } catch (e: Exception) {
-                    println("ChatViewModel: Error creating notifications: ${e.message}")
-                    postSideEffect(ChatSideEffect.ShowError("Не удалось отправить уведомления: ${e.message}"))
-                }
-            }
-
-            // Удаляем локальное сообщение и добавляем серверное
-            val updatedMessages = (state.messages.filter { it.tempId != tempId } + serverMessage)
-                .sortedBy { OffsetDateTime.parse(it.createdAt).toInstant().toEpochMilli() }
-                .toList()
-            reduce { state.copy(messages = updatedMessages) }
-            println("ChatViewModel: Replaced temp message with server message: ${serverMessage.id}, isRead=${serverMessage.isRead}")
-        } catch (e: Exception) {
-            reduce { state.copy(messages = state.messages.dropLast(1), inputText = state.inputText) }
-            postSideEffect(ChatSideEffect.ShowError(e.message ?: "Ошибка отправки сообщения"))
-            println("ChatViewModel: Error sending message: ${e.message}")
+//    fun onSendMessageClick(chatId: String) = intent {
+//        try {
+//            val trimmedContent = state.inputText.trim()
+//            if (trimmedContent.isEmpty()) {
+//                postSideEffect(ChatSideEffect.ShowError("Сообщение не может быть пустым"))
+//                println("ChatViewModel: Attempted to send empty message")
+//                return@intent
+//            }
+//
+//            val tempId = UUID.randomUUID().toString()
+//            val tempMessage = Message(
+//                id = tempId,
+//                chatId = chatId,
+//                senderId = userId,
+//                content = trimmedContent,
+//                createdAt = OffsetDateTime.now().toString(),
+//                isRead = false,
+//                tempId = tempId
+//            )
+//
+//            reduce { state.copy(messages = state.messages + tempMessage, inputText = "") }
+//            println("ChatViewModel: Locally added temp message: $tempMessage")
+//
+//            val serverMessage = messagesRepository.sendMessage(chatId, userId, trimmedContent)
+//            println("ChatViewModel: Sent message to chatId=$chatId, server response: $serverMessage")
+//
+//            // Fetch chat to determine type and participants
+//            val chat = chatsRepository.fetchChatById(chatId) ?: throw IllegalStateException("Chat not found")
+//            val participants = chatsRepository.getChatParticipants(chatId)
+//            val recipientIds = participants
+//                .filter { it.userId != userId && it.userId.isNotBlank() }
+//                .map { it.userId }
+//
+//            // Create notifications for recipients
+//            if (recipientIds.isNotEmpty()) {
+//                val senderName = usersRepository.fetchById(userId)?.name ?: "Пользователь"
+//                val notificationContent = if (chat.type == "group") {
+//                    "Новое сообщение в чате \"${chat.eventName ?: "группе"}\" от $senderName: $trimmedContent"
+//                } else {
+//                    "Новое сообщение от $senderName: $trimmedContent"
+//                }
+//                try {
+//                    notificationsRepository.createNotifications(
+//                        userIds = recipientIds,
+//                        type = NotificationType.NewMessage.name,
+//                        content = notificationContent,
+//                        relatedId = chatId
+//                    )
+//                    println("ChatViewModel: Created notifications for ${recipientIds.size} recipients")
+//                } catch (e: Exception) {
+//                    println("ChatViewModel: Error creating notifications: ${e.message}")
+//                    postSideEffect(ChatSideEffect.ShowError("Не удалось отправить уведомления: ${e.message}"))
+//                }
+//            }
+//
+//            // Удаляем локальное сообщение и добавляем серверное
+//            val updatedMessages = (state.messages.filter { it.tempId != tempId } + serverMessage)
+//                .sortedBy { OffsetDateTime.parse(it.createdAt).toInstant().toEpochMilli() }
+//                .toList()
+//            reduce { state.copy(messages = updatedMessages) }
+//            println("ChatViewModel: Replaced temp message with server message: ${serverMessage.id}, isRead=${serverMessage.isRead}")
+//        } catch (e: Exception) {
+//            reduce { state.copy(messages = state.messages.dropLast(1), inputText = state.inputText) }
+//            postSideEffect(ChatSideEffect.ShowError(e.message ?: "Ошибка отправки сообщения"))
+//            println("ChatViewModel: Error sending message: ${e.message}")
+//        }
+//    }
+fun onSendMessageClick(chatId: String) = intent {
+    try {
+        val trimmedContent = state.inputText.trim()
+        if (trimmedContent.isEmpty()) {
+            postSideEffect(ChatSideEffect.ShowError("Сообщение не может быть пустым"))
+            println("ChatViewModel: Attempted to send empty message")
+            return@intent
         }
-    }
 
+        val tempId = UUID.randomUUID().toString()
+        val tempMessage = Message(
+            id = tempId,
+            chatId = chatId,
+            senderId = userId,
+            content = trimmedContent,
+            createdAt = OffsetDateTime.now().toString(),
+            isRead = false,
+            tempId = tempId
+        )
+
+        reduce { state.copy(messages = state.messages + tempMessage, inputText = "") }
+        println("ChatViewModel: Locally added temp message: $tempMessage")
+
+        val serverMessage = messagesRepository.sendMessage(chatId, userId, trimmedContent)
+        println("ChatViewModel: Sent message to chatId=$chatId, server response: $serverMessage")
+
+        // Fetch chat to determine type and participants
+        val chat = chatsRepository.fetchChatById(chatId) ?: throw IllegalStateException("Chat not found")
+        val participants = chatsRepository.getChatParticipants(chatId)
+        val recipientIds = participants
+            .filter { it.userId != userId && it.userId.isNotBlank() }
+            .map { it.userId }
+
+        // Create notifications for recipients
+        if (recipientIds.isNotEmpty()) {
+            val senderName = usersRepository.fetchById(userId)?.name ?: "Пользователь"
+            val notificationContent = if (chat.type == "group") {
+                "Новое сообщение в чате \"${chat.eventName ?: "группе"}\" от $senderName: $trimmedContent"
+            } else {
+                "Новое сообщение от $senderName: $trimmedContent"
+            }
+            try {
+                notificationsRepository.createNotifications(
+                    userIds = recipientIds,
+                    type = NotificationType.NewMessage.name,
+                    content = notificationContent,
+                    relatedId = chatId
+                )
+                println("ChatViewModel: Created notifications for ${recipientIds.size} recipients")
+            } catch (e: Exception) {
+                println("ChatViewModel: Error creating notifications: ${e.message}")
+                postSideEffect(ChatSideEffect.ShowError("Не удалось отправить уведомления: ${e.message}"))
+            }
+        }
+
+        // Удаляем локальное сообщение и добавляем серверное
+        val updatedMessages = (state.messages.filter { it.id != tempId && it.id != serverMessage.id } + serverMessage)
+            .sortedBy { OffsetDateTime.parse(it.createdAt).toInstant().toEpochMilli() }
+            .toList()
+        reduce { state.copy(messages = updatedMessages) }
+        println("ChatViewModel: Replaced temp message with server message: ${serverMessage.id}, isRead=${serverMessage.isRead}")
+    } catch (e: Exception) {
+        reduce { state.copy(messages = state.messages.dropLast(1), inputText = state.inputText) }
+        postSideEffect(ChatSideEffect.ShowError(e.message ?: "Ошибка отправки сообщения"))
+        println("ChatViewModel: Error sending message: ${e.message}")
+    }
+}
     fun forceUpdateReadStatus() = intent {
         val updatedMessages = state.messages.map { msg ->
             if (msg.isRead) {
@@ -450,6 +573,22 @@ class ChatViewModel(
         }.sortedBy { OffsetDateTime.parse(it.createdAt).toInstant().toEpochMilli() }.toList()
         reduce { state.copy(messages = updatedMessages) }
         println("ChatViewModel: Forced read status update, messagesCount=${updatedMessages.size}, lastMessageId=${updatedMessages.lastOrNull()?.id}, isRead=${updatedMessages.lastOrNull()?.isRead}")
+    }
+
+    fun forceUpdateMessages() = intent {
+        delay(500) // Ждём 500 мс для Realtime
+        try {
+            val messagesFromDb = messagesRepository.getMessagesByChatId(chatId)
+            val updatedMessages = messagesFromDb
+                .filter { userId !in (it.deletedBy ?: emptyList()) }
+                .sortedBy { OffsetDateTime.parse(it.createdAt).toInstant().toEpochMilli() }
+                .toList()
+            reduce { state.copy(messages = updatedMessages) }
+            println("ChatViewModel: Forced messages update, messagesCount=${updatedMessages.size}, lastMessageId=${updatedMessages.lastOrNull()?.id}")
+        } catch (e: Exception) {
+            println("ChatViewModel: Error forcing messages update: ${e.message}")
+            postSideEffect(ChatSideEffect.ShowError("Не удалось обновить сообщения: ${e.message}"))
+        }
     }
 
     private fun subscribeToMessageReadUpdates() = intent {

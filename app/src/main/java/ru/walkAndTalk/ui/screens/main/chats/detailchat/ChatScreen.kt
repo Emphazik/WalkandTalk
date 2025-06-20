@@ -118,6 +118,7 @@ fun ChatScreen(
         val lastMessage = state.messages.lastOrNull()
         println("ChatScreen: Messages updated, messagesCount=${state.messages.size}, lastMessageId=${lastMessage?.id}, isRead=${lastMessage?.isRead}")
         viewModel.forceUpdateReadStatus()
+        viewModel.loadChat()
     }
 
     LaunchedEffect(state.messages, state.isLoading) {
@@ -127,10 +128,17 @@ fun ChatScreen(
         }
     }
 
+//    LaunchedEffect(state.messages.size) {
+//        if (state.messages.isNotEmpty()) {
+//            lazyListState.animateScrollToItem(state.messages.size - 1)
+//            println("ChatScreen: Scrolled to last message after new message")
+//        }
+//    }
     LaunchedEffect(state.messages.size) {
+        val lastMessage = state.messages.lastOrNull()
+        println("ChatScreen: Messages size changed, messagesCount=${state.messages.size}, lastMessageId=${lastMessage?.id}, isRead=${lastMessage?.isRead}, messageIds=${state.messages.map { it.id }}")
         if (state.messages.isNotEmpty()) {
             lazyListState.animateScrollToItem(state.messages.size - 1)
-            println("ChatScreen: Scrolled to last message after new message")
         }
     }
 
@@ -385,7 +393,73 @@ fun ChatScreen(
                         } else {
                             state.messages
                         }
-
+//                        LazyColumn(
+//                            state = lazyListState,
+//                            modifier = Modifier
+//                                .weight(1f)
+//                                .padding(horizontal = 16.dp),
+//                            verticalArrangement = Arrangement.spacedBy(8.dp),
+//                            contentPadding = PaddingValues(vertical = 16.dp)
+//                        ) {
+//                            val groupedMessages = filteredMessages.groupBy { message ->
+//                                OffsetDateTime.parse(message.createdAt).toLocalDate()
+//                            }
+//                            groupedMessages.entries.forEachIndexed { index, (date, messages) ->
+//                                item {
+//                                    Row(
+//                                        modifier = Modifier
+//                                            .fillMaxWidth()
+//                                            .padding(vertical = 8.dp),
+//                                        verticalAlignment = Alignment.CenterVertically
+//                                    ) {
+//                                        Spacer(
+//                                            modifier = Modifier
+//                                                .weight(1f)
+//                                                .height(1.dp)
+//                                                .background(
+//                                                    MaterialTheme.colorScheme.onSurface.copy(
+//                                                        alpha = 0.2f
+//                                                    )
+//                                                )
+//                                        )
+//                                        Text(
+//                                            text = formatDateForSeparator(messages.first().createdAt),
+//                                            fontFamily = montserratFont,
+//                                            fontSize = 12.sp,
+//                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+//                                            modifier = Modifier.padding(horizontal = 8.dp)
+//                                        )
+//                                        Spacer(
+//                                            modifier = Modifier
+//                                                .weight(1f)
+//                                                .height(1.dp)
+//                                                .background(
+//                                                    MaterialTheme.colorScheme.onSurface.copy(
+//                                                        alpha = 0.2f
+//                                                    )
+//                                                )
+//                                        )
+//                                    }
+//                                }
+//                                itemsIndexed(messages, key = { _, message -> "${message.id}-${message.isRead}" }) { msgIndex, message ->
+//                                    val showSenderName = if (msgIndex > 0) {
+//                                        val prevMessage = messages[msgIndex - 1]
+//                                        message.senderId != prevMessage.senderId && message.senderName != null
+//                                    } else {
+//                                        message.senderName != null
+//                                    }
+//                                    MessageItem(
+//                                        message = message,
+//                                        currentUserId = userId,
+//                                        isSelected = message.id in state.selectedMessageIds,
+//                                        showSenderName = showSenderName,
+//                                        onLongClick = { viewModel.toggleMessageSelection(message.id) },
+//                                        onCopy = { viewModel.showCopySuccess() }
+//                                    )
+//                                }
+//                            }
+//                        }
+//                    }
                         LazyColumn(
                             state = lazyListState,
                             modifier = Modifier
@@ -436,7 +510,7 @@ fun ChatScreen(
                                 }
                                 itemsIndexed(
                                     messages,
-                                    key = { _, message -> "${message.id}-${message.isRead}" }) { msgIndex, message ->
+                                    key = { _, message -> message.id }) { msgIndex, message ->
                                     val showSenderName = if (msgIndex > 0) {
                                         val prevMessage = messages[msgIndex - 1]
                                         message.senderId != prevMessage.senderId && message.senderName != null
@@ -455,7 +529,6 @@ fun ChatScreen(
                             }
                         }
                     }
-
                     OutlinedTextField(
                         value = state.inputText,
                         onValueChange = { viewModel.onInputTextChange(it) },
@@ -886,8 +959,8 @@ fun MessageItem(
     onCopy: () -> Unit
 ) {
     LaunchedEffect(message.id, message.isRead) {
-        println("MessageItem: Rendering message id=${message.id}, content=${message.content}, isRead=${message.isRead}, isOwn=${message.senderId == currentUserId}")
-    }
+            println("MessageItem: Rendering message id=${message.id}, content=${message.content}, isRead=${message.isRead}, isOwn=${message.senderId == currentUserId}")
+        }
     val isOwnMessage = message.senderId == currentUserId
     val context = LocalContext.current
     Column(
