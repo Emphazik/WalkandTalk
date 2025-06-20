@@ -1,4 +1,5 @@
 package ru.walkAndTalk.domain.repository
+import ru.walkAndTalk.data.model.ChatParticipantDto
 import ru.walkAndTalk.domain.model.Chat
 import ru.walkAndTalk.domain.model.Message
 import ru.walkAndTalk.domain.model.User
@@ -20,4 +21,7 @@ interface ChatsRepository {
 
     suspend fun fetchMessages(chatId: String): List<Message>
     suspend fun leaveGroupChat(chatId: String, userId: String)
+
+    suspend fun getChatParticipants(chatId: String): List<ChatParticipantDto>
+
 }

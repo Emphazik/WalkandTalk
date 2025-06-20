@@ -60,8 +60,9 @@ private val viewModelModule = module {
             userId = userId,
             chatsRepository = get(),
             messagesRepository = get(),
-            usersRepository =  get(),
+            usersRepository = get(),
             supabaseWrapper = get(),
+            notificationsRepository = get(),
         )
     }
     factory {

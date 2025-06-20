@@ -8,4 +8,6 @@ interface MessagesRepository {
     suspend fun markMessageAsRead(messageId: String)
     suspend fun deleteMessages(messageIds: List<String>)
     suspend fun editMessage(messageId: String, newContent: String): Message // Новый метод для редактирования
+
+    suspend fun getMessageById(messageId: String): Message?
 }

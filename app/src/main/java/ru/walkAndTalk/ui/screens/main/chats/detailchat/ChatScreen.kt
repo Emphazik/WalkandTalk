@@ -58,6 +58,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -98,7 +99,8 @@ fun ChatScreen(
     navController: NavHostController,
     viewModel: ChatViewModel = koinViewModel(parameters = { parametersOf(chatId, userId) })
 ) {
-    val state by viewModel.collectAsState()
+//    val state by viewModel.collectAsState()
+    val state by viewModel.container.stateFlow.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState()
@@ -110,6 +112,12 @@ fun ChatScreen(
             val lastVisibleItemIndex = lazyListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
             lastVisibleItemIndex != null && lastVisibleItemIndex < state.messages.size - 1
         }
+    }
+
+    LaunchedEffect(state.messages) {
+        val lastMessage = state.messages.lastOrNull()
+        println("ChatScreen: Messages updated, messagesCount=${state.messages.size}, lastMessageId=${lastMessage?.id}, isRead=${lastMessage?.isRead}")
+        viewModel.forceUpdateReadStatus()
     }
 
     LaunchedEffect(state.messages, state.isLoading) {
@@ -401,7 +409,11 @@ fun ChatScreen(
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .height(1.dp)
-                                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
+                                                .background(
+                                                    MaterialTheme.colorScheme.onSurface.copy(
+                                                        alpha = 0.2f
+                                                    )
+                                                )
                                         )
                                         Text(
                                             text = formatDateForSeparator(messages.first().createdAt),
@@ -414,11 +426,17 @@ fun ChatScreen(
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .height(1.dp)
-                                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
+                                                .background(
+                                                    MaterialTheme.colorScheme.onSurface.copy(
+                                                        alpha = 0.2f
+                                                    )
+                                                )
                                         )
                                     }
                                 }
-                                itemsIndexed(messages) { msgIndex, message ->
+                                itemsIndexed(
+                                    messages,
+                                    key = { _, message -> "${message.id}-${message.isRead}" }) { msgIndex, message ->
                                     val showSenderName = if (msgIndex > 0) {
                                         val prevMessage = messages[msgIndex - 1]
                                         message.senderId != prevMessage.senderId && message.senderName != null
@@ -857,6 +875,7 @@ fun ChatScreen(
         }
     }
 }
+
 @Composable
 fun MessageItem(
     message: Message,
@@ -866,6 +885,9 @@ fun MessageItem(
     onLongClick: () -> Unit,
     onCopy: () -> Unit
 ) {
+    LaunchedEffect(message.id, message.isRead) {
+        println("MessageItem: Rendering message id=${message.id}, content=${message.content}, isRead=${message.isRead}, isOwn=${message.senderId == currentUserId}")
+    }
     val isOwnMessage = message.senderId == currentUserId
     val context = LocalContext.current
     Column(
@@ -948,96 +970,6 @@ fun MessageItem(
         }
     }
 }
-//@Composable
-//fun MessageItem(
-//    message: Message,
-//    currentUserId: String,
-//    isSelected: Boolean = false,
-//    onLongClick: () -> Unit,
-//    onCopy: () -> Unit,
-//) {
-//    val isOwnMessage = message.senderId == currentUserId
-//    val context = LocalContext.current
-//    Column(
-//        modifier = Modifier
-//            .fillMaxWidth()
-//            .padding(horizontal = 8.dp)
-//            .background(
-//                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-//                else MaterialTheme.colorScheme.background
-//            )
-//    ) {
-//        if (!isOwnMessage && message.senderName != null) {
-//            Text(
-//                text = message.senderName,
-//                fontFamily = montserratFont,
-//                fontSize = 12.sp,
-//                fontWeight = FontWeight.Medium,
-//                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-//                modifier = Modifier
-//                    .padding(start = 12.dp, bottom = 4.dp)
-//                    .align(Alignment.Start)
-//            )
-//        }
-//        Row(
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .combinedClickable(
-//                    onClick = {
-//                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-//                        val clip = ClipData.newPlainText("Message", message.content)
-//                        clipboard.setPrimaryClip(clip)
-//                        onCopy()
-//                    },
-//                    onLongClick = onLongClick
-//                ),
-//            horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start,
-//            verticalAlignment = Alignment.CenterVertically
-//        ) {
-//            Card(
-//                modifier = Modifier
-//                    .widthIn(max = 300.dp)
-//                    .padding(4.dp),
-//                colors = CardDefaults.cardColors(
-//                    containerColor = if (isOwnMessage) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
-//                )
-//            ) {
-//                Column(
-//                    modifier = Modifier.padding(8.dp)
-//                ) {
-//                    Text(
-//                        text = message.content,
-//                        fontFamily = montserratFont,
-//                        fontSize = 14.sp,
-//                        color = MaterialTheme.colorScheme.onSurface
-//                    )
-//                    Row(
-//                        verticalAlignment = Alignment.CenterVertically,
-//                        modifier = Modifier.padding(top = 4.dp)
-//                    ) {
-//                        Text(
-//                            text = formatMessageTimeForChat(message.createdAt),
-//                            fontFamily = montserratFont,
-//                            fontSize = 12.sp,
-//                            color = MaterialTheme.colorScheme.onSurfaceVariant
-//                        )
-//                        if (isOwnMessage) {
-//                            Spacer(modifier = Modifier.width(4.dp))
-//                            Icon(
-//                                painter = painterResource(
-//                                    id = if (message.isRead) R.drawable.ic_double_check64 else R.drawable.ic_single_check64
-//                                ),
-//                                contentDescription = if (message.isRead) "Прочитано" else "Отправлено",
-//                                modifier = Modifier.size(16.dp),
-//                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-//                            )
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-//}
 
     @SuppressLint("SimpleDateFormat")
     fun formatMessageTimeForChat(time: String): String {

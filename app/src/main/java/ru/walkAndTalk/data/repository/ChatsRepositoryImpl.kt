@@ -611,4 +611,10 @@ class ChatsRepositoryImpl(
     override suspend fun fetchUsersForChats(chatIds: List<String>): List<User> {
         return emptyList()
     }
+
+    override suspend fun getChatParticipants(chatId: String): List<ChatParticipantDto> {
+        return supabaseWrapper.postgrest.from(Table.CHAT_PARTICIPANTS)
+            .select { filter { eq("chat_id", chatId) } }
+            .decodeList<ChatParticipantDto>()
+    }
 }

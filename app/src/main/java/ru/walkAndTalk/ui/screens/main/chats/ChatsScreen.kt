@@ -85,7 +85,7 @@ import java.util.Locale
 fun ChatsScreen(
     userId: String,
     navController: NavHostController,
-    viewModel: ChatsViewModel = koinViewModel(parameters = { parametersOf(userId) })
+    viewModel: ChatsViewModel = koinViewModel(parameters = { parametersOf(userId) }),
 ) {
     val state by viewModel.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }

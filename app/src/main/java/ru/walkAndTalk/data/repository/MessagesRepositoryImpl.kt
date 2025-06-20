@@ -2,8 +2,13 @@ package ru.walkAndTalk.data.repository
 
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import ru.walkAndTalk.data.mapper.toDomain
 import ru.walkAndTalk.data.model.ChatParticipantDto
 import ru.walkAndTalk.data.model.MessageDto
@@ -123,5 +128,31 @@ class MessagesRepositoryImpl(
             .decodeSingle<MessageDto>()
         println("MessagesRepository: Edited message id=$messageId, newContent=$newContent")
         return updatedMessage.toDomain()
+    }
+
+    override suspend fun getMessageById(messageId: String): Message? {
+        return try {
+            val response = supabaseWrapper.postgrest.from("messages")
+                .select { filter { eq("id", messageId) } }
+                .decodeSingleOrNull<Map<String, JsonElement>>()
+            response?.let { record ->
+                Message(
+                    id = record["id"]?.jsonPrimitive?.content ?: return null,
+                    chatId = record["chat_id"]?.jsonPrimitive?.content ?: return null,
+                    senderId = record["sender_id"]?.jsonPrimitive?.content ?: return null,
+                    content = record["content"]?.jsonPrimitive?.content ?: return null,
+                    createdAt = record["created_at"]?.jsonPrimitive?.content ?: return null,
+                    isRead = record["is_read"]?.jsonPrimitive?.boolean ?: false,
+                    tempId = null,
+                    deletedBy = record["deleted_by"]?.let { element ->
+                        if (element is JsonArray) element.mapNotNull { it.jsonPrimitive.contentOrNull } else emptyList()
+                    } ?: emptyList(),
+                    senderName = null
+                )
+            }
+        } catch (e: Exception) {
+            println("MessagesRepository: Error fetching message $messageId: ${e.message}")
+            null
+        }
     }
 }

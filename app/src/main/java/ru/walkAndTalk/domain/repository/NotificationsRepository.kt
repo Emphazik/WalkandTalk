@@ -9,4 +9,11 @@ interface NotificationsRepository {
     suspend fun markAllAsRead(userId: String)
     suspend fun subscribeToNotifications(userId: String, onUpdate: (NotificationDto) -> Unit)
     suspend fun unsubscribeFromNotifications()
+
+    suspend fun createNotifications(
+        userIds: List<String>,
+        type: String,
+        content: String,
+        relatedId: String?
+    ): List<NotificationDto>
 }
