@@ -99,7 +99,6 @@ fun ChatScreen(
     navController: NavHostController,
     viewModel: ChatViewModel = koinViewModel(parameters = { parametersOf(chatId, userId) })
 ) {
-//    val state by viewModel.collectAsState()
     val state by viewModel.container.stateFlow.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -119,6 +118,7 @@ fun ChatScreen(
         println("ChatScreen: Messages updated, messagesCount=${state.messages.size}, lastMessageId=${lastMessage?.id}, isRead=${lastMessage?.isRead}")
         viewModel.forceUpdateReadStatus()
         viewModel.loadChat()
+        viewModel.forceUpdateMessages()
     }
 
     LaunchedEffect(state.messages, state.isLoading) {
@@ -128,12 +128,6 @@ fun ChatScreen(
         }
     }
 
-//    LaunchedEffect(state.messages.size) {
-//        if (state.messages.isNotEmpty()) {
-//            lazyListState.animateScrollToItem(state.messages.size - 1)
-//            println("ChatScreen: Scrolled to last message after new message")
-//        }
-//    }
     LaunchedEffect(state.messages.size) {
         val lastMessage = state.messages.lastOrNull()
         println("ChatScreen: Messages size changed, messagesCount=${state.messages.size}, lastMessageId=${lastMessage?.id}, isRead=${lastMessage?.isRead}, messageIds=${state.messages.map { it.id }}")
@@ -151,7 +145,6 @@ fun ChatScreen(
                 )
                 println("ChatScreen: Showing error snackbar: ${sideEffect.message}")
             }
-
             is ChatSideEffect.ShowCopySuccess -> {
                 coroutineScope.launch {
                     snackbarHostState.showSnackbar(
@@ -167,58 +160,26 @@ fun ChatScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             snackbarHost = { /* Отключен встроенный snackbarHost */ },
-            topBar = {
-                if (state.isSearchActive) {
-                    // Режим поиска
-                    TopAppBar(
-                        title = {
-                            TextField(
-                                value = state.searchQuery,
-                                onValueChange = { viewModel.updateSearchQuery(it) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(56.dp)
-                                    .padding(horizontal = 8.dp)
-                                    .background(Color.White, shape = RoundedCornerShape(8.dp)), // Явный фон с закруглением
-                                placeholder = {
-                                    Text(
-                                        text = "Поиск сообщений...",
-                                        fontSize = 16.sp,
-                                        fontFamily = montserratFont,
-                                        color = Color.Gray
-                                    )
-                                },
-                                textStyle = TextStyle(
-                                    fontSize = 16.sp,
-                                    fontFamily = montserratFont,
-                                    color = Color.Black
-                                ),
-                                singleLine = true,
-                                colors = TextFieldDefaults.colors(
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent,
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent,
-                                    cursorColor = Color.Black,
-                                    focusedTextColor = Color.Black,
-                                    unfocusedTextColor = Color.Black
-                                ),
-                                trailingIcon = {
-                                    if (state.searchQuery.isNotEmpty()) {
-                                        IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Очистить поиск",
-                                                tint = MaterialTheme.colorScheme.onBackground,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            )
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = { viewModel.toggleSearch() }) {
+            content = { padding ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize(1f)
+//                        .padding(padding)
+                        .background(MaterialTheme.colorScheme.background)
+                ) {
+                    // Верхняя часть: Row вместо TopAppBar
+                    if (state.isSearchActive) {
+                        // Режим поиска
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 24.dp), 
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = { viewModel.toggleSearch() },
+                                modifier = Modifier.size(48.dp) 
+                            ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = "Отменить поиск",
@@ -226,29 +187,84 @@ fun ChatScreen(
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
-                        },
-                        actions = {
-                            IconButton(onClick = { /* Дополнительные действия поиска, если нужны */ }) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            OutlinedTextField(
+                                value = state.searchQuery,
+                                onValueChange = { viewModel.updateSearchQuery(it) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(56.dp), 
+                                placeholder = {
+                                    Text(
+                                        text = "Поиск сообщений...",
+                                        fontFamily = montserratFont,
+                                        fontSize = 12.sp, 
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                    )
+                                },
+                                textStyle = TextStyle(
+                                    fontSize = 14.sp, 
+                                    fontFamily = montserratFont,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                ),
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp), 
+                                trailingIcon = {
+                                    if (state.searchQuery.isNotEmpty()) {
+                                        IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Очистить поиск",
+                                                tint = MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.Search,
+                                            contentDescription = "Поиск",
+                                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+                            )
+                        }
+                    } else {
+                        // Обычный режим
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, top = 24.dp), // Отступ слева 16.dp для выравнивания с сообщениями, top как в ChatsScreen
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    if (state.selectedMessageIds.isNotEmpty()) {
+                                        viewModel.clearSelection()
+                                    } else {
+                                        navController.previousBackStackEntry?.savedStateHandle?.set(
+                                            "refreshChats",
+                                            true
+                                        )
+                                        navController.popBackStack()
+                                        println("ChatScreen: Returning to ChatsScreen, set refreshChats=true")
+                                    }
+                                },
+                                modifier = Modifier.size(48.dp) 
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = "Поиск",
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Назад",
                                     tint = MaterialTheme.colorScheme.onBackground,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.background,
-                            titleContentColor = MaterialTheme.colorScheme.onBackground
-                        )
-                    )
-                } else {
-                    // Обычный режим
-                    TopAppBar(
-                        expandedHeight = 48.dp,
-                        title = {
+                            Spacer(modifier = Modifier.width(8.dp))
                             if (state.selectedMessageIds.isEmpty()) {
-                                Column {
+                                Column(
+                                    modifier = Modifier.weight(1f)
+                                ) {
                                     Text(
                                         text = if (state.chat?.type == "group") {
                                             state.chat?.eventName ?: "Групповой чат"
@@ -256,11 +272,11 @@ fun ChatScreen(
                                             state.chat?.participantName ?: "Неизвестный пользователь"
                                         },
                                         fontFamily = montserratFont,
-                                        fontSize = if (state.chat?.type == "group") 15.sp else 18.sp, // Different font sizes
+                                        fontSize = if (state.chat?.type == "group") 15.sp else 18.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onBackground,
-                                        maxLines = 1, // Limit to one line
-                                        overflow = TextOverflow.Ellipsis // Add ellipsis for overflow
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                     if (state.chat?.type == "group") {
                                         val participantCount = viewModel.getParticipantCount()
@@ -278,622 +294,200 @@ fun ChatScreen(
                                     fontFamily = montserratFont,
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onBackground
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    modifier = Modifier.weight(1f)
                                 )
                             }
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = {
-                                if (state.selectedMessageIds.isNotEmpty()) {
-                                    viewModel.clearSelection()
-                                } else {
-                                    navController.previousBackStackEntry?.savedStateHandle?.set(
-                                        "refreshChats",
-                                        true
-                                    )
-                                    navController.popBackStack()
-                                    println("ChatScreen: Returning to ChatsScreen, set refreshChats=true")
-                                }
-                            }) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Назад",
-                                    tint = MaterialTheme.colorScheme.onBackground
-                                )
-                            }
-                        },
-                        actions = {
                             if (state.selectedMessageIds.isEmpty()) {
-                                IconButton(onClick = { viewModel.toggleSearch() }) { // Заменяем уведомление на функционал поиска
+                                IconButton(
+                                    onClick = { viewModel.toggleSearch() },
+                                    modifier = Modifier.size(48.dp) 
+                                ) {
                                     Icon(
                                         imageVector = Icons.Default.Search,
                                         contentDescription = "Поиск",
-                                        tint = MaterialTheme.colorScheme.onBackground
+                                        tint = MaterialTheme.colorScheme.onBackground,
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
-                                IconButton(onClick = { showBottomSheet = true }) {
+                                IconButton(
+                                    onClick = { showBottomSheet = true },
+                                    modifier = Modifier.size(48.dp) 
+                                ) {
                                     Icon(
                                         painter = painterResource(id = R.drawable.ic_more128),
                                         contentDescription = "Меню",
-                                        tint = MaterialTheme.colorScheme.onBackground
+                                        tint = MaterialTheme.colorScheme.onBackground,
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
                             } else {
                                 if (state.selectedMessageIds.size == 1) {
-                                    val selectedMessage =
-                                        state.messages.first { it.id in state.selectedMessageIds }
+                                    val selectedMessage = state.messages.first { it.id in state.selectedMessageIds }
                                     if (selectedMessage.senderId == userId) {
                                         IconButton(
-                                            onClick = { viewModel.onEditClick(selectedMessage) }
+                                            onClick = { viewModel.onEditClick(selectedMessage) },
+                                            modifier = Modifier.size(48.dp) 
                                         ) {
                                             Icon(
                                                 painter = painterResource(id = R.drawable.ic_edit64),
                                                 contentDescription = "Редактировать",
-                                                tint = MaterialTheme.colorScheme.onBackground
+                                                tint = MaterialTheme.colorScheme.onBackground,
+                                                modifier = Modifier.size(24.dp)
                                             )
                                         }
                                     }
                                 }
                                 IconButton(
-                                    onClick = { viewModel.toggleShowDeleteDialog() }
+                                    onClick = { viewModel.toggleShowDeleteDialog() },
+                                    modifier = Modifier.size(48.dp) 
                                 ) {
                                     Icon(
                                         painter = painterResource(id = R.drawable.ic_delete64),
                                         contentDescription = "Удалить",
-                                        tint = MaterialTheme.colorScheme.error
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
                             }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.background,
-                            titleContentColor = MaterialTheme.colorScheme.onBackground
-                        )
-                    )
-                }
-            }
-        ) { padding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .background(MaterialTheme.colorScheme.background)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    if (state.isLoading) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
                         }
-                    } else if (state.error != null) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Ошибка: ${state.error}",
-                                color = MaterialTheme.colorScheme.error,
-                                fontFamily = montserratFont,
-                                fontSize = 16.sp
-                            )
-                        }
-                    } else {
-                        val filteredMessages = if (state.searchQuery.isNotEmpty()) {
-                            state.messages.filter {
-                                it.content.contains(state.searchQuery, ignoreCase = true)
+                    }
+                    Spacer(modifier = Modifier.height(6.dp)) 
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = 8.dp) 
+                    ) {
+                        // Остальная часть контента
+                        if (state.isLoading) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        } else if (state.error != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Ошибка: ${state.error}",
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontFamily = montserratFont,
+                                    fontSize = 16.sp
+                                )
                             }
                         } else {
-                            state.messages
-                        }
-//                        LazyColumn(
-//                            state = lazyListState,
-//                            modifier = Modifier
-//                                .weight(1f)
-//                                .padding(horizontal = 16.dp),
-//                            verticalArrangement = Arrangement.spacedBy(8.dp),
-//                            contentPadding = PaddingValues(vertical = 16.dp)
-//                        ) {
-//                            val groupedMessages = filteredMessages.groupBy { message ->
-//                                OffsetDateTime.parse(message.createdAt).toLocalDate()
-//                            }
-//                            groupedMessages.entries.forEachIndexed { index, (date, messages) ->
-//                                item {
-//                                    Row(
-//                                        modifier = Modifier
-//                                            .fillMaxWidth()
-//                                            .padding(vertical = 8.dp),
-//                                        verticalAlignment = Alignment.CenterVertically
-//                                    ) {
-//                                        Spacer(
-//                                            modifier = Modifier
-//                                                .weight(1f)
-//                                                .height(1.dp)
-//                                                .background(
-//                                                    MaterialTheme.colorScheme.onSurface.copy(
-//                                                        alpha = 0.2f
-//                                                    )
-//                                                )
-//                                        )
-//                                        Text(
-//                                            text = formatDateForSeparator(messages.first().createdAt),
-//                                            fontFamily = montserratFont,
-//                                            fontSize = 12.sp,
-//                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-//                                            modifier = Modifier.padding(horizontal = 8.dp)
-//                                        )
-//                                        Spacer(
-//                                            modifier = Modifier
-//                                                .weight(1f)
-//                                                .height(1.dp)
-//                                                .background(
-//                                                    MaterialTheme.colorScheme.onSurface.copy(
-//                                                        alpha = 0.2f
-//                                                    )
-//                                                )
-//                                        )
-//                                    }
-//                                }
-//                                itemsIndexed(messages, key = { _, message -> "${message.id}-${message.isRead}" }) { msgIndex, message ->
-//                                    val showSenderName = if (msgIndex > 0) {
-//                                        val prevMessage = messages[msgIndex - 1]
-//                                        message.senderId != prevMessage.senderId && message.senderName != null
-//                                    } else {
-//                                        message.senderName != null
-//                                    }
-//                                    MessageItem(
-//                                        message = message,
-//                                        currentUserId = userId,
-//                                        isSelected = message.id in state.selectedMessageIds,
-//                                        showSenderName = showSenderName,
-//                                        onLongClick = { viewModel.toggleMessageSelection(message.id) },
-//                                        onCopy = { viewModel.showCopySuccess() }
-//                                    )
-//                                }
-//                            }
-//                        }
-//                    }
-                        LazyColumn(
-                            state = lazyListState,
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(vertical = 16.dp)
-                        ) {
-                            val groupedMessages = filteredMessages.groupBy { message ->
-                                OffsetDateTime.parse(message.createdAt).toLocalDate()
-                            }
-                            groupedMessages.entries.forEachIndexed { index, (date, messages) ->
-                                item {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Spacer(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(1.dp)
-                                                .background(
-                                                    MaterialTheme.colorScheme.onSurface.copy(
-                                                        alpha = 0.2f
-                                                    )
-                                                )
-                                        )
-                                        Text(
-                                            text = formatDateForSeparator(messages.first().createdAt),
-                                            fontFamily = montserratFont,
-                                            fontSize = 12.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(horizontal = 8.dp)
-                                        )
-                                        Spacer(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(1.dp)
-                                                .background(
-                                                    MaterialTheme.colorScheme.onSurface.copy(
-                                                        alpha = 0.2f
-                                                    )
-                                                )
-                                        )
-                                    }
+                            val filteredMessages = if (state.searchQuery.isNotEmpty()) {
+                                state.messages.filter {
+                                    it.content.contains(state.searchQuery, ignoreCase = true)
                                 }
-                                itemsIndexed(
-                                    messages,
-                                    key = { _, message -> message.id }) { msgIndex, message ->
-                                    val showSenderName = if (msgIndex > 0) {
-                                        val prevMessage = messages[msgIndex - 1]
-                                        message.senderId != prevMessage.senderId && message.senderName != null
-                                    } else {
-                                        message.senderName != null
-                                    }
-                                    MessageItem(
-                                        message = message,
-                                        currentUserId = userId,
-                                        isSelected = message.id in state.selectedMessageIds,
-                                        showSenderName = showSenderName,
-                                        onLongClick = { viewModel.toggleMessageSelection(message.id) },
-                                        onCopy = { viewModel.showCopySuccess() }
-                                    )
-                                }
+                            } else {
+                                state.messages
                             }
-                        }
-                    }
-                    OutlinedTextField(
-                        value = state.inputText,
-                        onValueChange = { viewModel.onInputTextChange(it) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(5.dp)
-                            .background(MaterialTheme.colorScheme.background),
-                        placeholder = { Text("Введите сообщение...") },
-                        trailingIcon = {
-                            IconButton(
-                                onClick = { viewModel.onSendMessageClick(chatId) },
-                                enabled = state.inputText.isNotBlank()
+                            LazyColumn(
+                                state = lazyListState,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = PaddingValues(vertical = 16.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Send,
-                                    contentDescription = "Отправить",
-                                    tint = if (state.inputText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
-                                        alpha = 0.5f
-                                    )
-                                )
+                                val groupedMessages = filteredMessages.groupBy { message ->
+                                    OffsetDateTime.parse(message.createdAt).toLocalDate()
+                                }
+                                groupedMessages.entries.forEachIndexed { index, (date, messages) ->
+                                    item {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Spacer(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .height(1.dp)
+                                                    .background(
+                                                        MaterialTheme.colorScheme.onSurface.copy(
+                                                            alpha = 0.2f
+                                                        )
+                                                    )
+                                            )
+                                            Text(
+                                                text = formatDateForSeparator(messages.first().createdAt),
+                                                fontFamily = montserratFont,
+                                                fontSize = 12.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(horizontal = 8.dp)
+                                            )
+                                            Spacer(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .height(1.dp)
+                                                    .background(
+                                                        MaterialTheme.colorScheme.onSurface.copy(
+                                                            alpha = 0.2f
+                                                        )
+                                                    )
+                                            )
+                                        }
+                                    }
+                                    itemsIndexed(
+                                        messages,
+                                        key = { _, message -> message.id }
+                                    ) { msgIndex, message ->
+                                        val showSenderName = if (msgIndex > 0) {
+                                            val prevMessage = messages[msgIndex - 1]
+                                            message.senderId != prevMessage.senderId && message.senderName != null
+                                        } else {
+                                            message.senderName != null
+                                        }
+                                        MessageItem(
+                                            message = message,
+                                            currentUserId = userId,
+                                            isSelected = message.id in state.selectedMessageIds,
+                                            showSenderName = showSenderName,
+                                            onLongClick = { viewModel.toggleMessageSelection(message.id) },
+                                            onCopy = { viewModel.showCopySuccess() }
+                                        )
+                                    }
+                                }
                             }
                         }
-                    )
-                }
-
-                if (isScrolledUp) {
-                    IconButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                lazyListState.animateScrollToItem(state.messages.size - 1)
+                        OutlinedTextField(
+                            value = state.inputText,
+                            onValueChange = { viewModel.onInputTextChange(it) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(5.dp)
+                                .background(MaterialTheme.colorScheme.background),
+                            placeholder = { Text("Введите сообщение...") },
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = { viewModel.onSendMessageClick(chatId) },
+                                    enabled = state.inputText.isNotBlank()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.Send,
+                                        contentDescription = "Отправить",
+                                        tint = if (state.inputText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
+                                            alpha = 0.5f
+                                        )
+                                    )
+                                }
                             }
-                        },
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 72.dp)
-                            .background(
-                                MaterialTheme.colorScheme.primary,
-                                shape = CircleShape
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = "Прокрутить вниз",
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
-
-                if (showBottomSheet && state.chat != null) {
-                    ModalBottomSheet(
-                        onDismissRequest = { showBottomSheet = false },
-                        sheetState = sheetState,
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ) {
-                        var showClearHistoryDialog by remember { mutableStateOf(false) }
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(bottom = 16.dp)
-                            ) {
-                                Text(
-                                    text = state.chat?.participantName ?: state.chat?.eventName ?: "Чат",
-                                    fontFamily = montserratFont,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                if (state.chat?.isMuted == true) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_notifications_off32),
-                                        contentDescription = "Уведомления отключены",
-                                        modifier = Modifier.size(15.dp),
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-                            TextButton(
-                                onClick = {
-                                    coroutineScope.launch {
-                                        viewModel.toggleMuteChat(
-                                            chatId,
-                                            !(state.chat?.isMuted ?: false)
-                                        )
-                                        showBottomSheet = false
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_notifications),
-                                        contentDescription = "Уведомления",
-                                        modifier = Modifier.size(24.dp),
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = if (state.chat?.isMuted == true) "Включить уведомления" else "Отключить уведомления",
-                                        fontFamily = montserratFont,
-                                        fontSize = 16.sp,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-                            state.chat?.unreadCount?.let {
-                                if (it > 0) {
-                                    TextButton(
-                                        onClick = {
-                                            coroutineScope.launch {
-                                                viewModel.markChatAsRead(chatId)
-                                                showBottomSheet = false
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(id = R.drawable.ic_double_check64),
-                                                contentDescription = "Прочитано",
-                                                modifier = Modifier.size(24.dp),
-                                                tint = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = "Отметить прочитанным",
-                                                fontFamily = montserratFont,
-                                                fontSize = 16.sp,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                            TextButton(
-                                onClick = { showClearHistoryDialog = true },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_clear_history64),
-                                        contentDescription = "Очистить историю",
-                                        modifier = Modifier.size(24.dp),
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Очистить историю",
-                                        fontFamily = montserratFont,
-                                        fontSize = 16.sp,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-                            TextButton(
-                                onClick = { viewModel.toggleShowDeleteDialog() },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_delete64),
-                                        contentDescription = "Удалить чат",
-                                        modifier = Modifier.size(24.dp),
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Удалить чат",
-                                        fontFamily = montserratFont,
-                                        fontSize = 16.sp,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            if (state.showDeleteDialog) {
-                                AlertDialog(
-                                    onDismissRequest = { viewModel.toggleShowDeleteDialog() },
-                                    title = { Text("Удаление сообщений") },
-                                    text = { Text("Вы уверены, что хотите удалить ${state.selectedMessageIds.size} выбранных сообщений?") },
-                                    confirmButton = {
-                                        TextButton(
-                                            onClick = {
-                                                viewModel.onDeleteMessagesClick(
-                                                    state.selectedMessageIds.toList(),
-                                                    isLocal = false
-                                                )
-                                            }
-                                        ) {
-                                            Text("Удалить")
-                                        }
-                                    },
-                                    dismissButton = {
-                                        TextButton(onClick = { viewModel.toggleShowDeleteDialog() }) {
-                                            Text("Отмена")
-                                        }
-                                    }
-                                )
-                            }
-
-                            if (showClearHistoryDialog) {
-                                AlertDialog(
-                                    onDismissRequest = { showClearHistoryDialog = false },
-                                    title = {
-                                        Text(
-                                            text = "Очистить историю?",
-                                            fontFamily = montserratFont,
-                                            fontSize = 18.sp,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    },
-                                    text = {
-                                        Text(
-                                            text = "Вы уверены, что хотите очистить историю сообщений? Это действие нельзя отменить.",
-                                            fontFamily = montserratFont,
-                                            fontSize = 14.sp,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    },
-                                    confirmButton = {
-                                        TextButton(
-                                            onClick = {
-                                                coroutineScope.launch {
-                                                    viewModel.clearChatHistory(chatId)
-                                                    showClearHistoryDialog = false
-                                                    showBottomSheet = false
-                                                }
-                                            }
-                                        ) {
-                                            Text(
-                                                text = "Очистить",
-                                                color = MaterialTheme.colorScheme.error
-                                            )
-                                        }
-                                    },
-                                    dismissButton = {
-                                        TextButton(
-                                            onClick = { showClearHistoryDialog = false }
-                                        ) {
-                                            Text(
-                                                text = "Отмена",
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                if (state.showDeleteDialog) {
-                    AlertDialog(
-                        onDismissRequest = { viewModel.toggleShowDeleteDialog() },
-                        title = {
-                            Text(
-                                text = "Удалить ${state.selectedMessageIds.size} сообщений?",
-                                fontFamily = montserratFont,
-                                fontSize = 18.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        },
-                        text = {
-                            Text(
-                                text = "Вы уверены, что хотите удалить выбранные сообщения? Это действие нельзя отменить.",
-                                fontFamily = montserratFont,
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        },
-                        confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    viewModel.onDeleteMessagesClick(state.selectedMessageIds.toList())
-                                }
-                            ) {
-                                Text(
-                                    text = "Удалить",
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(
-                                onClick = { viewModel.toggleShowDeleteDialog() }
-                            ) {
-                                Text(
-                                    text = "Отмена",
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    )
-                }
-
-                if (state.showEditDialog && state.editingMessageId != null) {
-                    AlertDialog(
-                        onDismissRequest = { viewModel.toggleShowEditDialog() },
-                        title = {
-                            Text(
-                                text = "Редактировать сообщение",
-                                fontFamily = montserratFont,
-                                fontSize = 18.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        },
-                        text = {
-                            OutlinedTextField(
-                                value = state.inputText,
-                                onValueChange = { viewModel.onInputTextChange(it) },
-                                modifier = Modifier.fillMaxWidth(),
-                                placeholder = { Text("Введите новый текст...") }
-                            )
-                        },
-                        confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    if (state.inputText.trim().isNotEmpty()) {
-                                        viewModel.editMessage(
-                                            state.editingMessageId!!,
-                                            state.inputText.trim()
-                                        )
-                                    } else {
-                                        coroutineScope.launch {
-                                            snackbarHostState.showSnackbar("Сообщение не может быть пустым")
-                                        }
-                                    }
-                                }
-                            ) {
-                                Text(
-                                    text = "Сохранить",
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(
-                                onClick = { viewModel.toggleShowEditDialog() }
-                            ) {
-                                Text(
-                                    text = "Отмена",
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    )
-                }
             }
-        }
+        )
 
-        // Оставляем только один SnackbarHost вверху
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -945,6 +539,343 @@ fun ChatScreen(
                     }
                 }
             }
+        }
+
+        if (isScrolledUp) {
+            IconButton(
+                onClick = {
+                    coroutineScope.launch {
+                        lazyListState.animateScrollToItem(state.messages.size - 1)
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 72.dp)
+                    .background(
+                        MaterialTheme.colorScheme.primary,
+                        shape = CircleShape
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Прокрутить вниз",
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
+        if (showBottomSheet && state.chat != null) {
+            ModalBottomSheet(
+                onDismissRequest = { showBottomSheet = false },
+                sheetState = sheetState,
+                containerColor = MaterialTheme.colorScheme.surface
+            ) {
+                var showClearHistoryDialog by remember { mutableStateOf(false) }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    ) {
+                        Text(
+                            text = state.chat?.participantName ?: state.chat?.eventName ?: "Чат",
+                            fontFamily = montserratFont,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        if (state.chat?.isMuted == true) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_notifications_off32),
+                                contentDescription = "Уведомления отключены",
+                                modifier = Modifier.size(15.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                    TextButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                viewModel.toggleMuteChat(
+                                    chatId,
+                                    !(state.chat?.isMuted ?: false)
+                                )
+                                showBottomSheet = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_notifications),
+                                contentDescription = "Уведомления",
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (state.chat?.isMuted == true) "Включить уведомления" else "Отключить уведомления",
+                                fontFamily = montserratFont,
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                    state.chat?.unreadCount?.let {
+                        if (it > 0) {
+                            TextButton(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        viewModel.markChatAsRead(chatId)
+                                        showBottomSheet = false
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_double_check64),
+                                        contentDescription = "Прочитано",
+                                        modifier = Modifier.size(24.dp),
+                                        tint = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Отметить прочитанным",
+                                        fontFamily = montserratFont,
+                                        fontSize = 16.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    TextButton(
+                        onClick = { showClearHistoryDialog = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_clear_history64),
+                                contentDescription = "Очистить историю",
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Очистить историю",
+                                fontFamily = montserratFont,
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                    TextButton(
+                        onClick = { viewModel.toggleShowDeleteDialog() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_delete64),
+                                contentDescription = "Удалить чат",
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Удалить чат",
+                                fontFamily = montserratFont,
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (state.showDeleteDialog) {
+                        AlertDialog(
+                            onDismissRequest = { viewModel.toggleShowDeleteDialog() },
+                            title = { Text("Удаление сообщений") },
+                            text = { Text("Вы уверены, что хотите удалить ${state.selectedMessageIds.size} выбранных сообщений?") },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        viewModel.onDeleteMessagesClick(
+                                            state.selectedMessageIds.toList(),
+                                            isLocal = false
+                                        )
+                                    }
+                                ) {
+                                    Text("Удалить")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { viewModel.toggleShowDeleteDialog() }) {
+                                    Text("Отмена")
+                                }
+                            }
+                        )
+                    }
+
+                    if (showClearHistoryDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showClearHistoryDialog = false },
+                            title = {
+                                Text(
+                                    text = "Очистить историю?",
+                                    fontFamily = montserratFont,
+                                    fontSize = 18.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            text = {
+                                Text(
+                                    text = "Вы уверены, что хотите очистить историю сообщений? Это действие нельзя отменить.",
+                                    fontFamily = montserratFont,
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            viewModel.clearChatHistory(chatId)
+                                            showClearHistoryDialog = false
+                                            showBottomSheet = false
+                                        }
+                                    }
+                                ) {
+                                    Text(
+                                        text = "Очистить",
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(
+                                    onClick = { showClearHistoryDialog = false }
+                                ) {
+                                    Text(
+                                        text = "Отмена",
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        if (state.showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { viewModel.toggleShowDeleteDialog() },
+                title = {
+                    Text(
+                        text = "Удалить ${state.selectedMessageIds.size} сообщений?",
+                        fontFamily = montserratFont,
+                        fontSize = 18.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Вы уверены, что хотите удалить выбранные сообщения? Это действие нельзя отменить.",
+                        fontFamily = montserratFont,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.onDeleteMessagesClick(state.selectedMessageIds.toList())
+                        }
+                    ) {
+                        Text(
+                            text = "Удалить",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { viewModel.toggleShowDeleteDialog() }
+                    ) {
+                        Text(
+                            text = "Отмена",
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            )
+        }
+
+        if (state.showEditDialog && state.editingMessageId != null) {
+            AlertDialog(
+                onDismissRequest = { viewModel.toggleShowEditDialog() },
+                title = {
+                    Text(
+                        text = "Редактировать сообщение",
+                        fontFamily = montserratFont,
+                        fontSize = 18.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                text = {
+                    OutlinedTextField(
+                        value = state.inputText,
+                        onValueChange = { viewModel.onInputTextChange(it) },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Введите новый текст...") }
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (state.inputText.trim().isNotEmpty()) {
+                                viewModel.editMessage(
+                                    state.editingMessageId!!,
+                                    state.inputText.trim()
+                                )
+                            } else {
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Сообщение не может быть пустым")
+                                }
+                            }
+                        }
+                    ) {
+                        Text(
+                            text = "Сохранить",
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { viewModel.toggleShowEditDialog() }
+                    ) {
+                        Text(
+                            text = "Отмена",
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            )
         }
     }
 }

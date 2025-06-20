@@ -5,6 +5,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -29,6 +31,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -82,227 +85,6 @@ fun SearchScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            if (state.isSearchActive) {
-                TopAppBar(
-                    title = {
-                        Column {
-                            TextField(
-                                value = state.searchQuery,
-                                onValueChange = { viewModel.onSearchQueryChange(it) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(56.dp)
-                                    .padding(horizontal = 8.dp)
-                                    .background(Color.White, shape = RoundedCornerShape(8.dp)),
-                                placeholder = {
-                                    Text(
-                                        text = "Поиск по имени или #интересам",
-                                        fontSize = 12.sp,
-                                        fontFamily = montserratFont,
-                                        color = Color.Gray
-                                    )
-                                },
-                                textStyle = TextStyle(
-                                    fontSize = 14.sp,
-                                    fontFamily = montserratFont,
-                                    color = Color.Black
-                                ),
-                                singleLine = true,
-                                colors = TextFieldDefaults.colors(
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent,
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent,
-                                    cursorColor = Color.Black,
-                                    focusedTextColor = Color.Black,
-                                    unfocusedTextColor = Color.Black
-                                ),
-                                trailingIcon = {
-                                    var showSortMenu by remember { mutableStateOf(false) }
-                                    var selectedSortType by remember { mutableStateOf<UserSortType?>(null) }
-
-                                    Box {
-                                        IconButton(onClick = { showSortMenu = true }) {
-                                            Icon(
-                                                painter = painterResource(id = R.drawable.ic_filter64),
-                                                contentDescription = "Сортировка",
-                                                tint = colorScheme.onSurface,
-                                                modifier = Modifier.size(24.dp)
-                                            )
-                                        }
-                                        DropdownMenu(
-                                            expanded = showSortMenu,
-                                            onDismissRequest = { showSortMenu = false }
-                                        ) {
-                                            DropdownMenuItem(
-                                                text = { Text("По имени: А-Я", fontFamily = montserratFont, fontSize = 14.sp) },
-                                                onClick = {
-                                                    selectedSortType = UserSortType.NameAscending
-                                                    viewModel.onSortSelected(UserSortType.NameAscending)
-                                                    showSortMenu = false
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text("По имени: Я-А", fontFamily = montserratFont, fontSize = 14.sp) },
-                                                onClick = {
-                                                    selectedSortType = UserSortType.NameDescending
-                                                    viewModel.onSortSelected(UserSortType.NameDescending)
-                                                    showSortMenu = false
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { viewModel.toggleSearch() }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Закрыть поиск",
-                                tint = colorScheme.onBackground,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { /* Дополнительные действия поиска, если нужны */ }) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Поиск",
-                                tint = colorScheme.onBackground,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = colorScheme.background,
-                        titleContentColor = colorScheme.onBackground
-                    )
-                )
-            } else {
-                TopAppBar(
-                    expandedHeight = 32.dp,
-                    title = {
-                        Text(
-                            text = "Поиск людей",
-                            fontFamily = montserratFont,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colorScheme.onBackground
-                        )
-                    },
-                    actions = {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp) // Добавляем отступ между иконками
-                        ) {
-                            IconButton(
-                                onClick = { viewModel.toggleSearch() },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = "Поиск",
-                                    tint = colorScheme.onBackground,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            IconButton(
-                                onClick = { viewModel.refreshUsers() },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_refresh64),
-                                    contentDescription = "Обновить",
-                                    tint = colorScheme.onBackground,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = colorScheme.background,
-                        titleContentColor = colorScheme.onBackground
-                    )
-                )
-            }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(colorScheme.background)
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp)
-                .padding(top = 8.dp)
-        ) {
-            if (state.isSearchActive && state.searchQuery.isEmpty()) {
-                Text(
-                    text = "Начните вводить для поиска...",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    color = colorScheme.onBackground,
-                    textAlign = TextAlign.Center
-                )
-            } else if (state.isLoading) {
-                Text(
-                    text = "Загрузка...",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    color = colorScheme.onBackground,
-                    textAlign = TextAlign.Center
-                )
-            } else if (state.error != null) {
-                Text(
-                    text = "Ошибка: ${state.error}",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    color = colorScheme.error,
-                    textAlign = TextAlign.Center
-                )
-            } else if (state.users.isEmpty() && state.searchQuery.isNotEmpty()) {
-                Text(
-                    text = "Ничего не найдено",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    color = colorScheme.onBackground,
-                    textAlign = TextAlign.Center
-                )
-            } else if (state.users.isEmpty()) {
-                Text(
-                    text = "Пользователи не найдены",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    color = colorScheme.onBackground,
-                    textAlign = TextAlign.Center
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    items(state.users.filter { it.id != userId && !it.isAdmin }) { user ->
-                        UserCard(
-                            user = user,
-                            viewModel = viewModel,
-                            interestNames = state.interestNames,
-                            onMessageClick = { viewModel.onMessageClick(user.id) }
-                        )
-                    }
-                }
-            }
-        }
-    }
-
     viewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
             is SearchSideEffect.NavigateToProfile -> {
@@ -317,6 +99,209 @@ fun SearchScreen(
                 }
             }
         }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            if (state.isSearchActive) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 24.dp), 
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { viewModel.toggleSearch() },
+                        modifier = Modifier.size(48.dp) 
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Закрыть поиск",
+                            tint = colorScheme.onBackground
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    OutlinedTextField(
+                        value = state.searchQuery,
+                        onValueChange = { viewModel.onSearchQueryChange(it) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp), 
+                        placeholder = {
+                            Text(
+                                text = "Поиск по имени или #интересам",
+                                fontFamily = montserratFont,
+                                fontSize = 12.sp, 
+                                color = colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        },
+                        textStyle = TextStyle(
+                            fontSize = 14.sp, 
+                            fontFamily = montserratFont,
+                            color = colorScheme.onSurface
+                        ),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp), 
+                        trailingIcon = {
+                            var showSortMenu by remember { mutableStateOf(false) }
+                            Box {
+                                IconButton(onClick = { showSortMenu = true }) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_filter64),
+                                        contentDescription = "Сортировка",
+                                        tint = colorScheme.onSurface.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showSortMenu,
+                                    onDismissRequest = { showSortMenu = false },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("По имени: А-Я", fontFamily = montserratFont, fontSize = 14.sp) },
+                                        onClick = {
+                                            viewModel.onSortSelected(UserSortType.NameAscending)
+                                            showSortMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("По имени: Я-А", fontFamily = montserratFont, fontSize = 14.sp) },
+                                        onClick = {
+                                            viewModel.onSortSelected(UserSortType.NameDescending)
+                                            showSortMenu = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 24.dp, top = 24.dp), // Отступ слева 24.dp для выравнивания с карточками, top как в FeedScreen
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Поиск людей",
+                        fontFamily = montserratFont,
+                        fontSize = 24.sp, 
+                        color = colorScheme.onBackground,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = { viewModel.toggleSearch() },
+                        modifier = Modifier.size(48.dp) 
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Поиск",
+                            tint = colorScheme.onBackground
+                        )
+                    }
+                    IconButton(
+                        onClick = { viewModel.refreshUsers() },
+                        modifier = Modifier.size(48.dp) 
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_refresh64),
+                            contentDescription = "Обновить",
+                            tint = colorScheme.onBackground
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(6.dp)) 
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(colorScheme.background)
+                    .padding(top = 8.dp) 
+            ) {
+                if (state.isSearchActive && state.searchQuery.isEmpty()) {
+                    Text(
+                        text = "Начните вводить для поиска...",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        color = colorScheme.onSurface,
+                        fontFamily = montserratFont,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
+                    )
+                } else if (state.isLoading) {
+                    Text(
+                        text = "Загрузка...",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        color = colorScheme.onSurface,
+                        fontFamily = montserratFont,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
+                    )
+                } else if (state.error != null) {
+                    Text(
+                        text = "Ошибка: ${state.error}",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        color = colorScheme.error,
+                        fontFamily = montserratFont,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
+                    )
+                } else if (state.users.isEmpty() && state.searchQuery.isNotEmpty()) {
+                    Text(
+                        text = "Ничего не найдено",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        color = colorScheme.onSurface,
+                        fontFamily = montserratFont,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
+                    )
+                } else if (state.users.isEmpty()) {
+                    Text(
+                        text = "Пользователи не найдены",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        color = colorScheme.onSurface,
+                        fontFamily = montserratFont,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp), 
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp) 
+                    ) {
+                        items(state.users.filter { it.id != userId && !it.isAdmin }) { user ->
+                            UserCard(
+                                user = user,
+                                viewModel = viewModel,
+                                interestNames = state.interestNames,
+                                onMessageClick = { viewModel.onMessageClick(user.id) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(align = Alignment.Bottom)
+                .padding(16.dp) 
+        )
     }
 }
 
@@ -351,7 +336,6 @@ fun UserCard(
                     .clip(CircleShape)
             )
             Spacer(modifier = Modifier.width(8.dp))
-
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -404,13 +388,13 @@ fun UserCard(
                     }
                 }
             }
-
             Row(
-                horizontalArrangement = Arrangement.spacedBy(-5.dp), // Уменьшенный горизонтальный отступ
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = { viewModel.onUserClick(user.id) }
+                    onClick = { viewModel.onUserClick(user.id) },
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_profile64),
@@ -420,7 +404,8 @@ fun UserCard(
                     )
                 }
                 IconButton(
-                    onClick = onMessageClick
+                    onClick = onMessageClick,
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_chat64),

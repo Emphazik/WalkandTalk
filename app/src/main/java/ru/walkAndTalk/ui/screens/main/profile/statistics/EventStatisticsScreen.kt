@@ -7,7 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,7 +22,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
@@ -72,6 +70,7 @@ import ru.walkAndTalk.R
 import ru.walkAndTalk.domain.model.Event
 import ru.walkAndTalk.ui.screens.main.montserratFont
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EventStatisticsScreen(
@@ -97,163 +96,173 @@ fun EventStatisticsScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_back),
-                                contentDescription = "Back",
-                                tint = colorScheme.onBackground
-                            )
-                        }
-                        Text(
-                            text = "Статистика мероприятий",
-                            fontFamily = montserratFont,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colorScheme.onBackground,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(onClick = { viewModel.refreshEvents() }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_refresh64),
-                                contentDescription = "Refresh",
-                                tint = colorScheme.onBackground
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = colorScheme.background,
-                    titleContentColor = colorScheme.onBackground
-                ),
+        content = { padding ->
+            Column(
                 modifier = Modifier
-                    .height(56.dp)
-                    .shadow(4.dp, RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp))
-            )
-        }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(colorScheme.background)
-        ) {
-            when {
-                state.isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center),
-                        color = colorScheme.primary
-                    )
-                }
-                state.error != null -> {
+                    .fillMaxSize()
+//                    .padding(padding)
+                    .background(colorScheme.background)
+            ) {
+                // Верхняя часть: Row вместо TopAppBar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, top = 24.dp), // Отступ слева 16.dp для выравнивания с LazyColumn, top как в ChatsScreen
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(
+                        onClick = { navController.popBackStack() },
+                        modifier = Modifier.size(48.dp) // Как в FeedScreen
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_back),
+                            contentDescription = "Back",
+                            tint = colorScheme.onBackground,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                     Text(
-                        text = state.error ?: "Ошибка",
-                        color = colorScheme.error,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-                state.pastEvents.isEmpty() -> {
-                    Text(
-                        text = "Вы пока не посещали мероприятия",
+                        text = "Статистика мероприятий",
                         fontFamily = montserratFont,
-                        fontSize = 16.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.6f),
-                        modifier = Modifier.align(Alignment.Center)
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.onBackground,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f)
                     )
+                    IconButton(
+                        onClick = { viewModel.refreshEvents() },
+                        modifier = Modifier.size(48.dp) // Как в FeedScreen
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_refresh64),
+                            contentDescription = "Refresh",
+                            tint = colorScheme.onBackground,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
-                else -> {
-                    LazyColumn(
+                Spacer(modifier = Modifier.height(6.dp)) // Как в ChatsScreen и SearchScreen
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 8.dp) // Как в ChatsScreen и SearchScreen
+                ) {
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                            .background(colorScheme.background)
                     ) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .border(
-                                        width = 1.dp,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-                                    .background(
-                                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-                                    .clickable { viewModel.onShowReviewsChanged(!state.showReviews) }
-                                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically
+                        when {
+                            state.isLoading -> {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.align(Alignment.Center),
+                                    color = colorScheme.primary
+                                )
+                            }
+                            state.error != null -> {
+                                Text(
+                                    text = state.error ?: "Ошибка",
+                                    color = colorScheme.error,
+                                    modifier = Modifier.align(Alignment.Center)
+                                )
+                            }
+                            state.pastEvents.isEmpty() -> {
+                                Text(
+                                    text = "Вы пока не посещали мероприятия",
+                                    fontFamily = montserratFont,
+                                    fontSize = 16.sp,
+                                    color = colorScheme.onSurface.copy(alpha = 0.6f),
+                                    modifier = Modifier.align(Alignment.Center)
+                                )
+                            }
+                            else -> {
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    Checkbox(
-                                        checked = state.showReviews,
-                                        onCheckedChange = { viewModel.onShowReviewsChanged(it) },
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .background(
-                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                                shape = RoundedCornerShape(6.dp)
-                                            )
-                                            .padding(2.dp),
-                                        colors = CheckboxDefaults.colors(
-                                            checkedColor = MaterialTheme.colorScheme.primary,
-                                            uncheckedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                            checkmarkColor = MaterialTheme.colorScheme.onPrimary
+                                    item {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .border(
+                                                    width = 1.dp,
+                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                                                    shape = RoundedCornerShape(12.dp)
+                                                )
+                                                .background(
+                                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                                                    shape = RoundedCornerShape(12.dp)
+                                                )
+                                                .clickable { viewModel.onShowReviewsChanged(!state.showReviews) }
+                                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Checkbox(
+                                                    checked = state.showReviews,
+                                                    onCheckedChange = { viewModel.onShowReviewsChanged(it) },
+                                                    modifier = Modifier
+                                                        .size(20.dp)
+                                                        .background(
+                                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                                            shape = RoundedCornerShape(6.dp)
+                                                        )
+                                                        .padding(2.dp),
+                                                    colors = CheckboxDefaults.colors(
+                                                        checkedColor = MaterialTheme.colorScheme.primary,
+                                                        uncheckedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                                        checkmarkColor = MaterialTheme.colorScheme.onPrimary
+                                                    )
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = "Показывать отзывы в профиле",
+                                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.SemiBold
+                                                    ),
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                        }
+                                    }
+                                    items(state.pastEvents, key = { it.id }) { event ->
+                                        EventCard(
+                                            event = event,
+                                            reviewInput = state.reviewInputs[event.id] ?: ReviewInput(),
+                                            onRatingChanged = { rating ->
+                                                viewModel.onRatingChanged(
+                                                    event.id,
+                                                    rating
+                                                )
+                                            },
+                                            onCommentChanged = { comment ->
+                                                viewModel.onCommentChanged(
+                                                    event.id,
+                                                    comment
+                                                )
+                                            },
+                                            onSubmitReview = { viewModel.onSubmitReview(event.id) },
+                                            onEditReview = { viewModel.onEditReview(event.id) },
+                                            onDeleteReview = { viewModel.onDeleteReview(event.id) },
+                                            formatEventDate = viewModel::formatEventDate,
+                                            colorScheme = colorScheme
                                         )
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Показывать отзывы в профиле",
-                                        style = MaterialTheme.typography.bodyMedium.copy(
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.SemiBold
-                                        ),
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
+                                    }
                                 }
                             }
-                        }
-                        items(state.pastEvents, key = { it.id }) { event ->
-                            EventCard(
-                                event = event,
-                                reviewInput = state.reviewInputs[event.id] ?: ReviewInput(),
-                                onRatingChanged = { rating ->
-                                    viewModel.onRatingChanged(
-                                        event.id,
-                                        rating
-                                    )
-                                },
-                                onCommentChanged = { comment ->
-                                    viewModel.onCommentChanged(
-                                        event.id,
-                                        comment
-                                    )
-                                },
-                                onSubmitReview = { viewModel.onSubmitReview(event.id) },
-                                onEditReview = { viewModel.onEditReview(event.id) },
-                                onDeleteReview = { viewModel.onDeleteReview(event.id) },
-                                formatEventDate = viewModel::formatEventDate,
-                                colorScheme = colorScheme
-                            )
                         }
                     }
                 }
             }
         }
-    }
+    )
 }
 
 @Preview(showBackground = true)
