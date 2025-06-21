@@ -9,10 +9,12 @@ plugins {
     alias(libs.plugins.vkid.placeholders)
 }
 
-//repositories{
-//    mavenCentral()
-//    maven(url = "http://maven.google.com/")
-//}
+buildscript {
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.7.0") // Adjust version as needed
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.0") // Adjust Kotlin version as needed
+    }
+}
 
 vkidManifestPlaceholders {
     init(

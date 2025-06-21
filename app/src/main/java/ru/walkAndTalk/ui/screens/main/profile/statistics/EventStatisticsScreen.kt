@@ -113,7 +113,7 @@ fun EventStatisticsScreen(
                 ) {
                     IconButton(
                         onClick = { navController.popBackStack() },
-                        modifier = Modifier.size(48.dp) // Как в FeedScreen
+                        modifier = Modifier.size(48.dp) 
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_back),
@@ -133,7 +133,7 @@ fun EventStatisticsScreen(
                     )
                     IconButton(
                         onClick = { viewModel.refreshEvents() },
-                        modifier = Modifier.size(48.dp) // Как в FeedScreen
+                        modifier = Modifier.size(48.dp) 
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_refresh64),

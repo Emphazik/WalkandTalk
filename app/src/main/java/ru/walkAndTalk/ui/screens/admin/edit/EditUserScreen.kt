@@ -1,7 +1,11 @@
 package ru.walkAndTalk.ui.screens.admin.edit
 
 
+import android.Manifest
+import android.app.Activity
+import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,6 +36,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil3.compose.rememberAsyncImagePainter
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageContractOptions
+import com.canhub.cropper.CropImageOptions
+import com.canhub.cropper.CropImageView
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -122,10 +130,76 @@ fun EditUserScreen(
         }
     }
 
-    // Image picker launcher
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { viewModel.onProfileImageSelected(it) }
-        profileImageUri = uri
+    // Лаунчер для обработки результата обрезки
+    val cropImageLauncher = rememberLauncherForActivityResult(
+        contract = CropImageContract()
+    ) { result ->
+        Log.d("CropImage", "Crop result: isSuccessful=${result.isSuccessful}, uri=${result.uriContent}, error=${result.error?.message}")
+        when {
+            result.isSuccessful && result.uriContent != null -> {
+                result.uriContent?.let { croppedUri ->
+                    Log.d("CropImage", "Cropped URI: $croppedUri")
+                    profileImageUri = croppedUri
+                    viewModel.onProfileImageSelected(croppedUri)
+                }
+            }
+            !result.isSuccessful && result.uriContent == null -> {
+                scope.launch {
+                    snackbarHostState.showSnackbar("Обрезка отменена")
+                }
+            }
+            else -> {
+                scope.launch {
+                    snackbarHostState.showSnackbar("Ошибка обрезки: ${result.error?.message ?: "Неизвестная ошибка"}")
+                }
+            }
+        }
+    }
+
+    // Лаунчер для выбора изображения
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri ->
+                Log.d("CropImage", "Launching CropImage with URI: $uri")
+                cropImageLauncher.launch(
+                    CropImageContractOptions(
+                        uri = uri,
+                        cropImageOptions = CropImageOptions().apply {
+                            guidelines = CropImageView.Guidelines.ON
+                            cropShape = CropImageView.CropShape.RECTANGLE
+                            aspectRatioX = 1
+                            aspectRatioY = 1
+                            fixAspectRatio = true
+                            minCropResultWidth = 120 // Соответствует размеру аватарки
+                            minCropResultHeight = 120
+                            maxCropResultWidth = 1000
+                            maxCropResultHeight = 1000
+                            showCropLabel = true
+                        }
+                    )
+                )
+            }
+        } else {
+            scope.launch {
+                snackbarHostState.showSnackbar("Выбор изображения отменен")
+            }
+        }
+    }
+
+    // Лаунчер для запроса разрешения на доступ к галерее
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            val intent = Intent(Intent.ACTION_PICK).apply { type = "image/*" }
+            imagePickerLauncher.launch(intent)
+        } else {
+            scope.launch {
+                snackbarHostState.showSnackbar("Требуется разрешение для доступа к галерее")
+            }
+        }
     }
 
     Scaffold(
@@ -192,7 +266,13 @@ fun EditUserScreen(
                         .size(120.dp)
                         .clip(CircleShape)
                         .border(2.dp, colorScheme.primary.copy(alpha = 0.3f), CircleShape)
-                        .clickable { launcher.launch("image/*") },
+                        .clickable {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                storagePermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+                            } else {
+                                storagePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                            }
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     val painter = profileImageUri?.let {

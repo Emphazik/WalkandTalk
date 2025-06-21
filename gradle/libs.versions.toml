@@ -1,8 +1,11 @@
 [versions]
 accompanistPermissions = "0.36.0"
+androidImageCropper = "4.5.0"
+androidImageCropperVersion = "2.8.0"
 dataStore = "1.1.7"
 agp = "8.10.0"
 foundation = "1.8.2"
+githubAndroidImageCropper = "4.3.1"
 google-gps = "21.3.0"
 mapsMobile = "4.17.0-lite"
 yandexmapkit = "4.6.1-full"
@@ -39,6 +42,7 @@ maps = "3.1.0-beta"
 
 [libraries]
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistPermissions" }
+android-image-cropper = { module = "com.github.CanHub:Android-Image-Cropper", version.ref = "githubAndroidImageCropper" }
 androidx-datastore = {module = "androidx.datastore:datastore-preferences", version.ref = "dataStore"}
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-foundation = { module = "androidx.compose.foundation:foundation", version.ref = "foundation" }

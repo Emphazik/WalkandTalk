@@ -129,4 +129,5 @@ dependencies {
     /** Yandex Maps **/
 //    implementation(libs.maps.mobile)
 //    implementation("com.yandex.android:maps.mobile:4.17.0-lite")
+    implementation (libs.android.image.cropper)
 }

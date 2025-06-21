@@ -3,6 +3,7 @@ package ru.walkAndTalk.ui.screens.main.profile.edit
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -62,6 +63,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -70,6 +72,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil3.compose.rememberAsyncImagePainter
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageContractOptions
+import com.canhub.cropper.CropImageOptions
+import com.canhub.cropper.CropImageView
 import kotlinx.coroutines.launch
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
@@ -91,8 +97,79 @@ fun EditProfileScreen(
     val colorScheme = MaterialTheme.colorScheme
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current // Получаем контекст для запуска активности
 
-    // Лаунчер для запроса разрешений
+    val cropImageLauncher = rememberLauncherForActivityResult(
+        contract = CropImageContract()
+    ) { result ->
+        Log.d("CropImage", "Crop result: isSuccessful=${result.isSuccessful}, uri=${result.uriContent}, error=${result.error?.message}")
+        when {
+            result.isSuccessful && result.uriContent != null -> {
+                result.uriContent?.let { croppedUri ->
+                    Log.d("CropImage", "Cropped URI: $croppedUri")
+                    viewModel.onImageSelected(croppedUri)
+                }
+            }
+            !result.isSuccessful && result.uriContent == null -> {
+                scope.launch {
+                    snackbarHostState.showSnackbar("Обрезка отменена")
+                }
+            }
+            else -> {
+                scope.launch {
+                    snackbarHostState.showSnackbar("Ошибка обрезки: ${result.error?.message ?: "Неизвестная ошибка"}")
+                }
+            }
+        }
+    }
+
+// Лаунчер для выбора изображения
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri ->
+                Log.d("CropImage", "Launching CropImage with URI: $uri")
+                cropImageLauncher.launch(
+                    CropImageContractOptions(
+                        uri = uri,
+                        cropImageOptions = CropImageOptions().apply {
+                            guidelines = CropImageView.Guidelines.ON
+                            cropShape = CropImageView.CropShape.RECTANGLE
+                            aspectRatioX = 1
+                            aspectRatioY = 1
+                            fixAspectRatio = true
+                            minCropResultWidth = 200
+                            minCropResultHeight = 200
+                            maxCropResultWidth = 1000 // Добавляем максимальный размер
+                            maxCropResultHeight = 1000
+                            showCropLabel = true
+                        }
+                    )
+                )
+            }
+        } else {
+            scope.launch {
+                snackbarHostState.showSnackbar("Выбор изображения отменен")
+            }
+        }
+    }
+
+    // Лаунчер для запроса разрешения на доступ к галерее
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            val intent = Intent(Intent.ACTION_PICK).apply { type = "image/*" }
+            imagePickerLauncher.launch(intent)
+        } else {
+            scope.launch {
+                snackbarHostState.showSnackbar("Требуется разрешение для доступа к галерее")
+            }
+        }
+    }
+
+    // Лаунчер для запроса разрешений на местоположение
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -122,20 +199,14 @@ fun EditProfileScreen(
         }
     }
 
-    val launcher =
-        rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                result.data?.data?.let { uri ->
-                    viewModel.onImageSelected(uri)
-                }
-            }
-        }
-
     viewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
             is ProfileSideEffect.LaunchImagePicker -> {
-                val intent = Intent(Intent.ACTION_PICK).apply { this.type = "image/*" }
-                launcher.launch(intent)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    storagePermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+                } else {
+                    storagePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                }
             }
             is ProfileSideEffect.OnNavigateExit -> {}
             is ProfileSideEffect.RequestLocationPermission -> {
@@ -155,11 +226,11 @@ fun EditProfileScreen(
             .fillMaxSize()
             .background(colorScheme.background)
     ) { padding ->
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colorScheme.background)
-    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colorScheme.background)
+        ) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -201,7 +272,6 @@ fun EditProfileScreen(
                         Spacer(modifier = Modifier.width(48.dp))
                     }
                 }
-
                 // Аватарка
                 item {
                     Column(

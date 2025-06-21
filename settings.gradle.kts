@@ -26,6 +26,7 @@ dependencyResolutionManagement {
         maven {
             url = URI("https://artifactory-external.vkpartner.ru/artifactory/maven/")
         }
+        maven { url = URI("https://jitpack.io") } // Add JitPack for image cropper
     }
 }
 
