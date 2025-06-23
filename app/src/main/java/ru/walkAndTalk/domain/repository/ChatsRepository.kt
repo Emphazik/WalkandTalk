@@ -23,5 +23,4 @@ interface ChatsRepository {
     suspend fun leaveGroupChat(chatId: String, userId: String)
 
     suspend fun getChatParticipants(chatId: String): List<ChatParticipantDto>
-
 }

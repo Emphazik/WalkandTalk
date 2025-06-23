@@ -97,8 +97,6 @@ fun EditProfileScreen(
     val colorScheme = MaterialTheme.colorScheme
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current // Получаем контекст для запуска активности
-
     val cropImageLauncher = rememberLauncherForActivityResult(
         contract = CropImageContract()
     ) { result ->
@@ -122,7 +120,6 @@ fun EditProfileScreen(
             }
         }
     }
-
 // Лаунчер для выбора изображения
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -141,7 +138,7 @@ fun EditProfileScreen(
                             fixAspectRatio = true
                             minCropResultWidth = 200
                             minCropResultHeight = 200
-                            maxCropResultWidth = 1000 // Добавляем максимальный размер
+                            maxCropResultWidth = 1000
                             maxCropResultHeight = 1000
                             showCropLabel = true
                         }

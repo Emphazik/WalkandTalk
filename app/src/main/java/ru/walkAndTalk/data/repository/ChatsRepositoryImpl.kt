@@ -35,156 +35,134 @@ class ChatsRepositoryImpl(
     private val usersRepository: RemoteUsersRepository
 ) : ChatsRepository {
 
-//    override suspend fun fetchUserChats(userId: String): List<Chat> {
-//        println("ChatsRepository: Fetching chats for userId=$userId")
-//        try {
-//            val chatIds = supabaseWrapper.postgrest[Table.CHAT_PARTICIPANTS]
-//                .select { filter { eq("user_id", userId) } }
-//                .decodeList<ChatParticipantDto>()
-//                .map { it.chatId }
-//                .distinct()
-//            println("ChatsRepository: Found ${chatIds.size} chatIds: $chatIds")
-//            if (chatIds.isEmpty()) return emptyList()
-//
-//            val chats = mutableListOf<ChatDto>()
-//            for (chatId in chatIds) {
-//                val chat = supabaseWrapper.postgrest[Table.CHATS]
-//                    .select { filter { eq("id", chatId) } }
-//                    .decodeSingleOrNull<ChatDto>()
-//                if (chat != null) {
-//                    chats.add(chat)
-//                }
-//                println("ChatsRepository: Fetched chatId=$chatId: $chat")
-//            }
-//            println("ChatsRepository: Found ${chats.size} chats")
-//
-//            return chats.mapNotNull { chatDto ->
-//                val participantIds = supabaseWrapper.postgrest[Table.CHAT_PARTICIPANTS]
-//                    .select { filter { eq("chat_id", chatDto.id) } }
-//                    .decodeList<ChatParticipantDto>()
-//                    .map { it.userId }
-//                println("ChatsRepository: Participants for chatId=${chatDto.id}: $participantIds")
-//
-//                val currentParticipant = supabaseWrapper.postgrest[Table.CHAT_PARTICIPANTS]
-//                    .select { filter { eq("chat_id", chatDto.id); eq("user_id", userId) } }
-//                    .decodeSingleOrNull<ChatParticipantDto>()
-//                println("ChatsRepository: Current participant for chatId=${chatDto.id}, userId=$userId: $currentParticipant")
-//                val isMuted = currentParticipant?.isMuted ?: false
-//                println("ChatsRepository: isMuted for chatId=${chatDto.id} and userId=$userId: $isMuted")
-//
-//                val event = if (chatDto.type == "group" && chatDto.eventId != null) {
-//                    eventsRepository.fetchEventById(chatDto.eventId)
-//                } else null
-//
-//                // Для личных чатов выбираем другого участника
-//                val (participantName, participantUser) = if (chatDto.type == "private") {
-//                    val participantId = participantIds.firstOrNull { it != userId }
-//                    val user = participantId?.let { usersRepository.fetchById(it) }
-//                    user?.name to user
-//                } else {
-//                    null to null // Для групповых чатов не заполняем
-//                }
-//
-//
-//                val lastMessageQuery = supabaseWrapper.postgrest[Table.MESSAGES]
-//                    .select { filter { eq("chat_id", chatDto.id) }; order("created_at", Order.DESCENDING); limit(1) }
-//                    .decodeSingleOrNull<MessageDto>()
-//                val lastMessageSenderId = lastMessageQuery?.senderId
-//
-//                val senderName = if (chatDto.type == "group" && lastMessageSenderId != null && lastMessageSenderId != userId) {
-//                    usersRepository.fetchById(lastMessageSenderId)?.name ?: "Неизвестный"
-//                } else {
-//                    null
-//                }
-//                chatDto.toDomain(
-//                    event = event,
-////                    participantName = participantName,
-//                    participantName = if (chatDto.type == "private") participantName else senderName,
-//                    participantUser = participantUser,
-//                    participantIds = participantIds,
-//                    lastMessage = lastMessageQuery?.content,
-//                    lastMessageTime = lastMessageQuery?.createdAt,
-//                    lastMessageSenderId = lastMessageSenderId,
-//                    unreadCount = getUnreadCount(chatDto.id, userId),
-//                    isMessageRead = lastMessageQuery?.isRead,
-//                    isMuted = isMuted
-//                )
-//            }.also {
-//                println("ChatsRepository: Fetched ${it.size} chats for userId=$userId: $it")
-//            }
-//        } catch (e: Exception) {
-//            println("ChatsRepository: Error fetching chats: ${e.message}, stackTrace=${e.stackTraceToString()}")
-//            throw e
-//        }
-//    }
-
     override suspend fun fetchUserChats(userId: String): List<Chat> = coroutineScope {
         println("ChatsRepository: Fetching chats for userId=$userId")
+        val startTime = System.currentTimeMillis()
         try {
-            val chatsData = supabaseWrapper.postgrest.rpc(
-                function = "fetch_user_chats",
-                parameters = buildJsonObject { put("input_user_id", userId) }
-            ).decodeList<ChatWithDetailsDto>()
-            println("ChatsRepository: Fetched ${chatsData.size} chats with details")
+            // 1. Получаем chat_id и is_muted для текущего пользователя
+            val participants = supabaseWrapper.postgrest.from(Table.CHAT_PARTICIPANTS)
+                .select { filter { eq("user_id", userId) } }
+                .decodeList<ChatParticipantDto>()
+            println("ChatsRepository: Fetched ${participants.size} participant records in ${System.currentTimeMillis() - startTime} ms")
 
-            val eventIds = chatsData
-                .filter { it.chat.type == "group" && it.chat.eventId != null }
-                .map { it.chat.eventId!! }
+            if (participants.isEmpty()) return@coroutineScope emptyList()
+
+            // Сохраняем chat_id и is_muted
+            val chatIds = participants.map { it.chatId }
+            val participantMutes = participants.associate { it.chatId to (it.isMuted ?: false) }
+            println("ChatsRepository: chatIds=$chatIds")
+
+            // 2. Получаем все чаты одним запросом с isIn
+            val t1 = System.currentTimeMillis()
+            val chats = supabaseWrapper.postgrest.from(Table.CHATS)
+                .select { filter { isIn("id", chatIds) } }
+                .decodeList<ChatDto>()
+            println("ChatsRepository: Fetched ${chats.size} chats in ${System.currentTimeMillis() - t1} ms")
+
+            // 3. Получаем всех участников для всех чатов
+            val t2 = System.currentTimeMillis()
+            val allParticipants = supabaseWrapper.postgrest.from(Table.CHAT_PARTICIPANTS)
+                .select { filter { isIn("chat_id", chatIds) } }
+                .decodeList<ChatParticipantDto>()
+            val participantsByChat = allParticipants.groupBy { it.chatId }
+            println("ChatsRepository: Fetched ${allParticipants.size} participants in ${System.currentTimeMillis() - t2} ms")
+
+            // 4. Получаем пользователей пачками
+            val t3 = System.currentTimeMillis()
+            val userIds = allParticipants.map { it.userId }.distinct()
+            val users = userIds.chunked(50).flatMap { chunk ->
+                async { chunk.mapNotNull { usersRepository.fetchById(it) } }.await()
+            }.associateBy { it.id }
+            println("ChatsRepository: Fetched ${users.size} users in ${System.currentTimeMillis() - t3} ms")
+
+            // 5. Получаем последние сообщения
+            val t4 = System.currentTimeMillis()
+            val lastMessages = chatIds.chunked(50).flatMap { chunk ->
+                async {
+                    supabaseWrapper.postgrest.from(Table.MESSAGES)
+                        .select {
+                            filter {
+                                isIn("chat_id", chunk)
+                                raw("NOT ('$userId' = ANY (COALESCE(deleted_by, '{}')))")
+                            }
+                            order("created_at", Order.DESCENDING)
+                        }
+                        .decodeList<MessageDto>()
+                }.await()
+            }.groupBy { it.chatId }.mapValues { it.value.firstOrNull() }
+            println("ChatsRepository: Fetched ${lastMessages.size} last messages in ${System.currentTimeMillis() - t4} ms")
+
+            // 6. Получаем события для групповых чатов
+            val t5 = System.currentTimeMillis()
+            val eventIds = chats.filter { it.type == "group" && it.eventId != null }
+                .map { it.eventId!! }
                 .distinct()
+            val events = eventIds.chunked(50).flatMap { chunk ->
+                async { chunk.mapNotNull { eventsRepository.fetchEventById(it) } }.await()
+            }.associateBy { it?.id }
+            println("ChatsRepository: Fetched ${events.size} events in ${System.currentTimeMillis() - t5} ms")
 
-            val eventDeferred = eventIds.map { eventId ->
-                async { eventsRepository.fetchEventById(eventId) }
-            }
-            val events = eventDeferred.awaitAll()
-            val eventMap = eventIds.zip(events).filter { it.second != null }.associate { it.first to it.second }
+            // 7. Маппинг данных
+            val chatsMapped = chats.mapNotNull { chatDto ->
+                val chatParticipants = participantsByChat[chatDto.id] ?: emptyList()
+                val participantIds = chatParticipants.map { it.userId }
+                val isMuted = participantMutes[chatDto.id] ?: false
+                val lastMessage = lastMessages[chatDto.id]
 
-            chatsData.mapNotNull { chatWithDetails ->
-                val chatDto = chatWithDetails.chat
-                val participantIds = chatWithDetails.participants.map { it.userId }
-                val isMuted = chatWithDetails.currentParticipant?.isMuted ?: false
-                val event = if (chatDto.type == "group" && chatDto.eventId != null) {
-                    eventMap[chatDto.eventId]
-                } else null
                 val (participantName, participantUser) = if (chatDto.type == "private") {
                     val participantId = participantIds.firstOrNull { it != userId }
-                    val userDto = chatWithDetails.users.find { it.id == participantId }
-                    (userDto?.name ?: "Неизвестный пользователь") to userDto?.fromDto()
+                    val user = users[participantId]
+                    user?.name to user
                 } else {
-                    null to null
-                }
-                chatsData.forEach { chatWithDetails ->
-                    println("Chat ID: ${chatWithDetails.chat.id}, Last Message: ${chatWithDetails.lastMessage?.content}, Sender ID: ${chatWithDetails.lastMessage?.senderId}")
+                    val senderName = if (chatDto.type == "group" && lastMessage?.senderId != null && lastMessage.senderId != userId) {
+                        users[lastMessage.senderId]?.name
+                    } else null
+                    senderName to null
                 }
 
-                val lastMessageQuery = supabaseWrapper.postgrest[Table.MESSAGES]
-                    .select { filter { eq("chat_id", chatDto.id) }; order("created_at", Order.DESCENDING); limit(1) }
-                    .decodeSingleOrNull<MessageDto>()
-                val lastMessageSenderId = lastMessageQuery?.senderId
-
-//                val lastMessage = chatWithDetails.lastMessage
-                val senderName = if (chatDto.type == "group" && lastMessageQuery?.senderId != null && lastMessageQuery.senderId != userId) {
-                    chatWithDetails.users.find { it.id == lastMessageQuery.senderId }?.name ?: "Неизвестный"
-                } else {
-                    null
-                }
                 chatDto.toDomain(
-                    event = event,
-                    participantName = if (chatDto.type == "private") participantName else senderName,
+                    event = if (chatDto.type == "group" && chatDto.eventId != null) events[chatDto.eventId] else null,
+                    participantName = participantName,
                     participantUser = participantUser,
                     participantIds = participantIds,
-                    lastMessage = lastMessageQuery?.content,
-                    lastMessageTime = lastMessageQuery?.createdAt,
-                    lastMessageSenderId = lastMessageSenderId,
-                    unreadCount = getUnreadCount(chatDto.id, userId),
-                    isMessageRead = lastMessageQuery?.isRead,
+                    lastMessage = lastMessage?.content,
+                    lastMessageTime = lastMessage?.createdAt,
+                    lastMessageSenderId = lastMessage?.senderId,
+                    unreadCount = getUnreadCountOptimized(chatDto.id, userId, chatParticipants),
+                    isMessageRead = lastMessage?.isRead,
                     isMuted = isMuted
                 )
-            }.also {
-                println("ChatsRepository: Mapped ${it.size} chats for userId=$userId")
+            }
+            println("ChatsRepository: Mapped ${chatsMapped.size} chats for userId=$userId, chats=${chatsMapped.map { it.id to it.isMuted }}")
+            println("ChatsRepository: Fetch completed in ${System.currentTimeMillis() - startTime} ms")
+            chatsMapped.sortedByDescending {
+                it.lastMessageTime?.let { time -> OffsetDateTime.parse(time).toInstant().toEpochMilli() } ?: 0L
             }
         } catch (e: Exception) {
             println("ChatsRepository: Error fetching chats: ${e.message}, stackTrace=${e.stackTraceToString()}")
             throw e
+        }
+    }
+
+    private suspend fun getUnreadCountOptimized(
+        chatId: String,
+        userId: String,
+        participants: List<ChatParticipantDto>
+    ): Int {
+        val lastReadAt = participants.find { it.userId == userId }?.lastReadAt ?: return 0
+        val messages = supabaseWrapper.postgrest.from(Table.MESSAGES)
+            .select {
+                filter {
+                    eq("chat_id", chatId)
+                    eq("is_read", false)
+                    neq("sender_id", userId)
+                    gt("created_at", lastReadAt)
+                    raw("NOT ('$userId' = ANY (COALESCE(deleted_by, '{}')))")
+                }
+            }
+            .decodeList<MessageDto>()
+        return messages.size.also {
+            println("ChatsRepository: Unread count for chatId=$chatId, userId=$userId: $it")
         }
     }
 
@@ -530,8 +508,6 @@ class ChatsRepositoryImpl(
         }
     }
 
-
-    // Новые методы для контекстного меню
     override suspend fun markChatAsRead(chatId: String, userId: String) {
         val currentTime = OffsetDateTime.now().toString()
         supabaseWrapper.postgrest.from(Table.CHAT_PARTICIPANTS)

@@ -172,7 +172,7 @@ fun EditUserScreen(
                             aspectRatioX = 1
                             aspectRatioY = 1
                             fixAspectRatio = true
-                            minCropResultWidth = 120 // Соответствует размеру аватарки
+                            minCropResultWidth = 120
                             minCropResultHeight = 120
                             maxCropResultWidth = 1000
                             maxCropResultHeight = 1000
@@ -361,7 +361,7 @@ fun EditUserScreen(
                     password = it
                     passwordError = it.isNotEmpty() && it.length < 6
                 },
-                label = { Text("Пароль (оставьте пустым, чтобы не менять)", fontFamily = montserratFont, fontSize = 14.sp) },
+                label = { Text("Пароль (оставьте пустым, чтобы не менять)", fontFamily = montserratFont, fontSize = 12.sp) },
                 isError = passwordError,
                 supportingText = {
                     if (passwordError) {
@@ -569,7 +569,7 @@ fun EditUserScreen(
                 }
             }
 
-// Interest Selection Dialog
+            // Interest Selection Dialog
             if (showInterestSelection) {
                 AlertDialog(
                     onDismissRequest = { showInterestSelection = false },
@@ -711,7 +711,6 @@ fun EditUserScreen(
                 value = bio,
                 onValueChange = {
                     bio = it
-                    // Добавим валидацию bio
                     if (it.length > 500) {
                         scope.launch {
                             snackbarHostState.showSnackbar("Биография не может быть длиннее 500 символов")
@@ -737,7 +736,6 @@ fun EditUserScreen(
                 value = goals,
                 onValueChange = {
                     goals = it
-                    // Добавим валидацию goals
                     if (it.length > 300) {
                         scope.launch {
                             snackbarHostState.showSnackbar("Цели не могут быть длиннее 300 символов")
@@ -764,9 +762,8 @@ fun EditUserScreen(
                 OutlinedTextField(
                     value = gender?.let {
                         when (it) {
-                            "male" -> "Мужской"
-                            "female" -> "Женский"
-                            "other" -> "Другой"
+                            "Мужской" -> "Мужской"
+                            "Женский" -> "Женский"
                             else -> ""
                         }
                     } ?: "",
@@ -798,14 +795,13 @@ fun EditUserScreen(
                     onDismissRequest = { genderExpanded = false },
                     modifier = Modifier.background(colorScheme.background)
                 ) {
-                    listOf("male", "female", "other").forEach { option ->
+                    listOf("Мужской", "Женский").forEach { option ->
                         DropdownMenuItem(
                             text = {
                                 Text(
                                     text = when (option) {
-                                        "male" -> "Мужской"
-                                        "female" -> "Женский"
-                                        else -> "Другой"
+                                        "Мужской" -> "Мужской"
+                                        else -> "Женский"
                                     },
                                     fontFamily = montserratFont,
                                     fontSize = 14.sp

@@ -9,6 +9,7 @@ import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.jsonPrimitive
 import org.orbitmvi.orbit.Container
 import org.orbitmvi.orbit.ContainerHost
@@ -42,14 +43,17 @@ class ChatsViewModel(
     private val supabaseWrapper: SupabaseWrapper
 ) : ViewModel(), ContainerHost<ChatsViewState, ChatsSideEffect> {
 
-    override val container: Container<ChatsViewState, ChatsSideEffect> = container(ChatsViewState()) {
-        loadChats(userId)
-        subscribeToNewMessages()
-    }
+    override val container: Container<ChatsViewState, ChatsSideEffect> =
+        container(ChatsViewState()) {
+            loadChats(userId)
+            subscribeToNewMessages()
+            subscribeToParticipantUpdates()
+        }
 
     private val chatCache = LruCache<String, List<Chat>>(1)
     private lateinit var messagesChannel: RealtimeChannel
     private var isSubscribed = false
+    private lateinit var participantsChannel: RealtimeChannel
 
     private fun subscribeToNewMessages() = intent {
         if (isSubscribed) {
@@ -96,6 +100,45 @@ class ChatsViewModel(
         }
     }
 
+    private fun subscribeToParticipantUpdates() = intent {
+        try {
+            participantsChannel = supabaseWrapper.realtime.channel("participants-global")
+            val updateFlow = participantsChannel.postgresChangeFlow<PostgresAction.Update>(
+                schema = "public"
+            ) {
+                table = "chat_participants"
+                filter(
+                    "user_id",
+                    io.github.jan.supabase.postgrest.query.filter.FilterOperator.EQ,
+                    userId
+                )
+            }
+
+            viewModelScope.launch {
+                updateFlow.collect { payload ->
+                    val chatId = payload.record["chat_id"]?.jsonPrimitive?.content ?: ""
+                    val isMuted = payload.record["is_muted"]?.jsonPrimitive?.boolean ?: false
+                    if (chatId.isNotEmpty()) {
+                        intent {
+                            val updatedChats = state.chats.map {
+                                if (it.id == chatId) it.copy(isMuted = isMuted) else it
+                            }
+                            chatCache.put(userId, updatedChats)
+                            reduce { state.copy(chats = updatedChats) }
+                            println("ChatsViewModel: Updated mute status for chatId=$chatId, isMuted=$isMuted")
+                        }
+                    }
+                }
+            }
+
+            participantsChannel.subscribe()
+            println("ChatsViewModel: Successfully subscribed to participant updates")
+        } catch (e: Exception) {
+            println("ChatsViewModel: Error subscribing to participant updates: ${e.message}")
+//            postSideEffect(ChatsSideEffect.ShowError("Не удалось подписаться на обновления участников"))
+        }
+    }
+
     private suspend fun updateChatIfRelevant(chatId: String) {
         if (chatId.isNotEmpty() && supabaseWrapper.postgrest.from("chat_participants")
                 .select { filter { eq("chat_id", chatId); eq("user_id", userId) } }
@@ -104,7 +147,13 @@ class ChatsViewModel(
             intent {
                 chatCache.evictAll()
                 val chats = chatsRepository.fetchUserChats(userId)
-                    .sortedByDescending { it.lastMessageTime?.let { time -> OffsetDateTime.parse(time).toInstant().toEpochMilli() } ?: 0L }
+                    .sortedByDescending {
+                        it.lastMessageTime?.let { time ->
+                            OffsetDateTime.parse(
+                                time
+                            ).toInstant().toEpochMilli()
+                        } ?: 0L
+                    }
                 chatCache.put(userId, chats)
                 reduce { state.copy(chats = chats) }
                 println("ChatsViewModel: Updated chats due to change in chatId=$chatId")
@@ -112,14 +161,30 @@ class ChatsViewModel(
         }
     }
 
+    //    override fun onCleared() {
+//        viewModelScope.launch {
+//            if (::messagesChannel.isInitialized) {
+//                messagesChannel.unsubscribe()
+//                supabaseWrapper.realtime.removeChannel(messagesChannel)
+//                isSubscribed = false
+//                println("ChatsViewModel: Unsubscribed from messages channel")
+//            }
+//        }
+//        super.onCleared()
+//    }
     override fun onCleared() {
         viewModelScope.launch {
             if (::messagesChannel.isInitialized) {
                 messagesChannel.unsubscribe()
                 supabaseWrapper.realtime.removeChannel(messagesChannel)
-                isSubscribed = false
                 println("ChatsViewModel: Unsubscribed from messages channel")
             }
+            if (::participantsChannel.isInitialized) {
+                participantsChannel.unsubscribe()
+                supabaseWrapper.realtime.removeChannel(participantsChannel)
+                println("ChatsViewModel: Unsubscribed from participants channel")
+            }
+            isSubscribed = false
         }
         super.onCleared()
     }
@@ -135,7 +200,11 @@ class ChatsViewModel(
                 return@intent
             }
             val chats = chatsRepository.fetchUserChats(userId)
-                .sortedByDescending { it.lastMessageTime?.let { time -> OffsetDateTime.parse(time).toInstant().toEpochMilli() } ?: 0L }
+                .sortedByDescending {
+                    it.lastMessageTime?.let { time ->
+                        OffsetDateTime.parse(time).toInstant().toEpochMilli()
+                    } ?: 0L
+                }
             chatCache.put(userId, chats)
             println("ChatsViewModel: Fetched ${chats.size} chats, cached for userId=$userId")
             reduce { state.copy(chats = chats, isLoading = false) }
@@ -186,19 +255,38 @@ class ChatsViewModel(
     }
 
     fun toggleSearch() = intent {
-        reduce { state.copy(isSearchActive = !state.isSearchActive, searchQuery = if (state.isSearchActive) "" else state.searchQuery) }
+        reduce {
+            state.copy(
+                isSearchActive = !state.isSearchActive,
+                searchQuery = if (state.isSearchActive) "" else state.searchQuery
+            )
+        }
     }
 
     fun updateSearchQuery(query: String) = intent {
         reduce { state.copy(searchQuery = query) }
     }
 
+    //    fun toggleMuteChat(chatId: String, mute: Boolean) = intent {
+//        chatsRepository.toggleMuteChat(chatId, mute)
+//        val updatedChats = state.chats.map {
+//            if (it.id == chatId) it.copy(isMuted = mute) else it
+//        }
+//        reduce { state.copy(chats = updatedChats) }
+//    }
     fun toggleMuteChat(chatId: String, mute: Boolean) = intent {
-        chatsRepository.toggleMuteChat(chatId, mute)
-        val updatedChats = state.chats.map {
-            if (it.id == chatId) it.copy(isMuted = mute) else it
+        try {
+            chatsRepository.toggleMuteChat(chatId, mute)
+            val updatedChats = state.chats.map {
+                if (it.id == chatId) it.copy(isMuted = mute) else it
+            }
+            chatCache.put(userId, updatedChats) // Добавлено
+            reduce { state.copy(chats = updatedChats) }
+            println("ChatsViewModel: Toggled mute for chatId=$chatId, mute=$mute")
+        } catch (e: Exception) {
+            println("ChatsViewModel: Error toggling mute for chatId=$chatId: ${e.message}")
+            postSideEffect(ChatsSideEffect.ShowError("Ошибка изменения уведомлений"))
         }
-        reduce { state.copy(chats = updatedChats) }
     }
 
     fun markChatAsRead(chatId: String) = intent {
@@ -241,7 +329,11 @@ class ChatsViewModel(
             chatsRepository.clearChatHistory(chatId, userId)
             val updatedChats = state.chats.map {
                 if (it.id == chatId) {
-                    it.copy(lastMessage = null, lastMessageTime = null, unreadCount = getUnreadCount(chatId, userId))
+                    it.copy(
+                        lastMessage = null,
+                        lastMessageTime = null,
+                        unreadCount = getUnreadCount(chatId, userId)
+                    )
                 } else it
             }
             reduce { state.copy(chats = updatedChats) }

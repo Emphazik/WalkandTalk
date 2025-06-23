@@ -2,6 +2,7 @@ package ru.walkAndTalk.data.repository
 
 import android.net.Uri
 import android.util.Log
+import android.util.LruCache
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns.Companion.raw
 import io.github.jan.supabase.postgrest.result.PostgrestResult
@@ -26,6 +27,8 @@ class RemoteUsersRepositoryImpl(
     private val supabaseWrapper: SupabaseWrapper,
     private val storageRepository: StorageRepository
 ) : RemoteUsersRepository {
+
+    private val userCache = LruCache<String, User>(50) // Кэш на 50 юзерс
 
     override suspend fun updateUserCity(userId: String, city: String): PostgrestResult {
         return supabaseWrapper.postgrest[Table.USERS]
@@ -53,20 +56,20 @@ class RemoteUsersRepositoryImpl(
             .select()
             .decodeList<UserDto>()
             .fromDtoList()
-            .also { Log.d("RemoteUsersRepository", "Fetched all users: ${it.size}") }
+            .also { users ->
+                users.forEach { userCache.put(it.id, it) } // Сохраняем в кэш
+                Log.d("RemoteUsersRepository", "Fetched all users: ${users.size}")
+            }
     }
-
-//    override suspend fun fetchById(id: String): User? {
-//        Log.d("RemoteUsersRepository", "Fetching user by id: $id")
-//        return supabaseWrapper.postgrest[Table.USERS]
-//            .select { filter { UserDto::id eq id } }
-//            .decodeSingleOrNull<UserDto>()
-//            ?.fromDto()
-//            .also { Log.d("RemoteUsersRepository", "Fetched user by id: $id, result: $it") }
-//    }
 
     override suspend fun fetchById(id: String): User? {
         Log.d("RemoteUsersRepository", "Fetching user by id: $id")
+        // Проверяем кэш
+        userCache.get(id)?.let {
+            Log.d("RemoteUsersRepository", "Fetched user from cache: $id, result: $it")
+            return it
+        }
+
         val rawResponse = supabaseWrapper.postgrest[Table.USERS]
             .select {
                 filter { UserDto::id eq id }
@@ -76,7 +79,10 @@ class RemoteUsersRepositoryImpl(
             .decodeSingleOrNull<UserDto>()
             ?.also { Log.d("RemoteUsersRepository", "Decoded UserDto: $it") }
             ?.fromDto()
-            .also { Log.d("RemoteUsersRepository", "Fetched user by id: $id, result: $it") }
+            ?.also {
+                userCache.put(id, it) // Сохраняем в кэш
+                Log.d("RemoteUsersRepository", "Fetched user by id: $id, result: $it")
+            }
     }
 
     override suspend fun fetchByVkId(id: Long): User? {
@@ -85,7 +91,10 @@ class RemoteUsersRepositoryImpl(
             .select { filter { UserDto::vkId eq id } }
             .decodeSingleOrNull<UserDto>()
             ?.fromDto()
-            .also { Log.d("RemoteUsersRepository", "Fetched user by vkId: $id, result: $it") }
+            ?.also {
+                userCache.put(it.id, it) // Сохраняем в кэш
+                Log.d("RemoteUsersRepository", "Fetched user by vkId: $id, result: $it")
+            }
     }
 
     override suspend fun add(user: User) {
@@ -95,6 +104,7 @@ class RemoteUsersRepositoryImpl(
         )
         try {
             supabaseWrapper.postgrest[Table.USERS].insert(user.toDto())
+            userCache.put(user.id, user) // Сохраняем в кэш
             Log.d("RemoteUsersRepository", "User added successfully: ${user.email}")
         } catch (e: Exception) {
             Log.e("RemoteUsersRepository", "Failed to add user: ${e.message}", e)
@@ -122,7 +132,11 @@ class RemoteUsersRepositoryImpl(
             ) {
                 filter { UserDto::id eq userId }
             }
-            .also { Log.d("RemoteUsersRepository", "vkId updated for userId: $userId") }
+            .also {
+                // Инвалидируем кэш для userId
+                userCache.remove(userId)
+                Log.d("RemoteUsersRepository", "vkId updated for userId: $userId")
+            }
     }
 
     override suspend fun searchUsers(query: String): List<User> {
@@ -130,7 +144,6 @@ class RemoteUsersRepositoryImpl(
         try {
             val users = if (query.startsWith("#") && query.length > 1) {
                 val tagQuery = query.drop(1).trim()
-                // Находим ID интереса по имени
                 val interest = supabaseWrapper.postgrest[Table.INTERESTS]
                     .select {
                         filter { ilike("name", "%$tagQuery%") }
@@ -158,6 +171,7 @@ class RemoteUsersRepositoryImpl(
                     .decodeList<UserDto>()
                     .fromDtoList()
             }
+            users.forEach { userCache.put(it.id, it) } // Сохраняем в кэш
             Log.d("RemoteUsersRepository", "Found ${users.size} users for query: $query")
             return users
         } catch (e: Exception) {
@@ -202,6 +216,7 @@ class RemoteUsersRepositoryImpl(
             ) {
                 filter { UserDto::id eq userId }
             }
+            .also { userCache.remove(userId) } // Инвалидируем кэш
     }
 
     override suspend fun updateBio(userId: String, bio: String) {
@@ -212,6 +227,7 @@ class RemoteUsersRepositoryImpl(
             ) {
                 filter { UserDto::id eq userId }
             }
+            .also { userCache.remove(userId) } // Инвалидируем кэш
     }
 
     override suspend fun updateGoals(userId: String, goals: String) {
@@ -222,18 +238,9 @@ class RemoteUsersRepositoryImpl(
             ) {
                 filter { UserDto::id eq userId }
             }
+            .also { userCache.remove(userId) } // Инвалидируем кэш
     }
 
-    //    override suspend fun uploadProfileImage(userId: String, imageUri: Uri, fileName: String) {
-//        Log.d("RemoteUsersRepository", "Загрузка изображения для userId: $userId, fileName: $fileName")
-//        storageRepository.upload(Bucket.PROFILE_IMAGES, fileName, imageUri)
-//    }
-//
-//    override suspend fun getProfileImageUrl(userId: String, fileName: String): String {
-//        Log.d("RemoteUsersRepository", "Получение URL для userId: $userId, fileName: $fileName")
-//        return storageRepository.createSignedUrl(Bucket.PROFILE_IMAGES, fileName)
-//            //?: "https://tvecrsehuuqrjwjfgljf.supabase.co/storage/v1/object/sign/profile-images/default_profile.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2Y2YjA0NTBiLWVkNDktNGFkNi1iMGM2LWJiYzZmNzM0ZGY2YyJ9.eyJ1cmwiOiJwcm9maWxlLWltYWdlcy9kZWZhdWx0X3Byb2ZpbGUucG5nIiwiaWF0IjoxNzQ1NTI2MjM1LCJleHAiOjE3NzcwNjIyMzV9.RrxpUDm_OaKOOFFBICiPfVYgCdVTKMcyKqq6TKIYTv0"
-//    }
     override suspend fun uploadProfileImage(userId: String, imageUri: Uri, fileName: String) {
         Log.d(
             "RemoteUsersRepository",
@@ -264,6 +271,7 @@ class RemoteUsersRepositoryImpl(
             ) {
                 filter { UserDto::id eq userId }
             }
+            .also { userCache.remove(userId) } // Инвалидируем кэш
     }
 
     override suspend fun updateUserProfile(
@@ -334,7 +342,7 @@ class RemoteUsersRepositoryImpl(
         )
         supabaseWrapper.postgrest.from(Table.USERS).update(updates) {
             filter { eq("id", userId) }
-        }
+        }.also { userCache.remove(userId) } // Инвалидируем кэш
     }
 
     override suspend fun updateShowReviews(userId: String, showReviews: Boolean): Boolean {
@@ -348,6 +356,7 @@ class RemoteUsersRepositoryImpl(
                     filter { eq("id", userId) }
                 }
             Log.d("RemoteUsersRepository", "Successfully updated show_reviews for userId: $userId")
+            userCache.remove(userId) // Инвалидируем кэш
             true
         } catch (e: Exception) {
             Log.e("RemoteUsersRepository", "Error updating show_reviews: ${e.message}", e)
@@ -358,5 +367,6 @@ class RemoteUsersRepositoryImpl(
     override suspend fun logout() {
         Log.d("RemoteUsersRepository", "Выполняется выход из аккаунта")
         supabaseWrapper.auth.signOut()
+        userCache.evictAll() // Очищаем кэш при выходе
     }
 }
